@@ -29,6 +29,25 @@ cmake --build build/release
 
 At the end of the build, the VST3 and AU are copied to `~/Library/Audio/Plug-Ins/{VST3,Components}`. The Standalone app is in `build/release/MiniMoop_artefacts/Release/Standalone/`.
 
+### Universal binaries (Apple Silicon and Intel)
+
+By default the build produces **universal** binaries containing both an Apple Silicon (`arm64`) and an Intel (`x86_64`) version, for macOS 11 or later. Check with:
+
+```sh
+lipo -archs ~/Library/Audio/Plug-Ins/VST3/Mini\ Moop.vst3/Contents/MacOS/Mini\ Moop   # x86_64 arm64
+```
+
+During development, building only for your own machine is about twice as fast. Use a separate build folder so the universal build is not overwritten:
+
+```sh
+cmake -S . -B build/arm64 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+cmake --build build/arm64
+```
+
+The architecture setting is stored in the CMake cache, so changing it requires a new build folder (or deleting the existing one). Note that every build copies its plugins to `~/Library/Audio/Plug-Ins`, so an `arm64`-only build replaces the installed universal plugins until you rebuild `build/release`.
+
+To test the Intel version on an Apple Silicon Mac, install Rosetta (`softwareupdate --install-rosetta --agree-to-license`) and prefix commands with `arch -x86_64`, for example `arch -x86_64 build/release/minimoop_tests`. If `arch -x86_64 auval` reports "didn't find the component" right after installing, run `killall -9 AudioComponentRegistrar` to refresh the Audio Unit registry.
+
 `build/release/MiniMoopSnapshot_artefacts/Release/MiniMoopSnapshot panel.png` renders the panel to an image without a host.
 
 If the link step fails with "linking with album file" after a Command Line Tools update, delete `build/release` and build again from scratch. LTO objects built by an older compiler cannot be linked by the new linker.
