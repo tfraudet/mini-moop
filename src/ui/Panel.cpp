@@ -161,7 +161,80 @@ const juce::Rectangle<float> frontPanel { caseLeft, 26.0f, caseRight - caseLeft,
 const juce::Rectangle<float> settingsStrip { caseLeft, 460.0f, caseRight - caseLeft, 60.0f };
 const juce::Rectangle<float> keyBed { caseLeft, 532.0f, caseRight - caseLeft, 216.0f };
 constexpr float titleLine = 398.0f;
-constexpr float leatherScale = 0.7f; // 1920 px photo -> 1344 units: covers the case width once
+constexpr float leatherScale = 0.4f; // grain size: 1920 px tile -> 768 panel units
+
+/** Turns a texture photo into a seamlessly tiling image:
+    1. flattens the photo's large-scale lighting (subtracts a heavily blurred copy),
+    2. cross-fades an overlap band of each edge into the opposite edge, so the
+       tile's right/bottom border continues exactly into its left/top border. */
+juce::Image makeSeamlessTile (const juce::Image& photo)
+{
+    const int w = photo.getWidth(), h = photo.getHeight();
+    auto rgb = photo.convertedToFormat (juce::Image::RGB);
+
+    // low-frequency lighting map: shrink to a few pixels, then stretch back smoothly
+    juce::Image small (juce::Image::RGB, 24, 16, false), lighting (juce::Image::RGB, w, h, false);
+    {
+        juce::Graphics gs (small);
+        gs.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+        gs.drawImage (rgb, 0, 0, 24, 16, 0, 0, w, h);
+        juce::Graphics gl (lighting);
+        gl.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+        gl.drawImage (small, 0, 0, w, h, 0, 0, 24, 16);
+    }
+
+    std::vector<float> flat (size_t (w * h * 3));
+    {
+        const juce::Image::BitmapData src (rgb, juce::Image::BitmapData::readOnly);
+        const juce::Image::BitmapData low (lighting, juce::Image::BitmapData::readOnly);
+        double mean[3] {};
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+            {
+                const auto c = src.getPixelColour (x, y), l = low.getPixelColour (x, y);
+                float* f = &flat[size_t ((y * w + x) * 3)];
+                f[0] = float (c.getRed() - l.getRed());
+                f[1] = float (c.getGreen() - l.getGreen());
+                f[2] = float (c.getBlue() - l.getBlue());
+                mean[0] += l.getRed(); mean[1] += l.getGreen(); mean[2] += l.getBlue();
+            }
+        for (size_t i = 0; i < flat.size(); ++i)
+            flat[i] += float (mean[i % 3] / double (w * h));
+    }
+
+    // Edge cross-fade. Tile size (w - ox) x (h - oy); for the first `o` pixels the
+    // tile blends from the pixels just past its far edge (t = 0) to its own (t = 1),
+    // so the wrap-around neighbour of the last pixel is its true neighbour in the photo.
+    const int ox = w / 6, oy = h / 6;
+    const int tw = w - ox, th = h - oy;
+    auto at = [&] (int x, int y, int k) { return flat[size_t ((y * w + x) * 3 + k)]; };
+    auto blendX = [&] (int x, int y, int k) {
+        if (x >= ox) return at (x, y, k);
+        const float t = (float (x) + 0.5f) / float (ox);
+        return t * at (x, y, k) + (1.0f - t) * at (x + tw, y, k);
+    };
+
+    juce::Image tile (juce::Image::RGB, tw, th, false);
+    juce::Image::BitmapData out (tile, juce::Image::BitmapData::writeOnly);
+    for (int y = 0; y < th; ++y)
+        for (int x = 0; x < tw; ++x)
+        {
+            float v[3];
+            for (int k = 0; k < 3; ++k)
+            {
+                if (y >= oy)
+                    v[k] = blendX (x, y, k);
+                else
+                {
+                    const float t = (float (y) + 0.5f) / float (oy);
+                    v[k] = t * blendX (x, y, k) + (1.0f - t) * blendX (x, y + th, k);
+                }
+            }
+            auto c8 = [] (float f) { return (juce::uint8) juce::jlimit (0.0f, 255.0f, f); };
+            out.setPixelColour (x, y, juce::Colour (c8 (v[0]), c8 (v[1]), c8 (v[2])));
+        }
+    return tile;
+}
 const juce::Range<float> sectionX[] = { { 34, 234 }, { 234, 614 }, { 614, 844 }, { 844, 1224 }, { 1224, 1366 } };
 const char* sectionTitle[] = { "CONTROLLERS", "OSCILLATOR BANK", "MIXER", "MODIFIERS", "OUTPUT" };
 } // namespace
@@ -175,10 +248,10 @@ Panel::Panel (MiniMoopProcessor& p)
     setLookAndFeel (&lnf);
     setSize (baseWidth, baseHeight);
     wood = juce::ImageCache::getFromMemory (MiniMoopAssets::wood_jpg, MiniMoopAssets::wood_jpgSize);
+    brushed = juce::ImageCache::getFromMemory (MiniMoopAssets::brushed_jpg, MiniMoopAssets::brushed_jpgSize);
     {
-        // Panel covering: one copy of the photo spans the whole case (no tiling,
-        // no mirror seams). A stray speck in the photo is cloned over with
-        // neighbouring grain.
+        // Panel covering: the photo (with a stray speck cloned over) made into a
+        // seamless tile, so it can be drawn at a fine grain size.
         const auto src = juce::ImageCache::getFromMemory (MiniMoopAssets::leather_jpg, MiniMoopAssets::leather_jpgSize);
         if (src.isValid())
         {
@@ -187,6 +260,7 @@ Panel::Panel (MiniMoopProcessor& p)
             const float sx = float (src.getWidth()) / 1920.0f, sy = float (src.getHeight()) / 1282.0f;
             const int px = int (1062.0f * sx), py = int (732.0f * sy), pw = int (30.0f * sx), ph = int (30.0f * sy);
             tg.drawImage (src, px, py, pw, ph, px - int (70.0f * sx), py, pw, ph);
+            leather = makeSeamlessTile (leather);
         }
     }
 
@@ -574,17 +648,82 @@ void Panel::paint (juce::Graphics& g)
     g.drawRect (juce::Rectangle<float> (172.0f, 534.0f, 1192.0f, 212.0f), 2.0f);
 
     // ---- name plate
+    // Brushed-metal plate, screwed onto the strip, with engraved lettering.
     const auto plate = juce::Rectangle<float> (1180.0f, 468.0f, 172.0f, 44.0f);
-    g.setColour (juce::Colours::black.withAlpha (0.5f));
-    g.fillRoundedRectangle (plate, 3.0f);
-    g.setColour (colours::legend.withAlpha (0.35f));
-    g.drawRoundedRectangle (plate.reduced (1.0f), 3.0f, 1.0f);
-    g.setColour (colours::legend);
-    g.setFont (PanelLookAndFeel::legendFont (21.0f));
-    g.drawText ("mini moop", plate.withHeight (28.0f).translated (0.0f, 2.0f), juce::Justification::centred);
-    g.setColour (colours::legendDim);
-    g.setFont (PanelLookAndFeel::legendFont (7.5f));
-    g.drawText ("CIRCUIT SIMULATION SYNTH", plate.withTop (plate.getY() + 28.0f).withHeight (12.0f), juce::Justification::centred);
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.fillRoundedRectangle (plate.translated (1.0f, 2.0f).expanded (1.0f), 3.5f);
+    {
+        juce::Graphics::ScopedSaveState save (g);
+        juce::Path outline;
+        outline.addRoundedRectangle (plate, 3.0f);
+        g.reduceClipRegion (outline);
+        if (brushed.isValid())
+        {
+            const float scale = plate.getWidth() / float (brushed.getWidth());
+            const float yOff = plate.getCentreY() - 0.5f * float (brushed.getHeight()) * scale;
+            g.drawImageTransformed (brushed, juce::AffineTransform::scale (scale).translated (plate.getX(), yOff));
+        }
+        else
+        {
+            g.setColour (juce::Colour (0xff4a4a4c));
+            g.fillRect (plate);
+        }
+        // sheen: light from above
+        juce::ColourGradient sheen (juce::Colours::white.withAlpha (0.12f), plate.getTopLeft(),
+                                    juce::Colours::black.withAlpha (0.25f), plate.getBottomLeft(), false);
+        g.setGradientFill (sheen);
+        g.fillRect (plate);
+    }
+    // bevel
+    g.setColour (juce::Colours::white.withAlpha (0.28f));
+    g.drawLine (plate.getX() + 3.0f, plate.getY() + 0.75f, plate.getRight() - 3.0f, plate.getY() + 0.75f, 1.0f);
+    g.setColour (juce::Colours::black.withAlpha (0.7f));
+    g.drawRoundedRectangle (plate, 3.0f, 1.0f);
+    // two screws
+    for (float sx : { plate.getX() + 9.0f, plate.getRight() - 9.0f })
+    {
+        const auto screw = juce::Rectangle<float> (6.0f, 6.0f).withCentre ({ sx, plate.getCentreY() });
+        juce::ColourGradient head (juce::Colour (0xffd0d0cc), screw.getTopLeft(), juce::Colour (0xff5a5a58), screw.getBottomRight(), false);
+        g.setGradientFill (head);
+        g.fillEllipse (screw);
+        g.setColour (juce::Colours::black.withAlpha (0.6f));
+        g.drawEllipse (screw, 0.6f);
+        g.drawLine (screw.getX() + 1.2f, screw.getBottom() - 1.2f, screw.getRight() - 1.2f, screw.getY() + 1.2f, 0.8f);
+    }
+    // Engraved lettering filled with white paint. Light comes from above, so the
+    // cut's lower lip catches a highlight under each letter, while the cut's
+    // upper wall throws a shadow over the top of the paint inside the letter.
+    auto engrave = [&] (const juce::String& text, juce::Rectangle<float> area, float height, juce::Colour paint) {
+        juce::GlyphArrangement glyphs;
+        glyphs.addFittedText (PanelLookAndFeel::legendFont (height), text, area.getX(), area.getY(),
+                              area.getWidth(), area.getHeight(), juce::Justification::centred, 1);
+        juce::Path letters;
+        glyphs.createPath (letters);
+        const bool large = height > 12.0f;
+
+        // lower lip of the cut catches the light (thin, hard edge)
+        g.setColour (juce::Colours::white.withAlpha (0.22f));
+        g.fillPath (letters, juce::AffineTransform::translation (0.0f, 0.9f));
+        // soft darkening of the metal just above the cut
+        juce::DropShadow (juce::Colours::black.withAlpha (0.5f), 1, { 0, -1 }).drawForPath (g, letters);
+
+        // paint fill
+        g.setColour (paint);
+        g.fillPath (letters);
+
+        // soft inner shadow cast by the upper wall of the cut onto the paint
+        juce::Graphics::ScopedSaveState save (g);
+        g.reduceClipRegion (letters);
+        // (a thin sharp band: a blur would grey out strokes this narrow)
+        juce::Path outside;
+        outside.addRectangle (area.expanded (12.0f));
+        outside.setUsingNonZeroWinding (false);
+        outside.addPath (letters, juce::AffineTransform::translation (0.0f, large ? 0.6f : 0.4f));
+        g.setColour (juce::Colours::black.withAlpha (large ? 0.55f : 0.35f));
+        g.fillPath (outside);
+    };
+    engrave ("mini moop", plate.withHeight (28.0f).translated (0.0f, 2.0f), 21.0f, juce::Colour (0xfff4f1e8));
+    engrave ("CIRCUIT SIMULATION SYNTH", plate.withTop (plate.getY() + 27.0f).withHeight (13.0f), 8.5f, juce::Colour (0xffd9d5ca));
 
     // ---- legends
     for (const auto& l : legends)

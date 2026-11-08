@@ -70,7 +70,7 @@ if(MINIMOOP_BUILD_PLUGIN)
     juce_add_binary_data(MiniMoopAssets
         HEADER_NAME MiniMoopAssets.h
         NAMESPACE MiniMoopAssets
-        SOURCES resources/wood.jpg resources/leather.jpg)
+        SOURCES resources/wood.jpg resources/leather.jpg resources/brushed.jpg)
     set_target_properties(MiniMoopAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     juce_add_plugin(MiniMoop

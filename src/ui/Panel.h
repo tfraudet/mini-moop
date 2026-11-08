@@ -109,7 +109,7 @@ private:
     struct Heading { juce::String text; float x, y, lineEnd; };
     std::vector<Heading> headings;
 
-    juce::Image wood, leather;
+    juce::Image wood, leather, brushed;
     juce::ComboBox presetBox;
     juce::TextButton prevProgram { "<" }, nextProgram { ">" };
     Wheel pitchWheel, modWheel;
