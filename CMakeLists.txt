@@ -18,13 +18,18 @@
 
 cmake_minimum_required(VERSION 3.24)
 
+# macOS: universal binaries (Apple Silicon + Intel), macOS 11 or later.
+# Must be set before project(). Override with -DCMAKE_OSX_ARCHITECTURES=arm64
+# for faster single-architecture development builds.
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Target architectures")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
+
 project(MiniMoop VERSION 1.0.0 LANGUAGES C CXX)
 
 string(TIMESTAMP MINIMOOP_BUILD_DATE "%Y-%m-%d")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
