@@ -18,7 +18,9 @@
 
 cmake_minimum_required(VERSION 3.24)
 
-project(MiniMoop VERSION 0.1.0 LANGUAGES C CXX)
+project(MiniMoop VERSION 1.0.0 LANGUAGES C CXX)
+
+string(TIMESTAMP MINIMOOP_BUILD_DATE "%Y-%m-%d")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -94,9 +96,12 @@ if(MINIMOOP_BUILD_PLUGIN)
         src/PluginEditor.cpp
         src/Parameters.cpp
         src/ui/PanelLookAndFeel.cpp
-        src/ui/Panel.cpp)
+        src/ui/Panel.cpp
+        src/ui/AboutBox.cpp)
 
     target_compile_definitions(MiniMoop PUBLIC
+        MINIMOOP_VERSION_STRING="${PROJECT_VERSION}"
+        MINIMOOP_BUILD_DATE="${MINIMOOP_BUILD_DATE}"
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
         JUCE_VST3_CAN_REPLACE_VST2=0
@@ -121,8 +126,11 @@ if(MINIMOOP_BUILD_PLUGIN)
         src/PluginEditor.cpp
         src/Parameters.cpp
         src/ui/PanelLookAndFeel.cpp
-        src/ui/Panel.cpp)
+        src/ui/Panel.cpp
+        src/ui/AboutBox.cpp)
     target_compile_definitions(MiniMoopSnapshot PRIVATE
+        MINIMOOP_VERSION_STRING="${PROJECT_VERSION}"
+        MINIMOOP_BUILD_DATE="${MINIMOOP_BUILD_DATE}"
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
     target_link_libraries(MiniMoopSnapshot PRIVATE
         minimoop_dsp MiniMoopAssets juce::juce_audio_utils juce::juce_dsp

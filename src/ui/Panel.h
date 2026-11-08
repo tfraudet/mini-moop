@@ -22,6 +22,7 @@
 // non-original settings; the left-hand controller (wheels, GLIDE / DECAY)
 // and a 44-key keyboard (F to C).
 
+#include "AboutBox.h"
 #include "PanelLookAndFeel.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -71,6 +72,8 @@ public:
     explicit Panel (MiniMoopProcessor&);
     ~Panel() override;
 
+    void showAbout() { about.show(); }
+
     void paint (juce::Graphics&) override;
     void resized() override {}
 
@@ -114,6 +117,8 @@ private:
     juce::TextButton prevProgram { "<" }, nextProgram { ">" };
     Wheel pitchWheel, modWheel;
     Keyboard keyboard;
+    BurgerButton burger;
+    AboutBox about { wood };
 };
 
 } // namespace mm::ui

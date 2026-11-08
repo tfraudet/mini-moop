@@ -123,7 +123,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     l.add (std::make_unique<APC> (juce::ParameterID { id::quality, 1 }, "Quality",
                                   juce::StringArray { "Eco 2x", "High 4x", "Ultra 8x" }, 1));
     l.add (std::make_unique<APF> (juce::ParameterID { id::drift, 1 }, "Analog Drift",
-                                  juce::NormalisableRange<float> (0.0f, 3.0f, 0.0f), 1.0f));
+                                  juce::NormalisableRange<float> (0.0f, 3.0f, 0.1f), 1.0f,
+                                  juce::AudioParameterFloatAttributes()
+                                      .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); })));
     l.add (std::make_unique<API> (juce::ParameterID { id::unitSeed, 1 }, "Unit", 1, 999, 1));
     l.add (std::make_unique<API> (juce::ParameterID { id::bendRange, 1 }, "Bend Range", 1, 12, 5));
     return l;

@@ -1,8 +1,20 @@
 # Mini Moop
 
-A VST3, AU and Standalone synthesizer for personal use. It simulates, at component level, the circuits of a classic 1970s monophonic "Model D"-type synthesizer, and adds a polyphonic mode.
+Mini Moop is a synthesizer plugin that simulates the Minimoog Model D at the level of its electronic components. It is available as a **VST3** plugin, an **AU** (Audio Unit) plugin and a **standalone** application. On top of the original monophonic instrument, it adds an optional polyphonic mode.
 
-Built with JUCE 9.0.5. Licensed under the GNU AGPLv3 (see [License](#license)).
+### How the simulation works
+
+Most software synthesizers imitate the *sound* of an instrument with signal-processing recipes tuned by ear. Mini Moop instead imitates the *circuit*: it takes the electronic schematics of the original and calculates, many thousands of times per second, what every part of the circuit does.
+
+- **Each block of the schematic is rebuilt from its parts.** The oscillators, the famous transistor ladder filter, the envelopes, the amplifier, the mixer and the noise source are each described by their actual components: transistors, diodes, capacitors, resistors and op-amps, with values taken from the service manual.
+- **The components behave like the real ones.** A transistor is not a perfect switch or amplifier: its behaviour depends on its temperature and on small manufacturing differences. These imperfections are modelled, and they are what give the instrument its character, such as the warm overdrive when the mixer is pushed or the way the filter whistles at high resonance.
+- **Every voice is a slightly different instrument.** Real components are never exactly at their nominal value. Each voice draws its own set of component values, then tunes itself the way a technician would calibrate a real unit. Changing the "Unit" setting is like playing another example of the instrument.
+- **Tuning drift comes from physics, not from a random wobble.** The circuits warm up and cool down slightly over time, and the pitch drifts as a consequence, as on the original.
+- **The models are checked against a reference.** The component models are compared with ngspice, a standard circuit simulator used by electronics engineers, and match it closely.
+
+Minimoog and Model D are trademarks of Moog Music Inc. Mini Moop is an independent personal project, not affiliated with or endorsed by Moog Music, and uses no original logo or artwork.
+
+Built with JUCE 9.0.5. Licensed under the GNU AGPLv3 or later (see [License](#license)).
 
 ## Building (macOS, Command Line Tools are enough)
 
@@ -118,7 +130,7 @@ Rocker switches are two-state choice parameters (Off/On) rather than boolean par
 
 ## License
 
-Mini Moop is licensed under the **GNU Affero General Public License v3.0**. The full text is in [`LICENSE`](LICENSE).
+Mini Moop is licensed under the **GNU Affero General Public License v3.0 or later** (`AGPL-3.0-or-later`): you may use it under the terms of version 3 or, at your option, any later version published by the Free Software Foundation. The full text of version 3 is in [`LICENSE`](LICENSE).
 
 It is built on the JUCE framework, which is dual-licensed under the AGPLv3 and the commercial [JUCE 9 licence](https://juce.com/legal/juce-9-licence/). This project uses JUCE under the AGPLv3.
 

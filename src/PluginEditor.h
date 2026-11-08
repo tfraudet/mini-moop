@@ -29,6 +29,7 @@ public:
     explicit MiniMoopEditor (MiniMoopProcessor&);
     void resized() override;
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
+    void showAbout() { panel.showAbout(); }
 
 private:
     mm::ui::Panel panel;

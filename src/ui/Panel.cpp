@@ -21,6 +21,7 @@
 #include "../Parameters.h"
 #include "../PluginProcessor.h"
 #include "../Presets.h"
+#include "AboutBox.h"
 #include "LedDisplay.h"
 #include "Tooltips.h"
 
@@ -384,6 +385,10 @@ Panel::Panel (MiniMoopProcessor& p)
     keyboard.setColour (juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, colours::rockerOrange.withAlpha (0.15f));
     keyboard.setColour (juce::MidiKeyboardComponent::keyDownOverlayColourId, colours::rockerOrange.withAlpha (0.45f));
 
+    // About overlay (hidden until the burger button is clicked)
+    about.setBounds (getLocalBounds());
+    addChildComponent (about);
+
     startTimerHz (30);
 }
 
@@ -483,8 +488,13 @@ void Panel::buildExtras()
         sliders.push_back (std::move (s));
     };
 
-    caption ("PROGRAM", 52, 120);
-    presetBox.setBounds (52, y, 196, h);
+    burger.setBounds (52, y, 30, h);
+    burger.setTooltip ("About Mini Moop");
+    burger.onClick = [this] { about.show(); };
+    addAndMakeVisible (burger);
+
+    caption ("PROGRAM", 90, 120);
+    presetBox.setBounds (90, y, 196, h);
     for (int i = 0; i < mm::numFactoryPresets; ++i)
         presetBox.addItem (juce::String (i + 1).paddedLeft ('0', 3) + " " + mm::factoryPresets[i].name, i + 1);
     presetBox.setSelectedId (proc.getCurrentProgram() + 1, juce::dontSendNotification);
@@ -494,8 +504,8 @@ void Panel::buildExtras()
         if (idx >= 0 && idx != proc.getCurrentProgram()) proc.setCurrentProgram (idx);
     };
     addAndMakeVisible (presetBox);
-    prevProgram.setBounds (254, y + 2, 26, h - 4);
-    nextProgram.setBounds (284, y + 2, 26, h - 4);
+    prevProgram.setBounds (292, y + 2, 26, h - 4);
+    nextProgram.setBounds (322, y + 2, 26, h - 4);
     prevProgram.setTooltip ("Previous program");
     nextProgram.setTooltip ("Next program");
     prevProgram.onClick = [this] { stepProgram (-1); };
@@ -503,29 +513,29 @@ void Panel::buildExtras()
     addAndMakeVisible (prevProgram);
     addAndMakeVisible (nextProgram);
 
-    caption ("VOICES", 334, 80);
-    combo (id::voiceMode, 334, 84);
-    caption ("POLY", 440, 80);
-    incDec (id::voices, 440, 108);
-    caption ("QUALITY", 570, 100);
-    combo (id::quality, 570, 142);
+    caption ("VOICES", 372, 80);
+    combo (id::voiceMode, 372, 84);
+    caption ("POLY", 478, 80);
+    incDec (id::voices, 478, 108);
+    caption ("QUALITY", 608, 100);
+    combo (id::quality, 608, 142);
 
-    caption ("DRIFT", 732, 80);
+    caption ("DRIFT", 770, 80);
     {
         auto s = std::make_unique<juce::Slider> (juce::Slider::LinearHorizontal, juce::Slider::NoTextBox);
-        s->setBounds (732, y, 80, h);
+        s->setBounds (770, y, 80, h);
         s->setPopupDisplayEnabled (true, false, this);
         s->setTooltip (tooltipFor (id::drift));
         addAndMakeVisible (*s);
         sliderAtt.push_back (std::make_unique<SliderAttachment> (proc.state, id::drift, *s));
         sliders.push_back (std::move (s));
     }
-    caption ("UNIT", 832, 80);
-    incDec (id::unitSeed, 832, 114);
-    caption ("BEND", 966, 80);
-    incDec (id::bendRange, 966, 114);
-    caption ("FEEDBACK", 1100, 70);
-    rocker (id::feedback, { 1112, 476, 22, 38 }, "orange");
+    caption ("UNIT", 870, 80);
+    incDec (id::unitSeed, 870, 114);
+    caption ("BEND", 1004, 80);
+    incDec (id::bendRange, 1004, 114);
+    caption ("FEEDBACK", 1138, 70);
+    rocker (id::feedback, { 1150, 476, 22, 38 }, "orange");
 }
 
 void Panel::stepProgram (int delta)
@@ -653,7 +663,7 @@ void Panel::paint (juce::Graphics& g)
 
     // ---- name plate
     // Brushed-metal plate, screwed onto the strip, with engraved lettering.
-    const auto plate = juce::Rectangle<float> (1180.0f, 468.0f, 172.0f, 44.0f);
+    const auto plate = juce::Rectangle<float> (1212.0f, 468.0f, 140.0f, 44.0f);
     g.setColour (juce::Colours::black.withAlpha (0.6f));
     g.fillRoundedRectangle (plate.translated (1.0f, 2.0f).expanded (1.0f), 3.5f);
     {
@@ -727,7 +737,7 @@ void Panel::paint (juce::Graphics& g)
         g.fillPath (outside);
     };
     engrave ("mini moop", plate.withHeight (28.0f).translated (0.0f, 2.0f), 21.0f, juce::Colour (0xfff4f1e8));
-    engrave ("CIRCUIT SIMULATION SYNTH", plate.withTop (plate.getY() + 27.0f).withHeight (13.0f), 8.5f, juce::Colour (0xffd9d5ca));
+    engrave ("CIRCUIT SIMULATION SYNTH", plate.withTop (plate.getY() + 27.0f).withHeight (13.0f).reduced (14.0f, 0.0f), 7.5f, juce::Colour (0xffd9d5ca));
 
     // ---- legends
     for (const auto& l : legends)

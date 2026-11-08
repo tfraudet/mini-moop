@@ -17,7 +17,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Renders the plugin editor to a PNG (UI verification without a host).
-// Usage: MiniMoopSnapshot <out.png> [scale]
+// Usage: MiniMoopSnapshot <out.png> [scale] [about]
 
 #include "../../src/PluginEditor.h"
 #include "../../src/PluginProcessor.h"
@@ -33,6 +33,9 @@ int main (int argc, char** argv)
     MiniMoopProcessor proc;
     std::unique_ptr<juce::AudioProcessorEditor> editor (proc.createEditor());
     editor->setSize (mm::ui::Panel::baseWidth, mm::ui::Panel::baseHeight);
+    if (argc > 3 && juce::String (argv[3]) == "about")
+        if (auto* e = dynamic_cast<MiniMoopEditor*> (editor.get()))
+            e->showAbout();
     const auto img = editor->createComponentSnapshot (editor->getLocalBounds(), true, scale);
     out.deleteFile();
     juce::FileOutputStream stream (out);
