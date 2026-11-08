@@ -73,6 +73,7 @@ public:
                            juce::Slider::SliderStyle, juce::Slider&) override;
 
     juce::Font getLabelFont (juce::Label&) override;
+    void drawLabel (juce::Graphics&, juce::Label&) override;
     juce::Font getComboBoxFont (juce::ComboBox&) override;
     juce::Font getPopupMenuFont() override;
 

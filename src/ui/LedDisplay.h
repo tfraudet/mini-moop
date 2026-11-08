@@ -1,0 +1,171 @@
+// Mini Moop - circuit-simulation synthesizer
+// Copyright (C) 2026 Thierry Fraudet
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+#pragma once
+// Dot-matrix LED display: a continuous grid of LEDs behind the glass, 5x7
+// characters with one blank column between them. Lit dots glow, unlit dots
+// stay faintly visible. Text too long for the window scrolls like a marquee.
+
+#include <juce_gui_basics/juce_gui_basics.h>
+
+#include <cstdint>
+
+namespace mm::ui::led
+{
+
+/** Classic 5x7 font, printable ASCII 0x20..0x7E. One byte per column,
+    bit 0 = top row. Common accented letters fold onto their base letter. */
+inline const uint8_t* glyph (juce::juce_wchar c) noexcept
+{
+    static constexpr uint8_t font[95][5] = {
+        { 0x00, 0x00, 0x00, 0x00, 0x00 }, { 0x00, 0x00, 0x5F, 0x00, 0x00 }, { 0x00, 0x07, 0x00, 0x07, 0x00 }, // ' ' ! "
+        { 0x14, 0x7F, 0x14, 0x7F, 0x14 }, { 0x24, 0x2A, 0x7F, 0x2A, 0x12 }, { 0x23, 0x13, 0x08, 0x64, 0x62 }, // # $ %
+        { 0x36, 0x49, 0x55, 0x22, 0x50 }, { 0x00, 0x05, 0x03, 0x00, 0x00 }, { 0x00, 0x1C, 0x22, 0x41, 0x00 }, // & ' (
+        { 0x00, 0x41, 0x22, 0x1C, 0x00 }, { 0x08, 0x2A, 0x1C, 0x2A, 0x08 }, { 0x08, 0x08, 0x3E, 0x08, 0x08 }, // ) * +
+        { 0x00, 0x50, 0x30, 0x00, 0x00 }, { 0x08, 0x08, 0x08, 0x08, 0x08 }, { 0x00, 0x60, 0x60, 0x00, 0x00 }, // , - .
+        { 0x20, 0x10, 0x08, 0x04, 0x02 }, { 0x3E, 0x51, 0x49, 0x45, 0x3E }, { 0x00, 0x42, 0x7F, 0x40, 0x00 }, // / 0 1
+        { 0x42, 0x61, 0x51, 0x49, 0x46 }, { 0x21, 0x41, 0x45, 0x4B, 0x31 }, { 0x18, 0x14, 0x12, 0x7F, 0x10 }, // 2 3 4
+        { 0x27, 0x45, 0x45, 0x45, 0x39 }, { 0x3C, 0x4A, 0x49, 0x49, 0x30 }, { 0x01, 0x71, 0x09, 0x05, 0x03 }, // 5 6 7
+        { 0x36, 0x49, 0x49, 0x49, 0x36 }, { 0x06, 0x49, 0x49, 0x29, 0x1E }, { 0x00, 0x36, 0x36, 0x00, 0x00 }, // 8 9 :
+        { 0x00, 0x56, 0x36, 0x00, 0x00 }, { 0x08, 0x14, 0x22, 0x41, 0x00 }, { 0x14, 0x14, 0x14, 0x14, 0x14 }, // ; < =
+        { 0x00, 0x41, 0x22, 0x14, 0x08 }, { 0x02, 0x01, 0x51, 0x09, 0x06 }, { 0x32, 0x49, 0x79, 0x41, 0x3E }, // > ? @
+        { 0x7E, 0x11, 0x11, 0x11, 0x7E }, { 0x7F, 0x49, 0x49, 0x49, 0x36 }, { 0x3E, 0x41, 0x41, 0x41, 0x22 }, // A B C
+        { 0x7F, 0x41, 0x41, 0x22, 0x1C }, { 0x7F, 0x49, 0x49, 0x49, 0x41 }, { 0x7F, 0x09, 0x09, 0x09, 0x01 }, // D E F
+        { 0x3E, 0x41, 0x49, 0x49, 0x7A }, { 0x7F, 0x08, 0x08, 0x08, 0x7F }, { 0x00, 0x41, 0x7F, 0x41, 0x00 }, // G H I
+        { 0x20, 0x40, 0x41, 0x3F, 0x01 }, { 0x7F, 0x08, 0x14, 0x22, 0x41 }, { 0x7F, 0x40, 0x40, 0x40, 0x40 }, // J K L
+        { 0x7F, 0x02, 0x0C, 0x02, 0x7F }, { 0x7F, 0x04, 0x08, 0x10, 0x7F }, { 0x3E, 0x41, 0x41, 0x41, 0x3E }, // M N O
+        { 0x7F, 0x09, 0x09, 0x09, 0x06 }, { 0x3E, 0x41, 0x51, 0x21, 0x5E }, { 0x7F, 0x09, 0x19, 0x29, 0x46 }, // P Q R
+        { 0x46, 0x49, 0x49, 0x49, 0x31 }, { 0x01, 0x01, 0x7F, 0x01, 0x01 }, { 0x3F, 0x40, 0x40, 0x40, 0x3F }, // S T U
+        { 0x1F, 0x20, 0x40, 0x20, 0x1F }, { 0x3F, 0x40, 0x38, 0x40, 0x3F }, { 0x63, 0x14, 0x08, 0x14, 0x63 }, // V W X
+        { 0x07, 0x08, 0x70, 0x08, 0x07 }, { 0x61, 0x51, 0x49, 0x45, 0x43 }, { 0x00, 0x7F, 0x41, 0x41, 0x00 }, // Y Z [
+        { 0x02, 0x04, 0x08, 0x10, 0x20 }, { 0x00, 0x41, 0x41, 0x7F, 0x00 }, { 0x04, 0x02, 0x01, 0x02, 0x04 }, // \ ] ^
+        { 0x40, 0x40, 0x40, 0x40, 0x40 }, { 0x00, 0x01, 0x02, 0x04, 0x00 }, { 0x20, 0x54, 0x54, 0x54, 0x78 }, // _ ` a
+        { 0x7F, 0x48, 0x44, 0x44, 0x38 }, { 0x38, 0x44, 0x44, 0x44, 0x20 }, { 0x38, 0x44, 0x44, 0x48, 0x7F }, // b c d
+        { 0x38, 0x54, 0x54, 0x54, 0x18 }, { 0x08, 0x7E, 0x09, 0x01, 0x02 }, { 0x0C, 0x52, 0x52, 0x52, 0x3E }, // e f g
+        { 0x7F, 0x08, 0x04, 0x04, 0x78 }, { 0x00, 0x44, 0x7D, 0x40, 0x00 }, { 0x20, 0x40, 0x44, 0x3D, 0x00 }, // h i j
+        { 0x7F, 0x10, 0x28, 0x44, 0x00 }, { 0x00, 0x41, 0x7F, 0x40, 0x00 }, { 0x7C, 0x04, 0x18, 0x04, 0x78 }, // k l m
+        { 0x7C, 0x08, 0x04, 0x04, 0x78 }, { 0x38, 0x44, 0x44, 0x44, 0x38 }, { 0x7C, 0x14, 0x14, 0x14, 0x08 }, // n o p
+        { 0x08, 0x14, 0x14, 0x18, 0x7C }, { 0x7C, 0x08, 0x04, 0x04, 0x08 }, { 0x48, 0x54, 0x54, 0x54, 0x20 }, // q r s
+        { 0x04, 0x3F, 0x44, 0x40, 0x20 }, { 0x3C, 0x40, 0x40, 0x20, 0x7C }, { 0x1C, 0x20, 0x40, 0x20, 0x1C }, // t u v
+        { 0x3C, 0x40, 0x30, 0x40, 0x3C }, { 0x44, 0x28, 0x10, 0x28, 0x44 }, { 0x0C, 0x50, 0x50, 0x50, 0x3C }, // w x y
+        { 0x44, 0x64, 0x54, 0x4C, 0x44 }, { 0x00, 0x08, 0x36, 0x41, 0x00 }, { 0x00, 0x00, 0x7F, 0x00, 0x00 }, // z { |
+        { 0x00, 0x41, 0x36, 0x08, 0x00 }, { 0x08, 0x04, 0x08, 0x10, 0x08 },                                   // } ~
+    };
+
+    static const juce::String accented = juce::String::fromUTF8 (
+        "\xc3\xa0\xc3\xa2\xc3\xa4\xc3\xa9\xc3\xa8\xc3\xaa\xc3\xab\xc3\xae\xc3\xaf\xc3\xb4\xc3\xb6\xc3\xb9\xc3\xbb\xc3\xbc\xc3\xa7"
+        "\xc3\x80\xc3\x82\xc3\x84\xc3\x89\xc3\x88\xc3\x8a\xc3\x8b\xc3\x8e\xc3\x8f\xc3\x94\xc3\x96\xc3\x99\xc3\x9b\xc3\x9c\xc3\x87");
+    static constexpr const char* plain = "aaaeeeeiioouuucAAAEEEEIIOOUUUC";
+    if (const int k = accented.indexOfChar (c); k >= 0)
+        c = juce::juce_wchar (plain[k]);
+
+    if (c < 0x20 || c > 0x7E)
+        c = '?';
+    return font[c - 0x20];
+}
+
+/** Glass window behind the dots. */
+inline void drawWindow (juce::Graphics& g, juce::Rectangle<float> r)
+{
+    g.setColour (juce::Colours::black);
+    g.fillRoundedRectangle (r, 3.0f);
+    const auto glass = r.reduced (1.5f);
+    juce::ColourGradient tint (juce::Colour (0xff0d0904), glass.getTopLeft(), juce::Colour (0xff050302), glass.getBottomLeft(), false);
+    g.setGradientFill (tint);
+    g.fillRoundedRectangle (glass, 2.0f);
+}
+
+/** Faint reflection over the glass, drawn after the dots. */
+inline void drawGlassSheen (juce::Graphics& g, juce::Rectangle<float> r)
+{
+    const auto glass = r.reduced (1.5f);
+    juce::ColourGradient sheen (juce::Colours::white.withAlpha (0.06f), glass.getTopLeft(),
+                                juce::Colours::transparentWhite, glass.getTopLeft().translated (0.0f, glass.getHeight() * 0.5f), false);
+    g.setGradientFill (sheen);
+    g.fillRoundedRectangle (glass, 2.0f);
+    g.setColour (juce::Colours::white.withAlpha (0.06f));
+    g.drawHorizontalLine (int (r.getBottom()) - 1, r.getX() + 2.0f, r.getRight() - 2.0f);
+}
+
+/** Draws `text` on the dot grid filling `area` (9 rows: 7 for the characters
+    plus a blank row above and below). Text wider than the window scrolls left
+    as a marquee driven by `timeMs` (pause at the start, then one column per step). */
+inline void drawText (juce::Graphics& g, juce::Rectangle<float> area, const juce::String& text,
+                      juce::Colour colour, juce::Justification just, juce::uint32 timeMs = 0)
+{
+    constexpr int rows = 9;
+    const float pitch = area.getHeight() / float (rows);
+    const int cols = std::max (1, int (area.getWidth() / pitch));
+    const float x0 = area.getX() + (area.getWidth() - float (cols) * pitch) * 0.5f;
+    const float y0 = area.getY();
+    const float dot = pitch * 0.74f;
+
+    const int len = text.length();
+    const int textCols = len * 6 - 1;
+    const bool scrolls = textCols > cols - 2;
+
+    int start = 1;
+    if (! scrolls)
+    {
+        if (just.testFlags (juce::Justification::horizontallyCentred)) start = (cols - textCols) / 2;
+        else if (just.testFlags (juce::Justification::right)) start = cols - 1 - textCols;
+    }
+    const int loop = len * 6 + 3 * 6; // text, then a three-character gap
+    int scroll = 0;
+    if (scrolls)
+    {
+        constexpr juce::uint32 pauseMs = 1500, stepMs = 90;
+        const juce::uint32 cycle = pauseMs + juce::uint32 (loop) * stepMs;
+        const juce::uint32 t = timeMs % cycle;
+        scroll = t < pauseMs ? 0 : int ((t - pauseMs) / stepMs);
+    }
+
+    auto litAt = [&] (int col, int row) -> bool {
+        if (row < 1 || row > 7) return false;
+        int c = col - start + scroll;
+        if (scrolls) c = ((c % loop) + loop) % loop;
+        if (c < 0 || c >= len * 6) return false;
+        const int sub = c % 6;
+        if (sub == 5) return false;
+        return ((glyph (text[c / 6])[sub] >> (row - 1)) & 1) != 0;
+    };
+
+    juce::Path lit, unlit;
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < cols; ++c)
+        {
+            const auto centre = juce::Point<float> (x0 + (float (c) + 0.5f) * pitch, y0 + (float (r) + 0.5f) * pitch);
+            (litAt (c, r) ? lit : unlit).addEllipse (juce::Rectangle<float> (dot, dot).withCentre (centre));
+        }
+
+    g.setColour (colour.withAlpha (0.10f));
+    g.fillPath (unlit);
+    g.setColour (colour.withAlpha (0.25f)); // glow around lit LEDs
+    g.strokePath (lit, juce::PathStrokeType (pitch * 0.35f));
+    g.setColour (colour);
+    g.fillPath (lit);
+}
+
+/** True if `text` needs to scroll in `area` (so the owner can keep repainting). */
+inline bool needsScrolling (juce::Rectangle<float> area, const juce::String& text) noexcept
+{
+    const float pitch = area.getHeight() / 9.0f;
+    return text.length() * 6 - 1 > int (area.getWidth() / pitch) - 2;
+}
+
+} // namespace mm::ui::led

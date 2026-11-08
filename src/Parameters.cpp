@@ -121,7 +121,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                   juce::StringArray { "Mono", "Poly" }, 0));
     l.add (std::make_unique<API> (juce::ParameterID { id::voices, 1 }, "Poly Voices", 2, 8, 6));
     l.add (std::make_unique<APC> (juce::ParameterID { id::quality, 1 }, "Quality",
-                                  juce::StringArray { "Eco (2x)", "High (4x)", "Ultra (8x)" }, 1));
+                                  juce::StringArray { "Eco 2x", "High 4x", "Ultra 8x" }, 1));
     l.add (std::make_unique<APF> (juce::ParameterID { id::drift, 1 }, "Analog Drift",
                                   juce::NormalisableRange<float> (0.0f, 3.0f, 0.0f), 1.0f));
     l.add (std::make_unique<API> (juce::ParameterID { id::unitSeed, 1 }, "Unit", 1, 999, 1));

@@ -1,6 +1,6 @@
 # Mini Moop
 
-A VST3, AU and Standalone synthesizer for personal use. It simulates, at component level, the circuits of a classic 1970s monophonic "Model D"-type synthesizer, and adds a polyphonic mode. No original logo or brand is used.
+A VST3, AU and Standalone synthesizer for personal use. It simulates, at component level, the circuits of a classic 1970s monophonic "Model D"-type synthesizer, and adds a polyphonic mode.
 
 Built with JUCE 9.0.5. Licensed under the GNU AGPLv3 (see [License](#license)).
 

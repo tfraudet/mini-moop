@@ -21,6 +21,7 @@
 #include "../Parameters.h"
 #include "../PluginProcessor.h"
 #include "../Presets.h"
+#include "LedDisplay.h"
 #include "Tooltips.h"
 
 #include "MiniMoopAssets.h"
@@ -473,7 +474,7 @@ void Panel::buildExtras()
         s->setColour (juce::Slider::textBoxTextColourId, colours::lcdText);
         s->setColour (juce::Slider::textBoxBackgroundColourId, colours::lcdBack);
         s->setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::black);
-        s->setTextBoxStyle (juce::Slider::TextBoxLeft, false, 46, h);
+        s->setTextBoxStyle (juce::Slider::TextBoxLeft, true, 52, h); // read-only LED display
         s->setIncDecButtonsMode (juce::Slider::incDecButtonsNotDraggable);
         s->setBounds (x, y, w, h);
         s->setTooltip (tooltipFor (pid));
@@ -507,24 +508,24 @@ void Panel::buildExtras()
     caption ("POLY", 440, 80);
     incDec (id::voices, 440, 108);
     caption ("QUALITY", 570, 100);
-    combo (id::quality, 570, 124);
+    combo (id::quality, 570, 142);
 
-    caption ("DRIFT", 716, 80);
+    caption ("DRIFT", 732, 80);
     {
         auto s = std::make_unique<juce::Slider> (juce::Slider::LinearHorizontal, juce::Slider::NoTextBox);
-        s->setBounds (716, y, 84, h);
+        s->setBounds (732, y, 80, h);
         s->setPopupDisplayEnabled (true, false, this);
         s->setTooltip (tooltipFor (id::drift));
         addAndMakeVisible (*s);
         sliderAtt.push_back (std::make_unique<SliderAttachment> (proc.state, id::drift, *s));
         sliders.push_back (std::move (s));
     }
-    caption ("UNIT", 822, 80);
-    incDec (id::unitSeed, 822, 108);
-    caption ("BEND", 952, 80);
-    incDec (id::bendRange, 952, 108);
-    caption ("FEEDBACK", 1082, 80);
-    rocker (id::feedback, { 1094, 476, 22, 38 }, "orange");
+    caption ("UNIT", 832, 80);
+    incDec (id::unitSeed, 832, 114);
+    caption ("BEND", 966, 80);
+    incDec (id::bendRange, 966, 114);
+    caption ("FEEDBACK", 1100, 70);
+    rocker (id::feedback, { 1112, 476, 22, 38 }, "orange");
 }
 
 void Panel::stepProgram (int delta)
@@ -535,6 +536,9 @@ void Panel::stepProgram (int delta)
 
 void Panel::timerCallback()
 {
+    // keep the program display's marquee moving when the name is too long
+    if (led::needsScrolling (presetBox.getLocalBounds().toFloat().reduced (4.0f, 5.0f).withTrimmedRight (16.0f), presetBox.getText()))
+        presetBox.repaint();
     if (pitchWheel.refresh()) pitchWheel.repaint();
     if (modWheel.refresh()) modWheel.repaint();
     const int program = proc.getCurrentProgram() + 1;

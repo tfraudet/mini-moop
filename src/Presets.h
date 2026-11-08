@@ -49,14 +49,14 @@ inline const Preset factoryPresets[] = {
         { "cutoff", 5 }, { "emphasis", 5 }, { "contourAmt", 4 }, { "fDecay", 5 }, { "fSustain", 6 },
         { "lDecay", 5 }, { "lSustain", 10 }, { "decayOn", 1 }, { "lAttack", 0.5f },
         { "oscMod", 1 }, { "osc3Control", 0 }, { "osc3Range", 0 }, { "osc3Wave", 0 }, { "osc3Freq", 2 } } },
-    { "Whistle (self-oscillation)", {
+    { "Self-Osc Whistle", {
         { "osc1On", 0 }, { "emphasis", 9.5f }, { "cutoff", 4 }, { "kbd1", 1 }, { "kbd2", 1 },
         { "contourAmt", 0 }, { "lDecay", 5 }, { "lSustain", 10 } } },
     { "Feedback Growl", {
         { "osc1Range", 2 }, { "osc1Wave", 2 }, { "osc2Range", 2 }, { "osc2Wave", 5 }, { "osc2On", 1 }, { "osc2Vol", 7 },
         { "feedback", 1 }, { "extOn", 1 }, { "extVol", 6 },
         { "cutoff", 4 }, { "emphasis", 4 }, { "contourAmt", 5 }, { "fDecay", 4 }, { "fSustain", 3 } } },
-    { "Wobble (osc 3 LFO)", {
+    { "Osc 3 Wobble", {
         { "osc1Range", 2 }, { "osc1Wave", 2 }, { "osc2Range", 2 }, { "osc2Wave", 2 }, { "osc2Freq", -0.1f }, { "osc2On", 1 },
         { "osc3Range", 0 }, { "osc3Wave", 0 }, { "osc3Control", 0 }, { "osc3Freq", 3 }, { "osc3On", 0 },
         { "filterMod", 1 }, { "modMix", 0 }, { "cutoff", 3.5f }, { "emphasis", 6 } } },

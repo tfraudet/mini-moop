@@ -17,6 +17,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PanelLookAndFeel.h"
+#include "LedDisplay.h"
 
 namespace mm::ui
 {
@@ -62,13 +63,30 @@ void PanelLookAndFeel::drawLcdWindow (juce::Graphics& g, juce::Rectangle<float> 
 }
 
 juce::Font PanelLookAndFeel::getLabelFont (juce::Label& l) { return legendFont (l.getFont().getHeight()); }
+
+void PanelLookAndFeel::drawLabel (juce::Graphics& g, juce::Label& l)
+{
+    if (! l.getProperties()["mmLed"] || l.isBeingEdited())
+    {
+        LookAndFeel_V4::drawLabel (g, l);
+        return;
+    }
+    const auto r = l.getLocalBounds().toFloat();
+    led::drawWindow (g, r);
+    led::drawText (g, r.reduced (3.0f, 5.0f), l.getText(), colours::lcdText, juce::Justification::centred);
+    led::drawGlassSheen (g, r);
+}
 juce::Font PanelLookAndFeel::getComboBoxFont (juce::ComboBox&) { return lcdFont (15.0f); }
 
 void PanelLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool,
                                      int, int, int, int, juce::ComboBox& box)
 {
     const auto r = juce::Rectangle<float> (0.0f, 0.0f, float (width), float (height));
-    drawLcdWindow (g, r);
+    led::drawWindow (g, r);
+    led::drawText (g, r.reduced (4.0f, 5.0f).withTrimmedRight (16.0f), box.getText(),
+                   colours::lcdText.withMultipliedAlpha (box.isEnabled() ? 1.0f : 0.4f), juce::Justification::centredLeft,
+                   juce::Time::getMillisecondCounter());
+    led::drawGlassSheen (g, r);
     // small amber triangle
     juce::Path arrow;
     const float ax = r.getRight() - 14.0f, ay = r.getCentreY();
@@ -79,14 +97,15 @@ void PanelLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, b
 
 void PanelLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
+    // The text is drawn as LED segments by drawComboBox; the label stays invisible.
     label.setBounds (6, 1, box.getWidth() - 24, box.getHeight() - 2);
-    label.setFont (lcdFont (15.0f));
-    label.setColour (juce::Label::textColourId, colours::lcdText);
+    label.setColour (juce::Label::textColourId, juce::Colours::transparentBlack);
 }
 
 juce::Label* PanelLookAndFeel::createSliderTextBox (juce::Slider& s)
 {
     auto* l = LookAndFeel_V4::createSliderTextBox (s);
+    l->getProperties().set ("mmLed", true); // drawn as an LED display by drawLabel
     l->setFont (lcdFont (15.0f));
     l->setJustificationType (juce::Justification::centred);
     l->setColour (juce::Label::textColourId, colours::lcdText);
