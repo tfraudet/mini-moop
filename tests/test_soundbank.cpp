@@ -56,7 +56,9 @@ TEST_CASE ("Factory bank parses with the expected categories", "[banks]")
     REQUIRE (bank.categories.size() == 5);
     CHECK (bank.categories[0].name == "Basic");
     CHECK (bank.presetAt (0)->name == "Init");
-    CHECK (bank.presetAt (0)->values.empty());
+    // Init is the default panel, except for the output volume.
+    REQUIRE (bank.presetAt (0)->values.size() == 1);
+    CHECK (bank.presetAt (0)->values[0].first == "volume");
 }
 
 TEST_CASE ("Factory bank holds the former hard-coded programs", "[banks]")
@@ -70,7 +72,9 @@ TEST_CASE ("Factory bank holds the former hard-coded programs", "[banks]")
         for (int i = 0; i < bank.numPresets(); ++i)
             if (bank.presetAt (i)->name == legacy.name) found = bank.presetAt (i);
         REQUIRE (found != nullptr);
-        REQUIRE (found->values.size() == legacy.values.size());
+        // The legacy values come first, unchanged and in order; the only key
+        // added since is the output volume.
+        REQUIRE (found->values.size() >= legacy.values.size());
         size_t k = 0;
         for (const auto& [key, value] : legacy.values)
         {
@@ -78,6 +82,8 @@ TEST_CASE ("Factory bank holds the former hard-coded programs", "[banks]")
             CHECK (std::abs (found->values[k].second - value) < 1.0e-5f);
             ++k;
         }
+        for (; k < found->values.size(); ++k)
+            CHECK (found->values[k].first == "volume");
     }
 }
 
