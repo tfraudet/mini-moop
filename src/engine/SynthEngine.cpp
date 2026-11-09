@@ -138,7 +138,7 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
                 // VOLUME pot and the OUTPUT ON switch like the voices do.
                 refPhase += refInc;
                 if (refPhase >= 1.0) refPhase -= 1.0;
-                const double outGain = panel.mainOn ? taper::audio (panel.volume) : 0.0;
+                const double outGain = panel.mainOn ? OutputVolume::gain (panel.volume) : 0.0;
                 y += 0.25 * outGain * std::sin (2.0 * M_PI * refPhase);
             }
             out[done + i] = float (y);

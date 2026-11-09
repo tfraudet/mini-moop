@@ -19,6 +19,7 @@
 // Noise colours (white / pink / red) and the A-440 reference path.
 
 #include "circuit/blocks/NoiseSource.h"
+#include "circuit/blocks/OutputVolume.h"
 #include "engine/SynthEngine.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -67,6 +68,18 @@ TEST_CASE ("Noise reaches MODULATION MIX at a level comparable to oscillator 3",
     CHECK (pinkMod < 1.25);
     CHECK (redMod > 0.3 * pinkMod);
     CHECK (redMod < 0.8 * pinkMod);
+}
+
+TEST_CASE ("Main VOLUME is a linear passive divider", "[volume]")
+{
+    CHECK (OutputVolume::gain (0.0) == 0.0);
+    CHECK (std::abs (OutputVolume::gain (1.0) - 1.0) < 1.0e-12);
+    // About -6.5 dB at mid travel (an audio taper would give about -20 dB)
+    const double mid = 20.0 * std::log10 (OutputVolume::gain (0.5));
+    CHECK (mid > -7.5);
+    CHECK (mid < -5.5);
+    for (int i = 0; i < 10; ++i)
+        CHECK (OutputVolume::gain (0.1 * (i + 1)) > OutputVolume::gain (0.1 * i));
 }
 
 TEST_CASE ("A-440 follows the output VOLUME and ON switch", "[a440]")

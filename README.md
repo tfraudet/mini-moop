@@ -159,7 +159,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 - mixer on the front panel (Fig. 9-16, Tables 7-2 / 7-3): 25 kΩ linear volume pots (R6, R7, R8, R10), 33 kΩ summing resistors (R45, R46, R47, R49) and 11 kΩ for noise (R48), external input volume 1 MΩ audio taper (R9) buffered by the board 4 preamp;
 - contour timing capacitor 10 µF (C5 / C2, Fig. 9-7), 100 Ω attack series resistor (R7 / R42), 1 MΩ audio-taper Attack and Decay pots (Table 7-3);
 - 50 kΩ audio-taper mod wheel and modulation injection over 0 to 1¼ octaves;
-- linear VCA over 80 dB;
+- linear VCA over 80 dB; main VOLUME is a passive divider after it (R75 1 kΩ into R20, a 5 kΩ linear pot, Fig. 9-16), with an assumed 10 kΩ load;
 - pink noise at −3 dB/oct; red noise (pink through R12 10 kΩ / C7 0.15 µF, Fig. 9-8) for the modulation bus; double-pole WHITE / PINK switch (white to the mixer and pink to MODULATION MIX, or pink to the mixer and red to MODULATION MIX);
 - lowest-note priority, single trigger;
 - rectangle duty cycles of about 50 / 30 / 15 %;

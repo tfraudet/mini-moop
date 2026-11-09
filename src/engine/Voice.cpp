@@ -249,7 +249,7 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     modMix = p.modMix;
     osc3Kbd = p.osc3Control;
     feedback = p.feedbackPatch;
-    volume = p.mainOn ? taper::audio (p.volume) : 0.0;
+    volume = p.mainOn ? OutputVolume::gain (p.volume) : 0.0; // R20 linear divider, SW19
 }
 
 void Voice::render (const PanelState& p, double* out, const double* extIn, int n) noexcept

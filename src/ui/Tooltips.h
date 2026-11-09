@@ -75,7 +75,7 @@ inline juce::String tooltipFor (const juce::String& id)
         { "lSustain", "Loudness contour SUSTAIN LEVEL held while a key is down." },
 
         // Output and left-hand controller
-        { "volume", "Main output VOLUME." },
+        { "volume", "Main output VOLUME: a passive 5k linear pot after the output amplifier (about -6 dB at 5)." },
         { "mainOn", "Main output on/off." },
         { "a440", "A-440: plays a 440 Hz reference tone for tuning against other instruments. Its level follows the VOLUME knob and the ON switch." },
         { "glideOn", "GLIDE switch: enables portamento (time set by the GLIDE knob)." },

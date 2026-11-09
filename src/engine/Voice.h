@@ -30,6 +30,7 @@
 #include "../circuit/blocks/LadderFilter.h"
 #include "../circuit/blocks/Mixer.h"
 #include "../circuit/blocks/NoiseSource.h"
+#include "../circuit/blocks/OutputVolume.h"
 #include "../circuit/blocks/Vca.h"
 #include "../circuit/blocks/VcoCore.h"
 #include "DriftModel.h"
