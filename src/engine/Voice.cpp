@@ -19,6 +19,7 @@
 #include "Voice.h"
 
 #include <algorithm>
+#include <tuple>
 #include <cmath>
 
 namespace mm
@@ -246,7 +247,7 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     const double wheel = taper::audio (p.modWheel); // 50k audio-taper mod wheel
     oscModDepth = p.oscModulation ? wheel * oscModOctaves : 0.0;
     filterModDepth = p.filterModulation ? wheel * filterModOctaves : 0.0;
-    modMix = p.modMix;
+    std::tie (modOsc3, modNoise) = ModulationMix::gains (p.modMix);
     osc3Kbd = p.osc3Control;
     feedback = p.feedbackPatch;
     volume = p.mainOn ? OutputVolume::gain (p.volume) : 0.0; // R20 linear divider, SW19
@@ -276,10 +277,10 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         double white, pinkN, redN;
         noise.process (white, pinkN, redN);
         const double noiseOut = pink ? pinkN : white;
-        const double modNoise = NoiseSource::modulationGain * (pink ? redN : pinkN);
+        const double noiseMod = NoiseSource::modulationGain * (pink ? redN : pinkN);
 
-        // Modulation bus: MODULATION MIX between osc 3 and noise
-        const double mod = (1.0 - modMix) * (osc3Last / oscPeak) + modMix * (modNoise / oscPeak);
+        // Modulation bus: MODULATION MIX between osc 3 and noise (R3 network)
+        const double mod = modOsc3 * (osc3Last / oscPeak) + modNoise * (noiseMod / oscPeak);
 
         // Oscillators (osc 3 first: it is the modulation source)
         const double cv3 = oscStaticCv[2] + (osc3Kbd ? kb : 0.0);

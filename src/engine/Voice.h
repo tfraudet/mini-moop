@@ -29,6 +29,7 @@
 #include "../circuit/blocks/Glide.h"
 #include "../circuit/blocks/LadderFilter.h"
 #include "../circuit/blocks/Mixer.h"
+#include "../circuit/blocks/ModulationMix.h"
 #include "../circuit/blocks/NoiseSource.h"
 #include "../circuit/blocks/OutputVolume.h"
 #include "../circuit/blocks/Vca.h"
@@ -103,7 +104,8 @@ private:
     // Control-rate snapshot
     std::array<double, 3> oscStaticCv {};
     double filterStaticCv = 0.0, kbTrack = 0.0, contourOct = 0.0;
-    double oscModDepth = 0.0, filterModDepth = 0.0, modMix = 0.0, volume = 0.0;
+    double oscModDepth = 0.0, filterModDepth = 0.0, volume = 0.0;
+    double modOsc3 = 1.0, modNoise = 0.0; // MODULATION MIX weights
     bool osc3Kbd = true, pink = false, feedback = false;
 };
 

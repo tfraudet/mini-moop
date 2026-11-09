@@ -132,7 +132,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 | **2** Contour generator and keyboard | 93-114, Fig. 9-6 / 9-7 | circuit 8: two contour generators (C5 / C2 = 10 µF) | 2 × `ContourGen` (filter, loudness) | |
 | | | circuit 1: keyboard circuit, glide (C6 = 1 µF) | `Glide` | 8.33 mA current source, 43 × 10 Ω resistor string and sample & hold (C9). MIDI notes give an ideal 1 V/oct CV; lowest-note priority is handled by `VoiceAllocator` |
 | **3** Power supply | 93-115, Fig. 9-8 / 9-9 | circuit 3: noise generator (white and pink) | `NoiseSource` | |
-| | | circuit 15: modulation mix amplifier | in `Voice` (ideal crossfade between osc 3 and noise) | the amplifier circuit itself |
+| | | circuit 15: modulation mix | `ModulationMix` (R3 25 kΩ linear pot with grounded wiper between the two 24 kΩ inputs, 43 kΩ summing resistors) | the amplifier circuit itself |
 | | | circuit 10: ±10 V regulators; circuit 11: headphone amplifier | | rails are ideal, so supply-borne oscillator bleed is absent; no headphone stage |
 | **4** Filter and VCA | 93-116, Fig. 9-10 / 9-11 | circuit 6: ladder filter (C3, C7, C11, C16 = 0.068 µF), cutoff expo pair Q26 / Q28, Emphasis | `LadderFilter`, `ExpoConverter` (cutoff) | |
 | | | circuit 7: voltage controlled amplifier | `Vca` | |

@@ -18,6 +18,7 @@
 
 // Noise colours (white / pink / red) and the A-440 reference path.
 
+#include "circuit/blocks/ModulationMix.h"
 #include "circuit/blocks/NoiseSource.h"
 #include "circuit/blocks/OutputVolume.h"
 #include "engine/SynthEngine.h"
@@ -105,4 +106,24 @@ TEST_CASE ("A-440 follows the output VOLUME and ON switch", "[a440]")
     CHECK (rms (true, 1.0) > 0.1);
     CHECK (rms (true, 0.5) < 0.5 * rms (true, 1.0));
     CHECK (rms (false, 1.0) < 1.0e-6);
+}
+
+TEST_CASE ("MODULATION MIX: R3 network with grounded wiper", "[modmix]")
+{
+    auto [o0, n0] = ModulationMix::gains (0.0);
+    auto [o1, n1] = ModulationMix::gains (1.0);
+    CHECK (std::abs (o0 - 1.0) < 1.0e-9);
+    CHECK (n0 < 1.0e-3);   // wiper shorts the noise end
+    CHECK (o1 < 1.0e-3);   // wiper shorts the oscillator 3 end
+    CHECK (std::abs (n1 - 1.0) < 1.0e-9);
+    // Symmetric, and both sources well above half level at mid travel
+    auto [om, nm] = ModulationMix::gains (0.5);
+    CHECK (std::abs (om - nm) < 1.0e-9);
+    CHECK (om > 0.7);
+    CHECK (om < 0.8);
+    for (int i = 0; i < 10; ++i)
+    {
+        CHECK (ModulationMix::gains (0.1 * (i + 1)).first < ModulationMix::gains (0.1 * i).first);
+        CHECK (ModulationMix::gains (0.1 * (i + 1)).second > ModulationMix::gains (0.1 * i).second);
+    }
 }
