@@ -61,8 +61,9 @@ src/circuit/solver       MnaCircuit<N>: modified nodal analysis + Newton-Raphson
 src/circuit/blocks       One block per part of the schematic (see below)
 src/engine               Voice (one complete "unit"), mono/poly allocation, thermal drift,
                          decimation (2x/4x/8x oversampling), SynthEngine
-src/                     JUCE plugin: parameters, processor, factory programs
-src/ui                   Vector panel (no bitmaps), resizable
+src/                     JUCE plugin: parameters, processor, sound banks (SoundBank)
+src/ui                   Vector panel (no bitmaps), resizable, sound bank manager
+presets                  Built-in Factory sound bank (JSON)
 tests/                   Catch2 tests, including direct comparisons with ngspice
 ```
 
@@ -144,6 +145,27 @@ All these values live in the `*Params` structs in `src/circuit/blocks/`.
 - **Unit**: tolerance seed, i.e. which example of the instrument you are playing.
 - **Bend**: pitch bend range.
 - **Feedback**: the "output → External Input" patch; the level is set with the mixer's Ext. Input volume.
+
+## Sound banks
+
+Programs come from **sound banks**: each bank holds presets grouped by category and is stored as one JSON file. The PROGRAM display and the host's program list show the presets of the **active bank**, numbered in category order.
+
+- The **Factory** bank (`presets/Factory.json`) is built into the plugin and is read-only. It is active by default.
+- Banks live in `~/Library/Application Support/Zazart/Mini Moop/presets/`. Factory is mirrored there so it can be seen and copied. A copy edited by hand is restored from the built-in version.
+- The **Sound Banks** screen (burger menu, left of the PROGRAM display) shows the banks and their content. From it you can activate a bank and load a preset. You can also create, duplicate, rename, delete (to the Trash), import and export banks, save the current sound into a user bank, and rename or delete presets.
+- Each project remembers its active bank. The last bank you activate becomes the default for new instances.
+
+Format (values in parameter units, keyed by parameter ID; a parameter that is not listed takes its default value, and Unit, Quality and Drift are never stored):
+
+```json
+{
+  "format": "MiniMoopBank", "version": 1,
+  "name": "My Bank", "author": "", "description": "",
+  "categories": [
+    { "name": "Bass", "presets": [ { "name": "Deep", "values": { "cutoff": 3.5, "osc1Wave": 2 } } ] }
+  ]
+}
+```
 
 Rocker switches are two-state choice parameters (Off/On) rather than boolean parameters, so they survive a host state save and restore unchanged (required to pass pluginval).
 

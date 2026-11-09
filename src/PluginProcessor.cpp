@@ -18,7 +18,6 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "Presets.h"
 
 MiniMoopProcessor::MiniMoopProcessor()
     : AudioProcessor (BusesProperties()
@@ -30,10 +29,16 @@ MiniMoopProcessor::MiniMoopProcessor()
     state.addParameterListener (mm::params::id::unitSeed, this);
     state.addParameterListener (mm::params::id::quality, this);
     engine.build (uint64_t (cache.unitSeed()));
+
+    auto bank = library->getBank (library->getDefaultBankId());
+    setActiveBankSnapshot (bank != nullptr ? bank : library->getFactory());
+    setCurrentProgram (0); // a new instance starts on the first program (Init for Factory)
+    library->addChangeListener (this);
 }
 
 MiniMoopProcessor::~MiniMoopProcessor()
 {
+    library->removeChangeListener (this);
     cancelPendingUpdate();
     state.removeParameterListener (mm::params::id::unitSeed, this);
     state.removeParameterListener (mm::params::id::quality, this);
@@ -159,29 +164,100 @@ juce::AudioProcessorEditor* MiniMoopProcessor::createEditor()
     return new MiniMoopEditor (*this);
 }
 
-int MiniMoopProcessor::getNumPrograms() { return mm::numFactoryPresets; }
+// ---------------------------------------------------------------------------- sound banks
+
+std::shared_ptr<const mm::SoundBank> MiniMoopProcessor::getActiveBank() const
+{
+    const juce::SpinLock::ScopedLockType sl (bankLock);
+    return activeBank;
+}
+
+void MiniMoopProcessor::setActiveBankSnapshot (std::shared_ptr<const mm::SoundBank> bank)
+{
+    jassert (bank != nullptr);
+    const juce::SpinLock::ScopedLockType sl (bankLock);
+    activeBank = std::move (bank);
+}
+
+bool MiniMoopProcessor::isInstrumentSetting (const juce::String& pid)
+{
+    // Kept across programs: they describe the instrument, not the sound.
+    return pid == mm::params::id::unitSeed || pid == mm::params::id::quality || pid == mm::params::id::drift;
+}
+
+void MiniMoopProcessor::setActiveBank (const juce::String& id, bool makeDefault)
+{
+    auto bank = library->getBank (id);
+    if (bank == nullptr) bank = library->getFactory();
+    if (makeDefault) library->setDefaultBankId (bank->id);
+    if (bank == getActiveBank()) return;
+    setActiveBankSnapshot (std::move (bank));
+    currentProgram = -1; // the sound is kept: it is not a program of the new bank
+    updateHostDisplay (ChangeDetails().withProgramChanged (true));
+}
+
+void MiniMoopProcessor::loadPreset (const juce::String& bankId, int index)
+{
+    if (getActiveBank()->id != bankId)
+        setActiveBank (bankId);
+    setCurrentProgram (index);
+}
+
+void MiniMoopProcessor::reloadActiveBank (int loadedProgram)
+{
+    if (auto bank = library->getBank (getActiveBank()->id))
+        setActiveBankSnapshot (std::move (bank));
+    currentProgram = juce::isPositiveAndBelow (loadedProgram, getActiveBank()->numPresets()) ? loadedProgram : -1;
+    updateHostDisplay (ChangeDetails().withProgramChanged (true));
+}
+
+void MiniMoopProcessor::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    // A bank was edited, possibly from another instance. A deleted bank stays
+    // usable here until another one is chosen.
+    auto current = getActiveBank();
+    auto fresh = library->getBank (current->id);
+    if (fresh == nullptr || fresh == current) return;
+    setActiveBankSnapshot (fresh);
+    if (currentProgram >= fresh->numPresets()) currentProgram = -1;
+    updateHostDisplay (ChangeDetails().withProgramChanged (true));
+}
+
+mm::PresetValues MiniMoopProcessor::captureCurrentValues() const
+{
+    mm::PresetValues values;
+    for (auto* p : getParameters())
+        if (auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p))
+            if (! isInstrumentSetting (rp->getParameterID()))
+                values.emplace_back (rp->getParameterID(), rp->convertFrom0to1 (rp->getValue()));
+    return values;
+}
+
+int MiniMoopProcessor::getNumPrograms() { return std::max (1, getActiveBank()->numPresets()); }
 
 const juce::String MiniMoopProcessor::getProgramName (int index)
 {
-    return juce::isPositiveAndBelow (index, mm::numFactoryPresets) ? mm::factoryPresets[index].name : "";
+    const auto bank = getActiveBank();
+    const auto* preset = bank->presetAt (index);
+    return preset != nullptr ? preset->name : juce::String();
 }
 
 void MiniMoopProcessor::setCurrentProgram (int index)
 {
-    if (! juce::isPositiveAndBelow (index, mm::numFactoryPresets))
+    const auto bank = getActiveBank();
+    const auto* preset = bank->presetAt (index);
+    if (preset == nullptr)
         return;
     currentProgram = index;
-    const auto& preset = mm::factoryPresets[index];
     for (auto* p : getParameters())
     {
         auto* rp = dynamic_cast<juce::RangedAudioParameter*> (p);
         if (rp == nullptr) continue;
-        // Keep instrument-level settings (unit, quality, drift) across programs.
         const auto pid = rp->getParameterID();
-        if (pid == mm::params::id::unitSeed || pid == mm::params::id::quality || pid == mm::params::id::drift)
+        if (isInstrumentSetting (pid))
             continue;
         float value = rp->convertFrom0to1 (rp->getDefaultValue());
-        for (const auto& [key, v] : preset.values)
+        for (const auto& [key, v] : preset->values)
             if (pid == key) value = v;
         rp->setValueNotifyingHost (rp->convertTo0to1 (value));
     }
@@ -190,7 +266,8 @@ void MiniMoopProcessor::setCurrentProgram (int index)
 void MiniMoopProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto s = state.copyState();
-    s.setProperty ("program", currentProgram, nullptr);
+    s.setProperty ("program", currentProgram.load(), nullptr);
+    s.setProperty ("bank", getActiveBank()->id, nullptr);
     if (auto xml = s.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -202,8 +279,32 @@ void MiniMoopProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (xml->hasTagName (state.state.getType()))
         {
             auto s = juce::ValueTree::fromXml (*xml);
-            currentProgram = s.getProperty ("program", 0);
+            // Older sessions have no bank: their programs were the factory ones,
+            // numbered in the order they had before categories existed.
+            const bool legacy = ! s.hasProperty ("bank");
+            const auto bankId = s.getProperty ("bank", mm::BankLibrary::factoryId).toString();
+            auto bank = library->getBank (bankId);
+            int program = s.getProperty ("program", 0);
+            if (legacy && bank != nullptr)
+            {
+                static const char* const legacyOrder[] = { "Init", "Fat Bass", "Solo Lead", "Self-Osc Whistle",
+                                                           "Feedback Growl", "Osc 3 Wobble", "Poly Brass", "Noise Wind" };
+                const juce::String name = juce::isPositiveAndBelow (program, int (std::size (legacyOrder))) ? legacyOrder[program] : "";
+                program = -1;
+                for (int i = 0; i < bank->numPresets(); ++i)
+                    if (bank->presetAt (i)->name == name) program = i;
+            }
+            if (bank == nullptr) // bank gone: keep the sound, fall back to Factory
+            {
+                bank = library->getFactory();
+                program = -1;
+            }
+            setActiveBankSnapshot (bank);
+            currentProgram = juce::isPositiveAndBelow (program, bank->numPresets()) ? program : -1;
+            s.removeProperty ("bank", nullptr);
+            s.removeProperty ("program", nullptr);
             state.replaceState (s);
+            updateHostDisplay (ChangeDetails().withProgramChanged (true));
         }
     }
 }

@@ -73,11 +73,11 @@ if(MINIMOOP_BUILD_PLUGIN)
         GIT_SHALLOW    TRUE)
     FetchContent_MakeAvailable(JUCE)
 
-    # Panel assets (wood texture)
+    # Panel assets (wood texture) and the built-in Factory sound bank
     juce_add_binary_data(MiniMoopAssets
         HEADER_NAME MiniMoopAssets.h
         NAMESPACE MiniMoopAssets
-        SOURCES resources/wood.jpg resources/leather.jpg resources/brushed.jpg)
+        SOURCES resources/wood.jpg resources/leather.jpg resources/brushed.jpg presets/Factory.json)
     set_target_properties(MiniMoopAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
     juce_add_plugin(MiniMoop
@@ -100,9 +100,11 @@ if(MINIMOOP_BUILD_PLUGIN)
         src/PluginProcessor.cpp
         src/PluginEditor.cpp
         src/Parameters.cpp
+        src/SoundBank.cpp
         src/ui/PanelLookAndFeel.cpp
         src/ui/Panel.cpp
-        src/ui/AboutBox.cpp)
+        src/ui/AboutBox.cpp
+        src/ui/BankManager.cpp)
 
     target_compile_definitions(MiniMoop PUBLIC
         MINIMOOP_VERSION_STRING="${PROJECT_VERSION}"
@@ -130,9 +132,11 @@ if(MINIMOOP_BUILD_PLUGIN)
         src/PluginProcessor.cpp
         src/PluginEditor.cpp
         src/Parameters.cpp
+        src/SoundBank.cpp
         src/ui/PanelLookAndFeel.cpp
         src/ui/Panel.cpp
-        src/ui/AboutBox.cpp)
+        src/ui/AboutBox.cpp
+        src/ui/BankManager.cpp)
     target_compile_definitions(MiniMoopSnapshot PRIVATE
         MINIMOOP_VERSION_STRING="${PROJECT_VERSION}"
         MINIMOOP_BUILD_DATE="${MINIMOOP_BUILD_DATE}"
@@ -170,4 +174,17 @@ if(MINIMOOP_BUILD_TESTS)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
     include(Catch)
     catch_discover_tests(minimoop_tests)
+
+    # Sound bank model (needs JUCE core, so only with the plugin)
+    if(MINIMOOP_BUILD_PLUGIN)
+        juce_add_console_app(minimoop_bank_tests PRODUCT_NAME "minimoop_bank_tests")
+        target_sources(minimoop_bank_tests PRIVATE tests/test_soundbank.cpp src/SoundBank.cpp)
+        target_include_directories(minimoop_bank_tests PRIVATE src)
+        target_compile_definitions(minimoop_bank_tests PRIVATE
+            JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
+        target_link_libraries(minimoop_bank_tests PRIVATE
+            MiniMoopAssets juce::juce_core juce::juce_data_structures Catch2::Catch2WithMain
+            juce::juce_recommended_config_flags)
+        catch_discover_tests(minimoop_bank_tests)
+    endif()
 endif()

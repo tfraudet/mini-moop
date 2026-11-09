@@ -17,13 +17,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
-// Factory programs. Values are in parameter units (pots 0..10, choices by index,
-// switches 0/1). Anything not listed is reset to its default.
+// The factory programs as they were hard-coded before sound banks existed.
+// Kept as a reference: presets/Factory.json must hold the same values.
 
 #include <initializer_list>
 #include <utility>
 
-namespace mm
+namespace mm::legacy
 {
 
 struct Preset
@@ -75,4 +75,4 @@ inline const Preset factoryPresets[] = {
 
 inline constexpr int numFactoryPresets = int (sizeof (factoryPresets) / sizeof (factoryPresets[0]));
 
-} // namespace mm
+} // namespace mm::legacy

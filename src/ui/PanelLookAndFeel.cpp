@@ -131,7 +131,7 @@ void PanelLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b,
 
 void PanelLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool, bool)
 {
-    g.setColour (colours::legend);
+    g.setColour (colours::legend.withMultipliedAlpha (b.isEnabled() ? 1.0f : 0.35f));
     g.setFont (legendFont (14.0f));
     g.drawFittedText (b.getButtonText(), b.getLocalBounds(), juce::Justification::centred, 1);
 }
@@ -161,7 +161,7 @@ void PanelLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int w,
     g.setColour (juce::Colours::black.withAlpha (0.45f));
     g.drawHorizontalLine (int (cap.getCentreY()), cap.getX() + 2.0f, cap.getRight() - 2.0f);
 }
-juce::Font PanelLookAndFeel::getPopupMenuFont() { return legendFont (13.0f, false); }
+juce::Font PanelLookAndFeel::getPopupMenuFont() { return legendFont (16.0f, false); }
 
 void PanelLookAndFeel::drawWaveIcon (juce::Graphics& g, juce::Rectangle<float> r, const juce::String& t)
 {

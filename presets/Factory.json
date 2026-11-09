@@ -1,0 +1,66 @@
+{
+  "format": "MiniMoopBank",
+  "version": 1,
+  "name": "Factory",
+  "author": "Zazart",
+  "description": "Mini Moop factory programs",
+  "categories": [
+    {
+      "name": "Basic",
+      "presets": [
+        {
+          "name": "Init",
+          "values": {}
+        }
+      ]
+    },
+    {
+      "name": "Bass",
+      "presets": [
+        {
+          "name": "Fat Bass",
+          "values": { "osc1Range": 1, "osc1Wave": 2, "osc1Vol": 10, "osc2Range": 1, "osc2Wave": 2, "osc2Freq": 0.08, "osc2Vol": 8, "osc2On": 1, "osc3Range": 2, "osc3Wave": 4, "osc3Freq": -0.06, "osc3Vol": 6, "osc3On": 1, "cutoff": 3.5, "emphasis": 3, "contourAmt": 6, "fAttack": 0, "fDecay": 3.5, "fSustain": 2, "lAttack": 0, "lDecay": 3, "lSustain": 8, "kbd1": 1, "kbd2": 0 }
+        },
+        {
+          "name": "Feedback Growl",
+          "values": { "osc1Range": 2, "osc1Wave": 2, "osc2Range": 2, "osc2Wave": 5, "osc2On": 1, "osc2Vol": 7, "feedback": 1, "extOn": 1, "extVol": 6, "cutoff": 4, "emphasis": 4, "contourAmt": 5, "fDecay": 4, "fSustain": 3 }
+        }
+      ]
+    },
+    {
+      "name": "Lead",
+      "presets": [
+        {
+          "name": "Solo Lead",
+          "values": { "osc1Range": 3, "osc1Wave": 2, "osc2Range": 3, "osc2Wave": 3, "osc2Freq": 0.1, "osc2On": 1, "osc2Vol": 8, "glide": 3, "glideOn": 1, "cutoff": 5, "emphasis": 5, "contourAmt": 4, "fDecay": 5, "fSustain": 6, "lDecay": 5, "lSustain": 10, "decayOn": 1, "lAttack": 0.5, "oscMod": 1, "osc3Control": 0, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 2 }
+        },
+        {
+          "name": "Self-Osc Whistle",
+          "values": { "osc1On": 0, "emphasis": 9.5, "cutoff": 4, "kbd1": 1, "kbd2": 1, "contourAmt": 0, "lDecay": 5, "lSustain": 10 }
+        }
+      ]
+    },
+    {
+      "name": "Poly",
+      "presets": [
+        {
+          "name": "Poly Brass",
+          "values": { "voiceMode": 1, "voices": 6, "osc1Wave": 2, "osc2Wave": 2, "osc2Freq": 0.12, "osc2On": 1, "osc2Vol": 9, "cutoff": 3, "emphasis": 1, "contourAmt": 6, "fAttack": 4.5, "fDecay": 5, "fSustain": 5, "lAttack": 3, "lDecay": 6, "lSustain": 9, "decayOn": 1 }
+        }
+      ]
+    },
+    {
+      "name": "FX",
+      "presets": [
+        {
+          "name": "Osc 3 Wobble",
+          "values": { "osc1Range": 2, "osc1Wave": 2, "osc2Range": 2, "osc2Wave": 2, "osc2Freq": -0.1, "osc2On": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Control": 0, "osc3Freq": 3, "osc3On": 0, "filterMod": 1, "modMix": 0, "cutoff": 3.5, "emphasis": 6 }
+        },
+        {
+          "name": "Noise Wind",
+          "values": { "osc1On": 0, "noiseOn": 1, "noiseVol": 9, "noiseColor": 1, "cutoff": 4, "emphasis": 8, "oscMod": 0, "filterMod": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Control": 0, "osc3Freq": -5, "lAttack": 6, "lDecay": 7, "decayOn": 1 }
+        }
+      ]
+    }
+  ]
+}

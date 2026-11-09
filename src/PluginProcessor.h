@@ -19,6 +19,7 @@
 #pragma once
 
 #include "Parameters.h"
+#include "SoundBank.h"
 #include "engine/SynthEngine.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -26,7 +27,8 @@
 
 class MiniMoopProcessor : public juce::AudioProcessor,
                           private juce::AudioProcessorValueTreeState::Listener,
-                          private juce::AsyncUpdater
+                          private juce::AsyncUpdater,
+                          private juce::ChangeListener
 {
 public:
     MiniMoopProcessor();
@@ -47,7 +49,8 @@ public:
     double getTailLengthSeconds() const override { return 2.0; }
 
     int getNumPrograms() override;
-    int getCurrentProgram() override { return currentProgram; }
+    /** Hosts expect a valid index: 0 when the sound is not a program of the active bank. */
+    int getCurrentProgram() override { return std::max (0, currentProgram.load()); }
     void setCurrentProgram (int index) override;
     const juce::String getProgramName (int index) override;
     void changeProgramName (int, const juce::String&) override {}
@@ -63,17 +66,41 @@ public:
         real spring-loaded / free wheels. */
     std::atomic<float> pitchWheel { 0.0f }, modWheel { 0.0f };
 
+    // ---- sound banks (message thread, except the getters used by hosts)
+    mm::BankLibrary& getLibrary() { return *library; }
+    std::shared_ptr<const mm::SoundBank> getActiveBank() const;
+    /** Program of the active bank the panel was loaded from, -1 if none
+        (bank just changed, or the program was deleted). */
+    int getLoadedProgram() const noexcept { return currentProgram.load(); }
+    /** Makes `id` the active bank without changing the sound. Unless
+        `makeDefault` is false, new instances will also start with it. */
+    void setActiveBank (const juce::String& id, bool makeDefault = true);
+    /** Activates `bankId` if needed, then loads its program `index`. */
+    void loadPreset (const juce::String& bankId, int index);
+    /** Re-reads the active bank from the library after it was edited and
+        sets the loaded program (-1: none). */
+    void reloadActiveBank (int loadedProgram);
+    /** Current panel settings in parameter units, without the instrument-level
+        settings (unit, quality, drift). */
+    mm::PresetValues captureCurrentValues() const;
+
 private:
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void handleAsyncUpdate() override;
     void rebuildEngine();
     void handleMidi (const juce::MidiMessage& m);
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    void setActiveBankSnapshot (std::shared_ptr<const mm::SoundBank> bank);
+    static bool isInstrumentSetting (const juce::String& parameterId);
 
     mm::SynthEngine engine;
     mm::params::ParameterCache cache;
     mm::PanelState panel;
     double sampleRate = 48000.0;
     int blockSize = 512;
-    int currentProgram = 0;
+    juce::SharedResourcePointer<mm::BankLibrary> library;
+    std::shared_ptr<const mm::SoundBank> activeBank;
+    juce::SpinLock bankLock;
+    std::atomic<int> currentProgram { -1 };
     std::vector<float> monoBuffer, inBuffer;
 };

@@ -23,6 +23,7 @@
 // and a 44-key keyboard (F to C).
 
 #include "AboutBox.h"
+#include "BankManager.h"
 #include "PanelLookAndFeel.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -73,6 +74,7 @@ public:
     ~Panel() override;
 
     void showAbout() { about.show(); }
+    void showBanks() { banks.show(); }
 
     void paint (juce::Graphics&) override;
     void resized() override {}
@@ -96,6 +98,9 @@ private:
     void buildExtras();
     void paintWood (juce::Graphics&, juce::Rectangle<float> area, bool vertical) const;
     void stepProgram (int delta);
+    void showMenu();
+    void rebuildProgramList (std::shared_ptr<const SoundBank> bank);
+    void syncProgramDisplay();
     void timerCallback() override;
 
     MiniMoopProcessor& proc;
@@ -119,6 +124,8 @@ private:
     Keyboard keyboard;
     BurgerButton burger;
     AboutBox about { wood };
+    BankManager banks { proc };
+    std::shared_ptr<const SoundBank> programListBank; // bank shown in presetBox
 };
 
 } // namespace mm::ui

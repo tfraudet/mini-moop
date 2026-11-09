@@ -30,6 +30,7 @@ public:
     void resized() override;
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
     void showAbout() { panel.showAbout(); }
+    void showBanks() { panel.showBanks(); }
 
 private:
     mm::ui::Panel panel;

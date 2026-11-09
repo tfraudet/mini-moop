@@ -20,7 +20,6 @@
 
 #include "../Parameters.h"
 #include "../PluginProcessor.h"
-#include "../Presets.h"
 #include "AboutBox.h"
 #include "LedDisplay.h"
 #include "Tooltips.h"
@@ -385,9 +384,11 @@ Panel::Panel (MiniMoopProcessor& p)
     keyboard.setColour (juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, colours::rockerOrange.withAlpha (0.15f));
     keyboard.setColour (juce::MidiKeyboardComponent::keyDownOverlayColourId, colours::rockerOrange.withAlpha (0.45f));
 
-    // About overlay (hidden until the burger button is clicked)
+    // Overlays (hidden until chosen from the burger menu)
     about.setBounds (getLocalBounds());
     addChildComponent (about);
+    banks.setBounds (getLocalBounds());
+    addChildComponent (banks);
 
     startTimerHz (30);
 }
@@ -489,19 +490,16 @@ void Panel::buildExtras()
     };
 
     burger.setBounds (52, y, 30, h);
-    burger.setTooltip ("About Mini Moop");
-    burger.onClick = [this] { about.show(); };
+    burger.setTooltip ("Menu: sound banks, about");
+    burger.onClick = [this] { showMenu(); };
     addAndMakeVisible (burger);
 
     caption ("PROGRAM", 90, 120);
     presetBox.setBounds (90, y, 196, h);
-    for (int i = 0; i < mm::numFactoryPresets; ++i)
-        presetBox.addItem (juce::String (i + 1).paddedLeft ('0', 3) + " " + mm::factoryPresets[i].name, i + 1);
-    presetBox.setSelectedId (proc.getCurrentProgram() + 1, juce::dontSendNotification);
-    presetBox.setTooltip ("Factory programs. Choosing one resets the panel (Unit, Quality and Drift are kept).");
+    syncProgramDisplay();
     presetBox.onChange = [this] {
         const int idx = presetBox.getSelectedId() - 1;
-        if (idx >= 0 && idx != proc.getCurrentProgram()) proc.setCurrentProgram (idx);
+        if (idx >= 0 && idx != proc.getLoadedProgram()) proc.setCurrentProgram (idx);
     };
     addAndMakeVisible (presetBox);
     prevProgram.setBounds (292, y + 2, 26, h - 4);
@@ -538,10 +536,60 @@ void Panel::buildExtras()
     rocker (id::feedback, { 1150, 476, 22, 38 }, "orange");
 }
 
+void Panel::showMenu()
+{
+    juce::PopupMenu menu;
+    menu.setLookAndFeel (&lnf);
+    menu.addItem ("Sound Banks...", [this] { banks.show(); });
+    menu.addSeparator();
+    menu.addItem ("About Mini Moop", [this] { about.show(); });
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&burger));
+}
+
+void Panel::rebuildProgramList (std::shared_ptr<const SoundBank> bank)
+{
+    programListBank = std::move (bank);
+    presetBox.clear (juce::dontSendNotification);
+    int flat = 0;
+    for (const auto& category : programListBank->categories)
+    {
+        presetBox.addSectionHeading (category.name);
+        for (const auto& preset : category.presets)
+        {
+            presetBox.addItem (juce::String (flat + 1).paddedLeft ('0', 3) + " " + preset.name, flat + 1);
+            ++flat;
+        }
+    }
+    presetBox.setTooltip ("Programs of the bank \"" + programListBank->name
+                          + "\". Choosing one resets the panel (Unit, Quality and Drift are kept). "
+                            "Banks are managed from the menu on the left.");
+}
+
+void Panel::syncProgramDisplay()
+{
+    if (auto bank = proc.getActiveBank(); bank != programListBank)
+        rebuildProgramList (std::move (bank));
+    const int program = proc.getLoadedProgram() + 1;
+    if (program > 0)
+    {
+        if (presetBox.getSelectedId() != program)
+            presetBox.setSelectedId (program, juce::dontSendNotification);
+    }
+    else
+    {
+        // sound not from the active bank (bank just changed): show the bank name
+        const auto placeholder = "-- " + programListBank->name;
+        if (presetBox.getSelectedId() != 0 || presetBox.getText() != placeholder)
+            presetBox.setText (placeholder, juce::dontSendNotification);
+    }
+}
+
 void Panel::stepProgram (int delta)
 {
-    const int n = mm::numFactoryPresets;
-    proc.setCurrentProgram ((proc.getCurrentProgram() + delta + n) % n);
+    const int n = proc.getActiveBank()->numPresets();
+    if (n == 0) return;
+    const int current = proc.getLoadedProgram();
+    proc.setCurrentProgram (current < 0 ? (delta > 0 ? 0 : n - 1) : (current + delta + n) % n);
 }
 
 void Panel::timerCallback()
@@ -551,9 +599,7 @@ void Panel::timerCallback()
         presetBox.repaint();
     if (pitchWheel.refresh()) pitchWheel.repaint();
     if (modWheel.refresh()) modWheel.repaint();
-    const int program = proc.getCurrentProgram() + 1;
-    if (presetBox.getSelectedId() != program)
-        presetBox.setSelectedId (program, juce::dontSendNotification);
+    syncProgramDisplay();
 }
 
 void Panel::paintWood (juce::Graphics& g, juce::Rectangle<float> area, bool vertical) const
