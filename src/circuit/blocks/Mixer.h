@@ -26,6 +26,13 @@
 // into saturation, which is the characteristic "mixer overdrive" of the
 // instrument. The model returns the summed node voltage; the saturation
 // itself happens in the LadderFilter's input pair (tanh).
+//
+// Values from the front panel assembly (service manual Fig. 9-16, Tables 7-2
+// and 7-3): 25 kohm linear volume pots (R6 osc 1, R7 osc 2, R8 osc 3, R10
+// noise) and summing resistors on the ON/OFF switches (R45, R46, R47, R49 =
+// 33 kohm, R48 = 11 kohm for noise). The external input volume R9 (1 Mohm
+// audio) sits ahead of the board 4 preamp, which buffers it, so its wiper
+// does not load the summing network.
 
 #include "../components/Passives.h"
 
@@ -38,9 +45,11 @@ struct MixerParams
 {
     static constexpr int numChannels = 5; // osc1, ext, osc2, noise, osc3
 
-    double rPot = 10.0e3;                   // volume pots
-    std::array<double, numChannels> rSum { 47e3, 47e3, 47e3, 47e3, 47e3 }; // summing resistors
-    double rNode = 4.7e3;                   // summing node to ground (input attenuator)
+    // Channel order: osc 1, ext, osc 2, noise, osc 3
+    std::array<double, numChannels> rPot { 25e3, 0.0, 25e3, 25e3, 25e3 };     // volume pots (ext: buffered)
+    std::array<bool, numChannels> linearPot { true, false, true, true, true }; // ext R9 is audio taper
+    std::array<double, numChannels> rSum { 33e3, 33e3, 33e3, 11e3, 33e3 };    // R45, R46, R47, R48, R49
+    double rNode = 4.7e3;                   // summing node to ground (assumed)
     double nodeGain = 1.0;                  // buffer gain to filter input
 
     static MixerParams drawn (Rng& rng, const MixerParams& nominal) noexcept
@@ -48,7 +57,7 @@ struct MixerParams
         MixerParams p = nominal;
         for (auto& r : p.rSum) r = rng.tolerance (r, 0.05);
         p.rNode = rng.tolerance (nominal.rNode, 0.05);
-        p.rPot = rng.tolerance (nominal.rPot, 0.20);
+        for (auto& r : p.rPot) r = rng.tolerance (r, 0.20); // carbon pots: 20 %
         return p;
     }
 };
@@ -81,17 +90,17 @@ private:
         // their summing resistors into the node resistor. Wiper source
         // resistance is that of the loaded pot.
         double gTotal = 1.0 / p.rNode;
-        std::array<double, MixerParams::numChannels> rSrc {};
+        std::array<double, MixerParams::numChannels> rSrc {}, frac {};
         for (size_t i = 0; i < rSrc.size(); ++i)
         {
-            const double a = taper::audio (pots[i]);
-            const double rWiper = a * (1.0 - a) * p.rPot; // Thevenin of the pot divider
+            frac[i] = p.linearPot[i] ? taper::linear (pots[i]) : taper::audio (pots[i]);
+            const double rWiper = frac[i] * (1.0 - frac[i]) * p.rPot[i]; // Thevenin of the pot divider
             rSrc[i] = p.rSum[i] + rWiper;
             gTotal += 1.0 / rSrc[i];
         }
         for (size_t i = 0; i < rSrc.size(); ++i)
         {
-            const double a = switches[i] ? taper::audio (pots[i]) : 0.0;
+            const double a = switches[i] ? frac[i] : 0.0;
             gains[i] = p.nodeGain * a * (1.0 / rSrc[i]) / gTotal;
         }
     }

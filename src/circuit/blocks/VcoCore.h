@@ -59,7 +59,7 @@ enum class Waveform
 struct VcoParams
 {
     double c          = 0.01e-6;   // timing capacitor, polystyrene 2 %
-    double swing      = 5.0;       // ramp amplitude across the capacitor (V)
+    double swing      = 4.0;       // ramp amplitude across the capacitor: 0 to -4 V (Fig. 9-3)
     double tReset     = 1.6e-6;    // reset dead time (s)
     double outPeak    = 2.5;       // waveshaper output peak (V)
     double foldRound  = 0.03;      // triangle fold rounding (fraction of swing)

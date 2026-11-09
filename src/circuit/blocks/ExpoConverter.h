@@ -20,6 +20,16 @@
 // Exponential (V/oct -> current) converter built around a matched NPN pair,
 // as used for both the oscillators and the filter cutoff.
 //
+// Target revision: Oscillator Board No. 1, revision 2 ("old board", serial
+// numbers 1237 to 10174, service manual Fig. 9-3): RCA CA3046 transistor
+// array (IC2) at ambient temperature, compensated by a 1 kohm +3500 ppm/K
+// tempco resistor (R20) in the feedback of the 741 CV summer IC1, keyboard
+// input R27 = 51.1 kohm 1 %. The reference transistor's collector current is
+// set by R50 = 39 kohm from ground, with its collector held at -4 V by IC3.
+// Not modelled: revision 1 (discrete 2N4058 PNP pairs, no tempco) and
+// revision 3 (heated uA726 at 80 degC, serial 10175 and above), nor the
+// 94-001 modification kit.
+//
 //   Iout = Is_out * exp((Vbe_ref + dVbe - Iout*rE) / Vt)
 //   Vbe_ref = Vt * ln(Iref / Is_ref) + Iref*rE
 //   dVbe = Vcv * Rtc(T_tc) / (Rin + Rtc(T_tc))        (input attenuator)
@@ -42,17 +52,17 @@ namespace mm
 
 struct ExpoConverterParams
 {
-    double iRef       = 10.0e-6;   // reference current (A)
+    double iRef       = 4.0 / 39.0e3; // reference current: -4 V across R50 = 39 kohm (~103 uA)
     double isRef      = 6.734e-15; // saturation current of reference transistor
     double isMismatch = 1.0;       // Is_out / Is_ref
     double rE         = 0.8;       // bulk emitter resistance (ohm)
-    double rIn        = 100.0e3;   // input resistor of the attenuator (nominal)
-    double rTc        = 1.0e3;     // tempco resistor at 25 °C
+    double rIn        = 51.1e3;    // CV input resistor (R27 keyboard input, 51.1 kohm 1 %)
+    double rTc        = 1.0e3;     // tempco resistor R20 at 25 °C
     double tcPpm      = 3500.0;    // tempco coefficient
     double hfTrim     = 0.0;       // HF compensation (V per A of Iout)
 
-    /** Draws component tolerances (1 % metal film resistors, transistor pair
-        matched to about 2 % in Is, emitter resistance spread). */
+    /** Draws component tolerances (1 % metal film input resistors, 5 % carbon
+        R50, transistor pair matched to about 2 % in Is, emitter resistance spread). */
     static ExpoConverterParams drawn (Rng& rng, const ExpoConverterParams& nominal) noexcept
     {
         ExpoConverterParams p = nominal;
@@ -60,7 +70,7 @@ struct ExpoConverterParams
         p.rE   = rng.tolerance (nominal.rE, 0.3);
         p.rIn  = rng.tolerance (nominal.rIn, 0.01);
         p.rTc  = rng.tolerance (nominal.rTc, 0.05);
-        p.iRef = rng.tolerance (nominal.iRef, 0.02);
+        p.iRef = rng.tolerance (nominal.iRef, 0.05);
         return p;
     }
 };

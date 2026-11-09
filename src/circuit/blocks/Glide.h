@@ -31,9 +31,10 @@ namespace mm
 
 struct GlideParams
 {
-    double c       = 1.0e-6;   // glide capacitor (C6)
+    double c       = 1.0e-6;   // glide capacitor C6, 1 uF (Board 2, service manual Fig. 9-7)
     double rSeries = 1.0e3;    // minimum series resistance (switch off / pot at 0)
-    double rPot    = 1.0e6;    // glide pot (audio taper): 1 ms .. ~1 s
+    double rPot    = 5.0e6;    // glide pot R2: 5 Mohm "No. 1 taper" (Table 7-3), up to ~5 s time constant;
+                               // the No. 1 curve is not documented, modelled as audio taper
     double leakage = 1.0e-10;  // capacitor/FET leakage (V/s on 1 uF -> slow sag)
 
     static GlideParams drawn (Rng& rng, const GlideParams& nominal) noexcept

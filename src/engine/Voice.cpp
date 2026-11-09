@@ -37,6 +37,11 @@ constexpr double oscModOctaves = 1.25;   // modulation injection, oscillators
 constexpr double filterModOctaves = 2.0; // modulation injection, filter (assumed)
 constexpr double contourOctaves = 4.0;   // AMOUNT OF CONTOUR at 10
 constexpr double oscPeak = 2.5;          // waveshaper output peak (V)
+// Noise level reaching the mixer, relative to the level on the modulation
+// bus. The noise channel's 11 k summing resistor (R48) is 3x the conductance
+// of the oscillators' 33 k; the generator's output level is not documented,
+// so this keeps the noise/oscillator balance of the previous ear-tuned model.
+constexpr double noiseToMixer = 1.0 / 3.0;
 
 double cutoffCv (double pos) { return -5.5 + 10.5 * pos; } // ~14 Hz .. ~23 kHz
 } // namespace
@@ -46,20 +51,25 @@ void Voice::build (uint64_t s)
     seed = s;
     Rng rng (seed);
 
-    ExpoConverterParams vcoExpoNominal;
-    vcoExpoNominal.iRef = 5.0e-6;
+    const ExpoConverterParams vcoExpoNominal; // Board 1 rev 2 values (see ExpoConverter.h)
     for (int i = 0; i < 3; ++i)
     {
         vcoExpo[size_t (i)].setParams (ExpoConverterParams::drawn (rng, vcoExpoNominal));
         vcos[size_t (i)].setParams (VcoParams::drawn (rng, VcoParams {}));
     }
 
+    // Filter cutoff converter (Board 4): its values have not been checked
+    // against the schematic yet, so it keeps its own estimates.
     ExpoConverterParams filtExpoNominal;
     filtExpoNominal.iRef = 20.0e-6;
+    filtExpoNominal.rIn = 100.0e3;
     filterExpo.setParams (ExpoConverterParams::drawn (rng, filtExpoNominal));
 
     LadderParams lp;
-    lp.inputGain = 0.35;
+    // Set for mild saturation with one oscillator at 10. Rescaled by 1/1.0698
+    // when the mixer moved to the front panel values (33 k summing resistors),
+    // so the drive into the ladder is unchanged.
+    lp.inputGain = 0.35 / 1.0698;
     ladder.setParams (LadderParams::drawn (rng, lp));
 
     mixer.setParams (MixerParams::drawn (rng, MixerParams {}));
@@ -273,7 +283,7 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
 
         // Mixer -> filter
         const double ext = (extIn ? extIn[s] : 0.0) + (feedback ? feedbackSample : 0.0);
-        const double mixed = mixer.process ({ o1, ext, o2, noiseOut, o3 });
+        const double mixed = mixer.process ({ o1, ext, o2, noiseToMixer * noiseOut, o3 });
 
         const double fcv = filterStaticCv + contourOct * fEg + kbTrack * (kb + 9.0 / 12.0)
                          + filterModDepth * mod;

@@ -41,24 +41,26 @@ namespace mm
 
 struct ContourParams
 {
-    // Ranges from the service manual spec: attack 1 ms..10 s, decay 4 ms..35 s
-    // (decay time read as ~3 time constants).
-    double c            = 2.2e-6;  // timing capacitor (F)
-    double rMin         = 470.0;   // attack series resistance at minimum setting (ohm)
-    double rMinDecay    = 680.0;   // decay series resistance at minimum setting (ohm)
-    double rAttackPot   = 5.0e6;   // attack pot (5 Mohm, log taper)
-    double rDecayPot    = 5.0e6;   // decay pot (5 Mohm, log taper)
-    double rRelease     = 1.5e3;   // release path when DECAY switch is off (ohm)
+    // Board 2 (93-114), service manual Fig. 9-7 and Table 7-3. Spec ranges:
+    // attack 1 ms..10 s, decay 4 ms..35 s (decay time read as ~3 time constants).
+    // With C = 10 uF and R7 = 100 ohm, a 1 Mohm attack pot gives 1.3 ms..9.8 s
+    // to the 5 V threshold, matching the spec.
+    double c            = 10.0e-6; // timing capacitor: C5 (filter) / C2 (loudness), 10 uF electrolytic
+    double rMin         = 100.0;   // attack series resistor: R7 (filter) / R42 (loudness)
+    double rMinDecay    = 100.0;   // decay path at minimum setting (assumed: from the 4 ms spec)
+    double rAttackPot   = 1.0e6;   // attack pot R12/R13: 1 Mohm audio taper (Table 7-3)
+    double rDecayPot    = 1.0e6;   // decay pot R15/R16: 1 Mohm audio taper (Table 7-3)
+    double rRelease     = 330.0;   // release path when DECAY switch is off (assumed: ~3 ms)
     double rSwitchOn    = 30.0;    // transistor switch saturation resistance
     double vCharge      = 8.0;     // attack target voltage
     double vThreshold   = 5.0;     // comparator threshold = peak of the contour
     double hysteresis   = 0.02;    // comparator hysteresis (V)
-    double leakage      = 2.0e-9;  // capacitor + switch leakage current (A)
+    double leakage      = 5.0e-8;  // electrolytic capacitor + switch leakage current (A, estimated)
 
     static ContourParams drawn (Rng& rng, const ContourParams& nominal) noexcept
     {
         ContourParams p = nominal;
-        p.c          = rng.tolerance (nominal.c, 0.10);
+        p.c          = rng.tolerance (nominal.c, 0.20);   // aluminium electrolytic: 20 %
         p.rAttackPot = rng.tolerance (nominal.rAttackPot, 0.20); // carbon pots: 20 %
         p.rDecayPot  = rng.tolerance (nominal.rDecayPot, 0.20);
         p.rMin       = rng.tolerance (nominal.rMin, 0.05);

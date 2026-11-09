@@ -11,6 +11,7 @@ Most software synthesizers imitate the *sound* of an instrument with signal-proc
 - **Every voice is a slightly different instrument.** Real components are never exactly at their nominal value. Each voice draws its own set of component values, then tunes itself the way a technician would calibrate a real unit. Changing the "Unit" setting is like playing another example of the instrument.
 - **Tuning drift comes from physics, not from a random wobble.** The circuits warm up and cool down slightly over time, and the pitch drifts as a consequence, as on the original.
 - **The models are checked against a reference.** The component models are compared with ngspice, a standard circuit simulator used by electronics engineers, and match it closely.
+- **One specific version of the instrument.** The Model D's oscillator board went through three revisions. Mini Moop simulates **revision 2** (the "old board" with a CA3046 transistor array, serial numbers 1237 to 10174). See [Which revision and which boards are simulated](#which-revision-and-which-boards-are-simulated).
 
 Minimoog and Model D are trademarks of Moog Music Inc. Mini Moop is an independent personal project, not affiliated with or endorsed by Moog Music, and uses no original logo or artwork.
 
@@ -73,17 +74,17 @@ The engine (`minimoop_dsp`) is plain C++20 with no JUCE dependency. After `prepa
 
 Each block's equations are derived from the physical models of its components. The block is then solved implicitly, either with the trapezoidal rule and Newton-Raphson or by exact integration of RC segments. Blocks exchange voltages with each other, as on the real circuit boards.
 
-| Block | What is simulated |
-|---|---|
-| `ExpoConverter` | Transistor pair: Vt = kT/q at each transistor's temperature, Is temperature law (SPICE XTI/EG), +3500 ppm/K tempco resistor, Is mismatch, emitter resistance, V/oct, offset and HF trimmers |
-| `VcoCore` | Expo current integrated on a 0.01 µF polystyrene capacitor, comparator and FET reset with dead time (high notes go flat, compensated by the HF trim), shapers for triangle, shark-tooth, reverse ramp and 3 rectangles with output-stage slew. polyBLEP correction at the exact instant of each discontinuity |
-| `LadderFilter` | 4 differential-pair stages (Ebers-Moll equations), 68 nF ±10 % capacitors, base current losses (β), pair offsets, zero-delay Emphasis feedback (solved implicitly), transistor noise, output op-amp |
-| `Mixer` | Pots loaded by the summing resistors (Millman's theorem). The "pushed mixer" saturation happens in the ladder's input pair (tanh) |
-| `ContourGen` | Timing capacitor, 5 MΩ log pots, end-of-attack comparator, Decay switch, leakage |
-| `Vca` | Differential pair + V→I converter, control feedthrough ("thump"), 80 dB range |
-| `NoiseSource` | Junction noise (Gaussian + 1/f + popcorn), −3 dB/oct RC network for pink noise |
-| `Glide` | RC on 1 µF, audio-taper pot |
-| `DriftModel` | Board temperature (Ornstein-Uhlenbeck), local hot spots, temperature difference within each expo pair. Tuning drift **results** from the physics; it is not an added LFO |
+| Block | Board | What is simulated |
+|---|---|---|
+| `ExpoConverter` | 1 (and 4) | Revision 2 CA3046 pair with tempco on board 1; the same model with estimated values for the filter cutoff on board 4. Transistor pair: Vt = kT/q at each transistor's temperature, Is temperature law (SPICE XTI/EG), +3500 ppm/K tempco resistor, Is mismatch, emitter resistance, V/oct, offset and HF trimmers |
+| `VcoCore` | 1 | Expo current integrated on a 0.01 µF polystyrene capacitor (ramp from 0 to −4 V), comparator and FET reset with dead time (high notes go flat, compensated by the HF trim), shapers for triangle, shark-tooth, reverse ramp and 3 rectangles with output-stage slew. polyBLEP correction at the exact instant of each discontinuity |
+| `LadderFilter` | 4 | 4 differential-pair stages (Ebers-Moll equations), 68 nF ±10 % capacitors, base current losses (β), pair offsets, zero-delay Emphasis feedback (solved implicitly), transistor noise, output op-amp |
+| `Mixer` | front panel | 25 kΩ linear volume pots loaded by 33 kΩ summing resistors (11 kΩ for noise), solved with Millman's theorem. The "pushed mixer" saturation happens in the ladder's input pair (tanh) |
+| `ContourGen` | 2 | 10 µF electrolytic timing capacitor, 1 MΩ audio-taper pots, end-of-attack comparator, Decay switch, leakage |
+| `Vca` | 4 | Differential pair + V→I converter, control feedthrough ("thump"), 80 dB range |
+| `NoiseSource` | 3 | Junction noise (Gaussian + 1/f + popcorn), −3 dB/oct RC network for pink noise |
+| `Glide` | 2 | RC on 1 µF (C6), 5 MΩ glide pot |
+| `DriftModel` | 1 and 4 | Board temperature (Ornstein-Uhlenbeck), local hot spots, temperature difference within each expo pair. Tuning drift **results** from the physics; it is not an added LFO |
 
 Each voice draws its own component values from the "Unit" seed, then is **calibrated the way a technician would**: offset at A4, V/oct between A1 and A4, HF trim at A7, filter scale. Changing the "Unit" is like playing a different example of the instrument.
 
@@ -106,17 +107,55 @@ Each voice draws its own component values from the "Unit" seed, then is **calibr
 | High 4x | ~4.2 % | ~33 % |
 | Ultra 8x | ~8 % | ~66 % |
 
+## Which revision and which boards are simulated
+
+Figure, table and circuit numbers below refer to the Minimoog Model D service manual.
+
+### Oscillator board revision: revision 2
+
+The oscillator board (board 1) exists in three revisions, and they do not drift or track in the same way:
+
+| Revision | Serial numbers | Expo converter | Simulated |
+|---|---|---|---|
+| 1, "discrete" | up to 1236 | discrete 2N4058 PNP pairs, no temperature compensation | no |
+| **2, "old board"** | **1237 to 10174** | **RCA CA3046 transistor array at ambient temperature, 1 kΩ +3500 ppm/K tempco resistor (Fig. 9-3, 9-4)** | **yes** |
+| 3, "new board" | 10175 and above | Fairchild µA726 heated pair held at about 80 °C, no tempco (Fig. 9-1, 9-2) | no |
+
+Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …) with a 1 kΩ tempco resistor in its feedback (R20, R71, …) and 51.1 kΩ 1 % inputs (R27, …). It drives the CA3046 expo pair (IC2), whose reference transistor current is set by R50 = 39 kΩ with its collector held at −4 V by a 741 (IC3), about 103 µA. The pair sits at the temperature of the board, and the drift that results is what `DriftModel` reproduces. The 94-001 modification kit for revision 2 boards is not modelled.
+
+### The six boards and the blocks that simulate them
+
+| Board | Moog reference | Circuit (service manual) | Simulated by | Not simulated |
+|---|---|---|---|---|
+| **1** Oscillator (rev 2) | 93-113, Fig. 9-3 / 9-4 | 3 × CV summer, CA3046 expo converter, sawtooth core (0.01 µF, FET reset, 0 to −4 V ramp), waveshapers | `ExpoConverter` (summer reduced to its gain and tempco), `VcoCore` | the summers' op-amp dynamics |
+| **2** Contour generator and keyboard | 93-114, Fig. 9-6 / 9-7 | circuit 8: two contour generators (C5 / C2 = 10 µF) | 2 × `ContourGen` (filter, loudness) | |
+| | | circuit 1: keyboard circuit, glide (C6 = 1 µF) | `Glide` | 8.33 mA current source, 43 × 10 Ω resistor string and sample & hold (C9). MIDI notes give an ideal 1 V/oct CV; lowest-note priority is handled by `VoiceAllocator` |
+| **3** Power supply | 93-115, Fig. 9-8 / 9-9 | circuit 3: noise generator (white and pink) | `NoiseSource` | |
+| | | circuit 15: modulation mix amplifier | in `Voice` (ideal crossfade between osc 3 and noise / filter contour) | the amplifier circuit itself |
+| | | circuit 10: ±10 V regulators; circuit 11: headphone amplifier | | rails are ideal, so supply-borne oscillator bleed is absent; no headphone stage |
+| **4** Filter and VCA | 93-116, Fig. 9-10 / 9-11 | circuit 6: ladder filter (C3, C7, C11, C16 = 0.068 µF), cutoff expo pair Q26 / Q28, Emphasis | `LadderFilter`, `ExpoConverter` (cutoff) | |
+| | | circuit 7: voltage controlled amplifier | `Vca` | |
+| | | circuit 12: external input preamp and overload lamp; circuit 13: A-440 reference oscillator | | not simulated (the External Input is mixed directly) |
+| **5** Rectifier | 93-118, Fig. 9-13 | bridge rectifier, filter capacitors, fuses | | not simulated (no audible effect) |
+| **6** Octave buffer | 93-119, Fig. 9-14 | three 741 followers buffering the range switches | | not simulated: range switching is ideal |
+| Front panel | Fig. 9-16, Tables 7-2 / 7-3 | passive mixer (pots, on/off switches, summing resistors), controls | `Mixer`, pot tapers in each block | |
+| Left-hand controller | 93-060, Fig. 9-12 | pitch and modulation wheels | ideal pitch bend and modulation amount in `Voice` | |
+
+`DriftModel` (in `src/engine`) is not a board: it supplies the temperatures of boards 1 and 4 to the expo pairs and the ladder.
+
 ## Where the values come from: sourced or assumed
 
 **Sourced** (Model D service manual, OCR of the parts lists, specifications):
 - ±10 V supply rails;
-- sawtooth core with FET reset and 0.01 µF polystyrene capacitor;
-- 1 kΩ tempco resistor and a reference current of about 5 µA;
-- ladder with 4 × 68 nF ±10 %;
+- sawtooth core with FET reset, 0.01 µF polystyrene capacitor and a ramp from 0 to −4 V (Fig. 9-3);
+- expo converter of board 1 rev 2 (Fig. 9-3): 1 kΩ tempco resistor R20, 51.1 kΩ CV input R27, reference current of about 103 µA (−4 V across R50 = 39 kΩ);
+- ladder with 4 × 68 nF ±10 % (C3, C7, C11, C16, Fig. 9-11);
 - self-oscillation at Emphasis 7–8;
 - filter contour over 0 to 4 octaves, KBD 1/3 and 2/3;
 - attack from 1 ms to 10 s and decay from 4 ms to 35 s;
-- glide on 1 µF;
+- glide on 1 µF (C6, Fig. 9-7) with a 5 MΩ glide pot (R2, Table 7-3);
+- mixer on the front panel (Fig. 9-16, Tables 7-2 / 7-3): 25 kΩ linear volume pots (R6, R7, R8, R10), 33 kΩ summing resistors (R45, R46, R47, R49) and 11 kΩ for noise (R48), external input volume 1 MΩ audio taper (R9) buffered by the board 4 preamp;
+- contour timing capacitor 10 µF (C5 / C2, Fig. 9-7), 100 Ω attack series resistor (R7 / R42), 1 MΩ audio-taper Attack and Decay pots (Table 7-3);
 - 50 kΩ audio-taper mod wheel and modulation injection over 0 to 1¼ octaves;
 - linear VCA over 80 dB;
 - pink noise at −3 dB/oct;
@@ -125,9 +164,12 @@ Each voice draws its own component values from the "Unit" seed, then is **calibr
 - reverse ramp on oscillator 3.
 
 **Assumed or estimated** (no source found; these are the parameters to refine first if you have the scanned schematics in front of you):
-- mixer values (47 k / 4.7 k) and ladder input gain (set for mild saturation with one oscillator at 10);
-- Emphasis network and filter output amp values;
-- contour timing capacitor (2.2 µF) and minimum resistances;
+- mixer node resistance (4.7 k) and ladder input gain (set for mild saturation with one oscillator at 10);
+- noise level reaching the mixer (scaled so that the 11 kΩ noise resistor keeps the earlier noise/oscillator balance);
+- curve of the glide pot's "No. 1 taper" (modelled as an audio taper);
+- Emphasis network and filter output amp values (board 4 not yet checked against Fig. 9-11);
+- filter cutoff expo converter values (reference current, input resistor);
+- contour decay path at minimum setting and release resistance (derived from the 4 ms decay spec);
 - VCO reset dead time (1.6 µs);
 - shark-tooth mix weighting;
 - filter modulation depth (2 octaves);
