@@ -69,7 +69,7 @@ TEST_CASE ("Ladder: -12 dB at the small-signal cutoff without emphasis", "[ladde
     f.setEmphasis (0.0);
     const double fc = f.nominalCutoffForCurrent (iTail);
 
-    const double vin = 0.1; // 0.1 V * 0.012 = 1.2 mV at the input pair: linear region
+    const double vin = 0.0012; // 1.2 mV at the input pair: linear region
     const double inDiff = vin * p.inputGain;
     const double gDc = sineGain (f, fs, 20.0, vin) / inDiff;
     const double gFc = sineGain (f, fs, fc, vin) / inDiff;

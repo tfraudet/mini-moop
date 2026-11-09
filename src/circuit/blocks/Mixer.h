@@ -50,8 +50,9 @@ struct MixerParams
     std::array<double, numChannels> rPot { 25e3, 0.0, 25e3, 25e3, 25e3 };     // volume pots (ext: pre-amp output)
     std::array<bool, numChannels> linearPot { true, false, true, true, true }; // ext R9 is audio taper
     std::array<double, numChannels> rSum { 33e3, 33e3, 33e3, 11e3, 33e3 };    // R45, R46, R47, R48, R49
-    double rNode = 4.7e3;                   // summing node to ground (assumed)
-    double nodeGain = 1.0;                  // buffer gain to filter input
+    double rNode = 470.0;                   // R54: the node feeds the base of Q29 (bottom pair) through
+                                            // C27 10 uF, returned by R54 to the AC-grounded bias (Fig. 9-11)
+    double nodeGain = 1.0;                  // no buffer: the node voltage is the pair input
 
     static MixerParams drawn (Rng& rng, const MixerParams& nominal) noexcept
     {

@@ -61,7 +61,7 @@ struct VcoParams
     double c          = 0.01e-6;   // timing capacitor, polystyrene 2 %
     double swing      = 4.0;       // ramp amplitude across the capacitor: 0 to -4 V (Fig. 9-3)
     double tReset     = 1.6e-6;    // reset dead time (s)
-    double outPeak    = 2.5;       // waveshaper output peak (V)
+    double outPeak    = 1.7;       // waveshaper output peak: triangle +1.7 to -1.7 V, rectangle 3.5 Vpp (Fig. 9-3)
     double foldRound  = 0.03;      // triangle fold rounding (fraction of swing)
     double sharkMix   = 0.5;       // sawtooth weight in the sharktooth mix
     double thrSquare  = 0.0;       // comparator thresholds, normalised ramp

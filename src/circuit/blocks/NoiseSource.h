@@ -46,10 +46,10 @@ public:
         Oscillator 3 and the noise enter MODULATION MIX through equal 24k
         resistors (Fig. 9-8, circuit 15), so the noise is meant to be of the
         same order as oscillator 3. The noise outputs' levels are not
-        documented: this gain puts the pink noise at about 1 V rms there
-        (oscillator 3: 2.5 V peak); the red noise keeps its physical level
-        relative to the pink (about half). */
-    static constexpr double modulationGain = 11.0;
+        documented: this gain puts the pink noise at about 0.4 times
+        oscillator 3's peak there (0.68 V rms against 1.7 V); the red noise
+        keeps its physical level relative to the pink (about half). */
+    static constexpr double modulationGain = 11.0 * (1.7 / 2.5);
 
     void prepare (double sampleRate, uint64_t seed) noexcept
     {

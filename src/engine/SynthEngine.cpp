@@ -139,7 +139,7 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
                 refPhase += refInc;
                 if (refPhase >= 1.0) refPhase -= 1.0;
                 const double outGain = panel.mainOn ? OutputVolume::gain (panel.volume) : 0.0;
-                y += 0.25 * outGain * std::sin (2.0 * M_PI * refPhase);
+                y += 0.125 * outGain * std::sin (2.0 * M_PI * refPhase); // same level as before relative to the voices
             }
             out[done + i] = float (y);
         }

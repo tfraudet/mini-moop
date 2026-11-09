@@ -118,9 +118,10 @@ TEST_CASE ("Waveforms stay within the waveshaper swing and have no DC runaway", 
             sum += y;
         }
         INFO ("waveform " << w << " min " << mn << " max " << mx << " mean " << sum / n);
-        CHECK (mx < 3.2);
-        CHECK (mn > -3.2);
-        CHECK (mx - mn > 3.0);
+        const double peak = core.params().outPeak; // 1.7 V (Fig. 9-3)
+        CHECK (mx < 1.28 * peak);
+        CHECK (mn > -1.28 * peak);
+        CHECK (mx - mn > 1.2 * peak);
     }
 }
 

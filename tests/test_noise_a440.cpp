@@ -65,8 +65,8 @@ TEST_CASE ("Noise reaches MODULATION MIX at a level comparable to oscillator 3",
     }
     const double pinkMod = NoiseSource::modulationGain * std::sqrt (sp / count);
     const double redMod = NoiseSource::modulationGain * std::sqrt (sr / count);
-    CHECK (pinkMod > 0.8);  // about 1 V rms against oscillator 3's 2.5 V peak
-    CHECK (pinkMod < 1.25);
+    CHECK (pinkMod > 0.55); // about 0.68 V rms against oscillator 3's 1.7 V peak
+    CHECK (pinkMod < 0.85);
     CHECK (redMod > 0.3 * pinkMod);
     CHECK (redMod < 0.8 * pinkMod);
 }
@@ -103,7 +103,7 @@ TEST_CASE ("A-440 follows the output VOLUME and ON switch", "[a440]")
         }
         return std::sqrt (s / (20.0 * 512.0));
     };
-    CHECK (rms (true, 1.0) > 0.1);
+    CHECK (rms (true, 1.0) > 0.05); // 0.125 peak sine at full volume
     CHECK (rms (true, 0.5) < 0.5 * rms (true, 1.0));
     CHECK (rms (false, 1.0) < 1.0e-6);
 }

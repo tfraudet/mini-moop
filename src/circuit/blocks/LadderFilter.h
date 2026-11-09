@@ -47,7 +47,7 @@ struct LadderParams
     std::array<double, 4> c { 0.068e-6, 0.068e-6, 0.068e-6, 0.068e-6 }; // ladder capacitors (F)
     std::array<double, 5> offset {};  // Vbe mismatch of input pair + 4 ladder pairs (V)
     double beta       = 200.0;        // transistor current gain
-    double inputGain  = 0.012;        // mixer volts -> input pair differential volts
+    double inputGain  = 1.0;          // mixer node volts -> input pair: direct (base of Q29 over R54)
     double kMax       = 14.2;         // emphasis feedback at full rotation: oscillation (k = 4.0) from 7.5/10
 
     // EMPHASIS feedback path (board 4 pins 7 -> 6, front panel Fig. 9-16): the
@@ -59,7 +59,9 @@ struct LadderParams
     double rEmphasisPot    = 50.0e3;  // R14
     double rEmphasisSource = 180.0;   // output node (R7)
     double rEmphasisShunt  = 800.0;   // R76 + part of R73 || pair input (assumed)
-    double outputGain = 18.0;         // output differential amp gain
+    double outputGain = 47.7;         // output differential amp gain (assumed: keeps the overall level
+                                      // of the earlier calibration, 18 x 2.65, now that the drive into
+                                      // the ladder follows the schematic)
     double noiseRms   = 2.0e-6;       // input-referred transistor noise (V rms)
 
     static LadderParams drawn (Rng& rng, const LadderParams& nominal) noexcept

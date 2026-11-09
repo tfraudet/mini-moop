@@ -37,12 +37,13 @@ constexpr double tuneSemis = 1.5;        // master TUNE span (+/-)
 constexpr double oscModOctaves = 1.25;   // modulation injection, oscillators
 constexpr double filterModOctaves = 2.0; // modulation injection, filter (assumed)
 constexpr double contourOctaves = 4.0;   // AMOUNT OF CONTOUR at 10
-constexpr double oscPeak = 2.5;          // waveshaper output peak (V)
+constexpr double oscPeak = 1.7;          // waveshaper output peak (V), Fig. 9-3
 // Noise level reaching the mixer, relative to the level on the modulation
 // bus. The noise channel's 11 k summing resistor (R48) is 3x the conductance
 // of the oscillators' 33 k; the generator's output level is not documented,
-// so this keeps the noise/oscillator balance of the previous ear-tuned model.
-constexpr double noiseToMixer = 1.0 / 3.0;
+// so this keeps the noise/oscillator balance of the previous ear-tuned model
+// (1/3 with 2.5 V oscillators, scaled for the 1.7 V of Fig. 9-3).
+constexpr double noiseToMixer = (1.0 / 3.0) * (1.7 / 2.5);
 
 double cutoffCv (double pos) { return -5.5 + 10.5 * pos; } // ~14 Hz .. ~23 kHz
 } // namespace
@@ -66,12 +67,9 @@ void Voice::build (uint64_t s)
     filtExpoNominal.rIn = 100.0e3;
     filterExpo.setParams (ExpoConverterParams::drawn (rng, filtExpoNominal));
 
-    LadderParams lp;
-    // Set for mild saturation with one oscillator at 10. Rescaled by 1/1.0698
-    // when the mixer moved to the front panel values (33 k summing resistors),
-    // so the drive into the ladder is unchanged.
-    lp.inputGain = 0.35 / 1.0698;
-    ladder.setParams (LadderParams::drawn (rng, lp));
+    // The mixer node is the bottom pair's input itself (R54, see Mixer.h):
+    // the drive into the ladder now follows from the schematic values.
+    ladder.setParams (LadderParams::drawn (rng, LadderParams {}));
 
     mixer.setParams (MixerParams::drawn (rng, MixerParams {}));
     filterContour.setParams (ContourParams::drawn (rng, ContourParams {}));

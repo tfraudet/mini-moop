@@ -149,14 +149,14 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 
 **Sourced** (Model D service manual, OCR of the parts lists, specifications):
 - ±10 V supply rails;
-- sawtooth core with FET reset, 0.01 µF polystyrene capacitor and a ramp from 0 to −4 V (Fig. 9-3);
+- sawtooth core with FET reset, 0.01 µF polystyrene capacitor and a ramp from 0 to −4 V (Fig. 9-3); waveform outputs of ±1.7 V (triangle +1.7 to −1.7 V, rectangle 3.5 Vpp, Fig. 9-3);
 - expo converter of board 1 rev 2 (Fig. 9-3): 1 kΩ tempco resistor R20, 51.1 kΩ CV input R27, reference current of about 103 µA (−4 V across R50 = 39 kΩ);
 - ladder with 4 × 68 nF ±10 % (C3, C7, C11, C16, Fig. 9-11);
 - self-oscillation at Emphasis 7–8;
 - filter contour over 0 to 4 octaves, KBD 1/3 and 2/3;
 - attack from 1 ms to 10 s and decay from 4 ms to 35 s;
 - glide on 1 µF (C6, Fig. 9-7) with a 5 MΩ glide pot (R2, Table 7-3);
-- mixer on the front panel (Fig. 9-16, Tables 7-2 / 7-3): 25 kΩ linear volume pots (R6, R7, R8, R10), 33 kΩ summing resistors (R45, R46, R47, R49) and 11 kΩ for noise (R48), external input volume 1 MΩ audio taper (R9) buffered by the board 4 preamp;
+- mixer on the front panel (Fig. 9-16, Tables 7-2 / 7-3): 25 kΩ linear volume pots (R6, R7, R8, R10), 33 kΩ summing resistors (R45, R46, R47, R49) and 11 kΩ for noise (R48), external input volume 1 MΩ audio taper (R9) buffered by the board 4 preamp; the summing node drives the base of the ladder's input pair directly (C27, R54 470 Ω to the AC-grounded bias, Fig. 9-11), so the drive into the `tanh` of that pair follows from these values (one oscillator at full volume: about 22 mV peak, saturation from 2 to 3 oscillators);
 - contour timing capacitor 10 µF (C5 / C2, Fig. 9-7), 100 Ω attack series resistor (R7 / R42), 1 MΩ audio-taper Attack and Decay pots (Table 7-3);
 - 50 kΩ audio-taper mod wheel and modulation injection over 0 to 1¼ octaves;
 - linear VCA over 80 dB; main VOLUME is a passive divider after it (R75 1 kΩ into R20, a 5 kΩ linear pot, Fig. 9-16), with an assumed 10 kΩ load;
@@ -166,7 +166,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 - reverse ramp on oscillator 3.
 
 **Assumed or estimated** (no source found; these are the parameters to refine first if you have the scanned schematics in front of you):
-- mixer node resistance (4.7 k) and ladder input gain (set for mild saturation with one oscillator at 10);
+- output level calibration: the filter output amp gain (47.7) keeps one oscillator at the level of the earlier calibration, and digital full scale is ±4 V so that the FEEDBACK patch with a saturated pre-amp stays below 0 dBFS;
 - noise level reaching the mixer (scaled so that the 11 kΩ noise resistor keeps the earlier noise/oscillator balance);
 - curve of the glide pot's "No. 1 taper" (modelled as an audio taper);
 - filter output amp values; the EMPHASIS shunt resistance (R76 + part of the REGEN CAL trimmer R73 against the bottom pair, about 800 Ω), which sets the shape of the reverse-audio EMPHASIS law (R14, 50 kΩ rheostat, Fig. 9-16); the maximum feedback is calibrated for self-oscillation from 7.5;
