@@ -350,16 +350,16 @@ void PanelLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& 
     if (horizontal)
     {
         // Rocker: horizontal paddle in a black bezel, pivoting on a vertical
-        // ridge; the pressed half is darker (right half pressed = ON).
+        // ridge; the lit half shows the selected side (right half lit = ON).
         auto bezel = r.withSizeKeepingCentre (r.getWidth(), std::min (r.getHeight(), r.getWidth() * 0.55f)).reduced (1.0f);
         g.setColour (juce::Colours::black);
         g.fillRoundedRectangle (bezel, 3.0f);
         auto paddle = bezel.reduced (2.5f);
         auto left = paddle.removeFromLeft (paddle.getWidth() * 0.5f);
         auto right = paddle;
-        g.setColour (on ? lit : shade);
-        g.fillRoundedRectangle (left, 2.0f);
         g.setColour (on ? shade : lit);
+        g.fillRoundedRectangle (left, 2.0f);
+        g.setColour (on ? lit : shade);
         g.fillRoundedRectangle (right, 2.0f);
         g.setColour (juce::Colours::black.withAlpha (0.35f));
         g.drawLine (bezel.getCentreX(), bezel.getY() + 3.0f, bezel.getCentreX(), bezel.getBottom() - 3.0f, 1.0f);
@@ -371,16 +371,16 @@ void PanelLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& 
         return;
     }
 
-    // Rocker: vertical paddle in a black bezel; the pressed half is darker.
+    // Rocker: vertical paddle in a black bezel; the lit half shows the selected side (bottom half lit = ON).
     auto bezel = r.withSizeKeepingCentre (std::min (r.getWidth(), r.getHeight() * 0.55f), r.getHeight()).reduced (1.0f);
     g.setColour (juce::Colours::black);
     g.fillRoundedRectangle (bezel, 3.0f);
     auto paddle = bezel.reduced (2.5f);
     auto top = paddle.removeFromTop (paddle.getHeight() * 0.5f);
     auto bottom = paddle;
-    g.setColour (on ? lit : shade);
-    g.fillRoundedRectangle (top, 2.0f);
     g.setColour (on ? shade : lit);
+    g.fillRoundedRectangle (top, 2.0f);
+    g.setColour (on ? lit : shade);
     g.fillRoundedRectangle (bottom, 2.0f);
     // ridge
     g.setColour (juce::Colours::black.withAlpha (0.35f));

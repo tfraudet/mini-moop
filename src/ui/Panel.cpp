@@ -434,12 +434,14 @@ Panel::Panel (MiniMoopProcessor& p)
     constexpr float headingX = 964.0f; // clear of the border switches
     heading ("FILTER", headingX, 40.0f, 1244.0f);
     const float modX[3] = { 998.0f, 1096.0f, 1194.0f };
-    knob (id::cutoff, { int (modX[0]), 102 }, 92);
-    knobLegend ("CUTOFF", { int (modX[0]), 102 }, 92);
+    // Scale -5..+5 as on the original panel, numbered every 2 (-4 -2 0 2 4).
+    knob (id::cutoff, { int (modX[0]), 102 }, 92, "custom",
+          juce::String::fromUTF8 ("0=|0.1=\xe2\x88\x92" "4|0.2=|0.3=\xe2\x88\x92" "2|0.4=|0.5=0|0.6=|0.7=2|0.8=|0.9=4|1="));
+    knobLegend ("CUTOFF FREQUENCY", { int (modX[0]), 102 }, 92);
     knob (id::emphasis, { int (modX[1]), 102 }, 92);
     knobLegend ("EMPHASIS", { int (modX[1]), 102 }, 92);
     knob (id::contourAmt, { int (modX[2]), 102 }, 92);
-    knobLegend ("CONTOUR AMT.", { int (modX[2]), 102 }, 92);
+    knobLegend ("AMOUNT OF CONTOUR", { int (modX[2]), 102 }, 92);
 
     heading ("FILTER CONTOUR", headingX, 174.0f, 1244.0f);
     heading ("LOUDNESS CONTOUR", headingX, 290.0f, 1244.0f);

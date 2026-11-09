@@ -38,6 +38,20 @@ std::unique_ptr<APF> pot (const char* pid, const juce::String& name, float def)
                                       .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); }));
 }
 
+/** CUTOFF FREQUENCY: a 0..10 pot internally (as stored in presets), shown
+    -5..+5 as engraved on the original panel. */
+std::unique_ptr<APF> centredPot (const char* pid, const juce::String& name, float def)
+{
+    return std::make_unique<APF> (juce::ParameterID { pid, 1 }, name,
+                                  juce::NormalisableRange<float> (0.0f, 10.0f, 0.0f), def,
+                                  juce::AudioParameterFloatAttributes()
+                                      .withStringFromValueFunction ([] (float v, int) {
+                                          const float c = v - 5.0f;
+                                          return (c > 0.04f ? "+" : "") + juce::String (c, 1);
+                                      })
+                                      .withValueFromStringFunction ([] (const juce::String& t) { return t.getFloatValue() + 5.0f; }));
+}
+
 /** Centre-detented pots (TUNE, osc 2/3 FREQUENCY), labelled -1..+1 / semitones. */
 std::unique_ptr<APF> bipolar (const char* pid, const juce::String& name, float span, const juce::String& unit)
 {
@@ -131,7 +145,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                   juce::StringArray { "White", "Pink" }, 0));
 
     // Modifiers
-    l.add (pot (id::cutoff, "Cutoff Frequency", 6.0f));
+    l.add (centredPot (id::cutoff, "Cutoff Frequency", 6.0f));
     l.add (pot (id::emphasis, "Emphasis", 2.0f));
     l.add (pot (id::contourAmt, "Amount of Contour", 5.0f));
     l.add (sw (id::kbd1, "Keyboard Control 1", false));
