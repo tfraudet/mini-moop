@@ -31,8 +31,9 @@
 // and 7-3): 25 kohm linear volume pots (R6 osc 1, R7 osc 2, R8 osc 3, R10
 // noise) and summing resistors on the ON/OFF switches (R45, R46, R47, R49 =
 // 33 kohm, R48 = 11 kohm for noise). The external input volume R9 (1 Mohm
-// audio) sits ahead of the board 4 preamp, which buffers it, so its wiper
-// does not load the summing network.
+// audio) sits ahead of the board 4 pre-amplifier (ExtPreamp), so the ext
+// channel is driven by the pre-amp output: set its pot to 1, only its ON
+// switch applies here.
 
 #include "../components/Passives.h"
 
@@ -46,7 +47,7 @@ struct MixerParams
     static constexpr int numChannels = 5; // osc1, ext, osc2, noise, osc3
 
     // Channel order: osc 1, ext, osc 2, noise, osc 3
-    std::array<double, numChannels> rPot { 25e3, 0.0, 25e3, 25e3, 25e3 };     // volume pots (ext: buffered)
+    std::array<double, numChannels> rPot { 25e3, 0.0, 25e3, 25e3, 25e3 };     // volume pots (ext: pre-amp output)
     std::array<bool, numChannels> linearPot { true, false, true, true, true }; // ext R9 is audio taper
     std::array<double, numChannels> rSum { 33e3, 33e3, 33e3, 11e3, 33e3 };    // R45, R46, R47, R48, R49
     double rNode = 4.7e3;                   // summing node to ground (assumed)

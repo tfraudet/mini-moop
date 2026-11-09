@@ -18,6 +18,8 @@
 
 #include "Parameters.h"
 
+#include "circuit/blocks/ContourGen.h"
+
 namespace mm::params
 {
 
@@ -53,6 +55,41 @@ std::unique_ptr<APF> bipolar (const char* pid, const juce::String& name, float s
 std::unique_ptr<APC> sw (const char* pid, const juce::String& name, bool def)
 {
     return std::make_unique<APC> (juce::ParameterID { pid, 1 }, name, juce::StringArray { "Off", "On" }, def ? 1 : 0);
+}
+
+/** "165 ms", "4.83 s": milliseconds below one second, seconds above. */
+juce::String formatTime (double seconds)
+{
+    if (seconds < 0.01) return juce::String (seconds * 1000.0, 1) + " ms";
+    if (seconds < 1.0) return juce::String (juce::roundToInt (seconds * 1000.0)) + " ms";
+    if (seconds < 10.0) return juce::String (seconds, 2) + " s";
+    return juce::String (seconds, 1) + " s";
+}
+
+/** ATTACK TIME / DECAY TIME pots: still 0..10 internally, but shown (and
+    typed) as the time the circuit gives, as engraved on the panel. */
+std::unique_ptr<APF> timePot (const char* pid, const juce::String& name, float def, bool attack)
+{
+    auto time = [attack] (double pos) {
+        const mm::ContourParams nominal;
+        return attack ? mm::ContourGen::attackTime (nominal, pos) : mm::ContourGen::decayTime (nominal, pos);
+    };
+    return std::make_unique<APF> (juce::ParameterID { pid, 1 }, name,
+                                  juce::NormalisableRange<float> (0.0f, 10.0f, 0.0f), def,
+                                  juce::AudioParameterFloatAttributes()
+                                      .withStringFromValueFunction ([time] (float v, int) { return formatTime (time (double (v) / 10.0)); })
+                                      .withValueFromStringFunction ([time] (const juce::String& text) {
+                                          // "200 ms", "1.5 s" or a bare number of seconds -> dial position
+                                          const double number = text.retainCharacters ("0123456789.").getDoubleValue();
+                                          const double target = text.containsIgnoreCase ("ms") ? number / 1000.0 : number;
+                                          double lo = 0.0, hi = 1.0;
+                                          for (int i = 0; i < 40; ++i)
+                                          {
+                                              const double mid = 0.5 * (lo + hi);
+                                              (time (mid) < target ? lo : hi) = mid;
+                                          }
+                                          return float (10.0 * 0.5 * (lo + hi));
+                                      }));
 }
 
 const juce::StringArray rangeNames { "LO", "32'", "16'", "8'", "4'", "2'" };
@@ -99,11 +136,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     l.add (pot (id::contourAmt, "Amount of Contour", 5.0f));
     l.add (sw (id::kbd1, "Keyboard Control 1", false));
     l.add (sw (id::kbd2, "Keyboard Control 2", true));
-    l.add (pot (id::fAttack, "Filter Attack", 0.0f));
-    l.add (pot (id::fDecay, "Filter Decay", 4.0f));
+    l.add (timePot (id::fAttack, "Filter Attack", 0.0f, true));
+    l.add (timePot (id::fDecay, "Filter Decay", 4.0f, false));
     l.add (pot (id::fSustain, "Filter Sustain", 5.0f));
-    l.add (pot (id::lAttack, "Loudness Attack", 0.0f));
-    l.add (pot (id::lDecay, "Loudness Decay", 4.0f));
+    l.add (timePot (id::lAttack, "Loudness Attack", 0.0f, true));
+    l.add (timePot (id::lDecay, "Loudness Decay", 4.0f, false));
     l.add (pot (id::lSustain, "Loudness Sustain", 10.0f));
 
     // Output and left-hand controller

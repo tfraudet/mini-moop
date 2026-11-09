@@ -25,6 +25,7 @@
 
 #include "../circuit/blocks/ContourGen.h"
 #include "../circuit/blocks/ExpoConverter.h"
+#include "../circuit/blocks/ExtPreamp.h"
 #include "../circuit/blocks/Glide.h"
 #include "../circuit/blocks/LadderFilter.h"
 #include "../circuit/blocks/Mixer.h"
@@ -65,6 +66,8 @@ public:
     double filterCutoffHz (double cv) noexcept;
     const VcoCore& vco (int i) const noexcept { return vcos[size_t (i)]; }
     double lastOutput() const noexcept { return lastOut; }
+    /** OVERLOAD lamp brightness of this unit, 0..1. */
+    double overloadLamp() const noexcept { return extPreamp.lampLevel(); }
 
 private:
     void calibrateOscillators();
@@ -78,6 +81,7 @@ private:
     LadderFilter ladder;
     NoiseSource noise;
     Mixer mixer;
+    ExtPreamp extPreamp;
     ContourGen filterContour, loudnessContour;
     Vca vca;
     Glide glide;

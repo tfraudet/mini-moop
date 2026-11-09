@@ -65,6 +65,7 @@ public:
         wheels (message thread). Not automatable host parameters, like the
         real spring-loaded / free wheels. */
     std::atomic<float> pitchWheel { 0.0f }, modWheel { 0.0f };
+    std::atomic<float> overloadLamp { 0.0f }; // OVERLOAD lamp brightness for the panel
 
     // ---- sound banks (message thread, except the getters used by hosts)
     mm::BankLibrary& getLibrary() { return *library; }

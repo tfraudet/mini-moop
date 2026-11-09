@@ -77,6 +77,7 @@ void Voice::build (uint64_t s)
     loudnessContour.setParams (ContourParams::drawn (rng, ContourParams {}));
     vca.setParams (VcaParams::drawn (rng, VcaParams {}));
     glide.setParams (GlideParams::drawn (rng, GlideParams {}));
+    extPreamp.setParams (ExtPreampParams::drawn (rng, ExtPreampParams {}));
 
     calibrateOscillators();
     calibrateFilter();
@@ -141,6 +142,7 @@ void Voice::prepare (double oversampledRate)
     loudnessContour.prepare (fs);
     vca.prepare (fs);
     glide.prepare (fs);
+    extPreamp.prepare (fs);
     drift.prepare (fs / controlInterval, seed * 7 + 11);
     reset();
 }
@@ -151,6 +153,7 @@ void Voice::reset()
     filterContour.reset();
     loudnessContour.reset();
     glide.reset ((targetNote - 69) / 12.0);
+    extPreamp.reset();
     gate = false;
     firstNote = true;
     controlCounter = 0;
@@ -214,7 +217,10 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     }
 
     mixer.setChannel (0, p.osc[0].volume, p.osc[0].on);
-    mixer.setChannel (1, p.extVolume, p.extOn);
+    // EXTERNAL INPUT VOLUME sits ahead of the board 4 pre-amp; the mixer only
+    // sees the pre-amp output through its ON switch.
+    extPreamp.setVolume (p.extVolume);
+    mixer.setChannel (1, 1.0, p.extOn);
     mixer.setChannel (2, p.osc[1].volume, p.osc[1].on);
     mixer.setChannel (3, p.noiseVolume, p.noiseOn);
     mixer.setChannel (4, p.osc[2].volume, p.osc[2].on);
@@ -280,7 +286,7 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         osc3Last = o3;
 
         // Mixer -> filter
-        const double ext = (extIn ? extIn[s] : 0.0) + (feedback ? feedbackSample : 0.0);
+        const double ext = extPreamp.process ((extIn ? extIn[s] : 0.0) + (feedback ? feedbackSample : 0.0));
         const double mixed = mixer.process ({ o1, ext, o2, noiseToMixer * noiseOut, o3 });
 
         const double fcv = filterStaticCv + contourOct * fEg + kbTrack * (kb + 9.0 / 12.0)

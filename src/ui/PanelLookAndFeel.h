@@ -47,8 +47,10 @@ inline const juce::Colour stripLabel { 0xffc9b48f };     // small tan captions
 /** Slider property keys understood by the look-and-feel. */
 namespace props
 {
-inline constexpr const char* scale = "mmScale";      // "pot" (0..10), "bipolar", "stepped"
-inline constexpr const char* labels = "mmLabels";    // '|' separated legends for stepped/bipolar
+inline constexpr const char* scale = "mmScale";      // "pot" (0..10), "bipolar", "stepped", "custom"
+inline constexpr const char* labels = "mmLabels";    // '|' separated legends for stepped/bipolar;
+                                                     // "custom": '|' separated "position=legend" ticks
+                                                     // (position 0..1; empty legend = minor tick)
 inline constexpr const char* rocker = "mmRocker";    // rocker colour for toggle buttons: blue/orange/white
 inline constexpr const char* knobSize = "mmKnobSize"; // nominal knob size when the component box is larger
 inline constexpr const char* rockerHorizontal = "mmRockerH"; // paddle rocks left/right (ON = right)

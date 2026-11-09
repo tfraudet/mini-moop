@@ -161,7 +161,9 @@ if(MINIMOOP_BUILD_TESTS)
         tests/test_spice_validation.cpp
         tests/test_ladder.cpp
         tests/test_vco.cpp
-        tests/test_voice.cpp)
+        tests/test_voice.cpp
+        tests/test_extpreamp.cpp
+        tests/test_contour.cpp)
     target_link_libraries(minimoop_tests PRIVATE minimoop_dsp Catch2::Catch2WithMain)
     target_compile_definitions(minimoop_tests PRIVATE
         MINIMOOP_SPICE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tools/spice")

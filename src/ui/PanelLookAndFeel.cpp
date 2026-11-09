@@ -222,7 +222,28 @@ void PanelLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
         return centre.getPointOnCircumference (radius, angle);
     };
 
-    if (stepped)
+    if (kind == "custom")
+    {
+        // Calibrated scale: ticks at given positions, legends on the labelled ones.
+        for (const auto& token : juce::StringArray::fromTokens (s.getProperties()[props::labels].toString(), "|", ""))
+        {
+            const float frac = token.upToFirstOccurrenceOf ("=", false, false).getFloatValue();
+            const auto txt = token.fromFirstOccurrenceOf ("=", false, false);
+            const float a = startAngle + (endAngle - startAngle) * frac;
+            const bool major = txt.isNotEmpty();
+            g.drawLine (juce::Line<float> (pointAt (a, knobR + 2.5f), pointAt (a, major ? scaleR + 1.5f : scaleR - 1.5f)),
+                        major ? 1.5f : 1.1f);
+            if (major)
+            {
+                g.setFont (legendFont (legendH));
+                const auto where = pointAt (a, labelR);
+                const float legendW = txt.length() > 3 ? knobSize * 0.5f : knobSize * 0.26f;
+                g.drawFittedText (txt, juce::Rectangle<float> (legendW, legendH * 1.2f).withCentre (where).toNearestInt(),
+                                  juce::Justification::centred, 1);
+            }
+        }
+    }
+    else if (stepped)
     {
         const auto labels = juce::StringArray::fromTokens (s.getProperties()[props::labels].toString(), "|", "");
         const int n = labels.size();

@@ -55,6 +55,16 @@ struct ContourParams
     double vCharge      = 8.0;     // attack target voltage
     double vThreshold   = 5.0;     // comparator threshold = peak of the contour
     double hysteresis   = 0.02;    // comparator hysteresis (V)
+
+    // Attack / decay pot law, calibrated on the panel legend (10, 200, 600 ms,
+    // 1, 5, 10 s): a carbon audio taper made of two linear segments with 10 %
+    // of the track at the knee, whose electrical travel covers the dial from
+    // 7.5 % to 89 % (the knee falls at 61.5 % of the dial). The legend then
+    // reads the time constant of the timing network (attack: time to the peak).
+    double dialStart    = 0.075;   // dial position where the track begins
+    double dialKnee     = 0.615;   // dial position of the taper knee
+    double dialEnd      = 0.89;    // dial position where the track ends
+    double kneeFraction = 0.10;    // fraction of the track resistance at the knee
     double leakage      = 5.0e-8;  // electrolytic capacitor + switch leakage current (A, estimated)
 
     static ContourParams drawn (Rng& rng, const ContourParams& nominal) noexcept
@@ -127,8 +137,8 @@ public:
 private:
     void update() noexcept
     {
-        tauA = (p.rMin + p.rSwitchOn + p.rAttackPot * taper::audio (attackPos)) * p.c;
-        tauD = (p.rMinDecay + p.rSwitchOn + p.rDecayPot * taper::audio (decayPos)) * p.c;
+        tauA = (p.rMin + p.rSwitchOn + p.rAttackPot * track (p, attackPos)) * p.c;
+        tauD = (p.rMinDecay + p.rSwitchOn + p.rDecayPot * track (p, decayPos)) * p.c;
         const double tauR = (p.rRelease + p.rSwitchOn) * p.c;
         kAttack = std::exp (-h / tauA);
         kDecay = std::exp (-h / tauD);
@@ -138,6 +148,30 @@ private:
         vSustain = p.vThreshold * sustainPos;
     }
 
+public:
+    /** Fraction of the attack / decay pot resistance for a dial position 0..1. */
+    static double track (const ContourParams& p, double pos) noexcept
+    {
+        if (pos <= p.dialStart) return 0.0;
+        if (pos < p.dialKnee) return p.kneeFraction * (pos - p.dialStart) / (p.dialKnee - p.dialStart);
+        if (pos < p.dialEnd) return p.kneeFraction + (1.0 - p.kneeFraction) * (pos - p.dialKnee) / (p.dialEnd - p.dialKnee);
+        return 1.0;
+    }
+
+    /** ATTACK TIME read on the panel: time from gate to the peak (s). */
+    static double attackTime (const ContourParams& p, double pos) noexcept
+    {
+        const double tau = (p.rMin + p.rSwitchOn + p.rAttackPot * track (p, pos)) * p.c;
+        return tau * std::log (p.vCharge / (p.vCharge - p.vThreshold));
+    }
+
+    /** DECAY TIME read on the panel: time constant of the decay (s). */
+    static double decayTime (const ContourParams& p, double pos) noexcept
+    {
+        return (p.rMinDecay + p.rSwitchOn + p.rDecayPot * track (p, pos)) * p.c;
+    }
+
+private:
     ContourParams p;
     Stage stage = Stage::Idle;
     double h = 1.0 / 48000.0, v = 0.0;

@@ -153,6 +153,7 @@ void MiniMoopProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         handleMidi (meta.getMessage());
     }
     renderTo (n);
+    overloadLamp.store (float (engine.overloadLamp()));
 
     // Clear any extra (input-only) channels
     for (int c = getTotalNumOutputChannels(); c < buffer.getNumChannels(); ++c)

@@ -51,6 +51,20 @@ private:
     float shown = 0.0f, dragStartValue = 0.0f;
 };
 
+/** OVERLOAD lamp: chrome bezel and red lens, lit from an atomic brightness
+    (0..1) published by the audio thread. */
+class OverloadLamp : public juce::Component, public juce::SettableTooltipClient
+{
+public:
+    explicit OverloadLamp (std::atomic<float>& level) : brightness (level) {}
+    void paint (juce::Graphics&) override;
+    bool refresh(); // returns true if the displayed brightness changed
+
+private:
+    std::atomic<float>& brightness;
+    float shown = 0.0f;
+};
+
 /** Keyboard with cream keytops and glossy black sharps. */
 class Keyboard : public juce::MidiKeyboardComponent
 {
@@ -116,11 +130,13 @@ private:
     std::vector<Legend> legends;
     struct Heading { juce::String text; float x, y, lineEnd; };
     std::vector<Heading> headings;
+    std::vector<juce::Line<float>> wires; // painted lines on the panel
 
     juce::Image wood, leather, brushed;
     juce::ComboBox presetBox;
     juce::TextButton prevProgram { "<" }, nextProgram { ">" };
     Wheel pitchWheel, modWheel;
+    OverloadLamp overload;
     Keyboard keyboard;
     BurgerButton burger;
     AboutBox about { wood };

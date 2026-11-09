@@ -113,9 +113,15 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
         }
 
         const int active = alloc.activeVoiceCount();
+        double brightest = -1.0;
         for (int v = 0; v < active; ++v)
             if (voices[size_t (v)].isActive())
+            {
                 voices[size_t (v)].render (panel, osBuffer.data(), ext, m);
+                brightest = std::max (brightest, voices[size_t (v)].overloadLamp());
+            }
+        // No unit sounding: the lamp filament simply cools down.
+        lamp = brightest >= 0.0 ? brightest : lamp * std::exp (-double (chunk) / (hostRate * 0.06));
 
         const double refInc = 440.0 / hostRate;
         for (int i = 0; i < chunk; ++i)

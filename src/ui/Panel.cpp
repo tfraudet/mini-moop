@@ -87,6 +87,51 @@ void Wheel::mouseUp (const juce::MouseEvent&)
     if (refresh()) repaint();
 }
 
+// ============================================================================ OverloadLamp
+
+bool OverloadLamp::refresh()
+{
+    const float v = brightness.load();
+    if (std::abs (v - shown) < 0.01f) return false;
+    shown = v;
+    return true;
+}
+
+void OverloadLamp::paint (juce::Graphics& g)
+{
+    const auto r = getLocalBounds().toFloat();
+    const auto c = r.getCentre();
+    const float rb = std::min (r.getWidth(), r.getHeight()) * 0.5f - 1.0f; // bezel
+    const float rl = rb * 0.62f;                                              // lens
+    auto circle = [&] (float radius) { return juce::Rectangle<float> (radius * 2.0f, radius * 2.0f).withCentre (c); };
+
+    // chrome bezel
+    juce::ColourGradient chrome (juce::Colour (0xffe8e8e4), c.translated (-rb, -rb), juce::Colour (0xff4a4a48), c.translated (rb, rb), false);
+    chrome.addColour (0.55, juce::Colour (0xff9a9a96));
+    g.setGradientFill (chrome);
+    g.fillEllipse (circle (rb));
+    g.setColour (juce::Colours::black.withAlpha (0.7f));
+    g.drawEllipse (circle (rb), 0.8f);
+    g.setColour (juce::Colours::black);
+    g.fillEllipse (circle (rl + 1.2f));
+
+    // red lens, lit by the filament (perceived brightness rises fast at first)
+    const float b = std::pow (juce::jlimit (0.0f, 1.0f, shown), 0.6f);
+    const auto dark = juce::Colour (0xff3c0f0b), lit = juce::Colour (0xffff5530);
+    juce::ColourGradient lens (dark.interpolatedWith (juce::Colour (0xffffd2a0), b).brighter (0.1f), c.translated (-rl * 0.3f, -rl * 0.4f),
+                               dark.interpolatedWith (lit, b).darker (0.3f * (1.0f - b)), c.translated (rl, rl), true);
+    g.setGradientFill (lens);
+    g.fillEllipse (circle (rl));
+    if (b > 0.01f)
+    {
+        g.setColour (lit.withAlpha (0.35f * b));
+        g.drawEllipse (circle (rl + 0.6f), 1.2f);
+    }
+    // specular highlight
+    g.setColour (juce::Colours::white.withAlpha (0.35f));
+    g.fillEllipse (juce::Rectangle<float> (rl * 0.55f, rl * 0.4f).withCentre (c.translated (-rl * 0.3f, -rl * 0.45f)));
+}
+
 // ============================================================================ Keyboard
 
 void Keyboard::drawWhiteNote (int note, juce::Graphics& g, juce::Rectangle<float> area, bool isDown, bool isOver,
@@ -236,11 +281,13 @@ juce::Image makeSeamlessTile (const juce::Image& photo)
         }
     return tile;
 }
-const juce::Range<float> sectionX[] = { { 34, 234 }, { 234, 614 }, { 614, 844 }, { 844, 1224 }, { 1224, 1366 } };
-// OSCILLATOR MODULATION rocker, centred on the CONTROLLERS / OSCILLATOR BANK border;
-// the border line is interrupted around it and its legends.
+const juce::Range<float> sectionX[] = { { 34, 234 }, { 234, 614 }, { 614, 912 }, { 912, 1256 }, { 1256, 1366 } };
+// OSCILLATOR MODULATION rocker, centred on the CONTROLLERS / OSCILLATOR BANK border.
 const juce::Rectangle<float> oscModSwitch { 209.0f, 98.0f, 50.0f, 24.0f };
-const juce::Range<float> oscModGap { 62.0f, 140.0f };
+// FILTER MODULATION and KEYBOARD CONTROL rockers, centred on the MIXER / MODIFIERS border.
+constexpr float borderSwitchX = 912.0f;
+// Each section border is interrupted (vertical range) around the switches and legends sitting on it.
+const juce::Range<float> borderGap[] = { {}, { 62.0f, 140.0f }, {}, { 58.0f, 240.0f }, {} };
 const char* sectionTitle[] = { "CONTROLLERS", "OSCILLATOR BANK", "MIXER", "MODIFIERS", "OUTPUT" };
 } // namespace
 
@@ -248,6 +295,7 @@ Panel::Panel (MiniMoopProcessor& p)
     : proc (p),
       pitchWheel (p.pitchWheel, true, "PITCH"),
       modWheel (p.modWheel, false, "MOD."),
+      overload (p.overloadLamp),
       keyboard (p.keyboardState)
 {
     setLookAndFeel (&lnf);
@@ -337,26 +385,55 @@ Panel::Panel (MiniMoopProcessor& p)
     legend ("OSC. 3\nCTRL", { 226.0f, 282.0f, 60.0f, 24.0f }, 9.0f); // above the switch
 
     // ------------------------------------------------------------------ MIXER
-    legend ("VOLUME", { 630.0f, 40.0f, 80.0f, 13.0f }, 10.5f, juce::Justification::centredLeft);
-    rocker (id::noiseColor, { 812, 32, 20, 34 }, "white");
-    legend ("PINK", { 772.0f, 34.0f, 36.0f, 11.0f }, 8.0f, juce::Justification::centredRight, true);
-    legend ("WHITE", { 772.0f, 53.0f, 36.0f, 11.0f }, 8.0f, juce::Justification::centredRight, true);
+    // Original layout: oscillator volumes on the left (rows 1, 3, 5), a column of
+    // ON switches, EXTERNAL INPUT and NOISE volumes on the right (rows 2, 4),
+    // joined to their switches by painted lines; OVERLOAD lamp at the top.
     const int mixY[5] = { 98, 163, 228, 293, 358 };
+    constexpr int volX = 672, switchX = 732, rightX = 840, mixKnob = 72;
     const char* mixVol[5] = { id::oscVol[0], id::extVol, id::oscVol[1], id::noiseVol, id::oscVol[2] };
     const char* mixOn[5] = { id::oscOn[0], id::extOn, id::oscOn[1], id::noiseOn, id::oscOn[2] };
-    const char* mixName[5] = { "OSC. 1", "EXT. INPUT", "OSC. 2", "NOISE", "OSC. 3" };
+    legend ("VOLUME", { float (volX) - 40.0f, 40.0f, 80.0f, 13.0f }, 10.5f);
     for (int i = 0; i < 5; ++i)
     {
-        knob (mixVol[i], { 660, mixY[i] }, 72);
-        rocker (mixOn[i], { 708, mixY[i] - 19, 22, 38 }, "blue");
-        legend (mixName[i], { 740.0f, float (mixY[i]) - 7.0f, 96.0f, 14.0f }, 10.0f, juce::Justification::centredLeft);
+        const bool right = i == 1 || i == 3; // EXT. INPUT and NOISE
+        const float y = float (mixY[i]);
+        knob (mixVol[i], { right ? rightX : volX, mixY[i] }, mixKnob);
+        rocker (mixOn[i], { switchX, mixY[i] - 11, 44, 22 }, "blue").getProperties().set (props::rockerHorizontal, true);
+        legend ("ON", { float (switchX) + 22.0f, y + 13.0f, 22.0f, 11.0f }, 9.0f);
+        if (right)
+            wires.push_back ({ float (switchX) + 45.0f, y, float (rightX) - 41.0f, y });
+        else
+            wires.push_back ({ float (volX) + 42.0f, y, float (switchX) - 1.0f, y });
     }
+    legend ("EXTERNAL\nINPUT VOLUME", { float (rightX) - 45.0f, float (mixY[1]) - 62.0f, 90.0f, 24.0f }, 9.0f);
+    legend ("NOISE VOLUME", { float (rightX) - 45.0f, float (mixY[3]) - 56.0f, 90.0f, 12.0f }, 9.0f);
+    legend ("OVERLOAD", { float (rightX) - 40.0f, 40.0f, 80.0f, 13.0f }, 9.0f);
+    overload.setBounds (juce::Rectangle<int> (26, 26).withCentre ({ rightX, 68 }));
+    overload.setTooltip (tooltipFor ("overload"));
+    addAndMakeVisible (overload);
+    rocker (id::noiseColor, { rightX - 11, 340, 22, 36 }, "blue");
+    legend ("WHITE", { float (rightX) - 30.0f, 327.0f, 60.0f, 11.0f }, 9.0f);
+    legend ("PINK", { float (rightX) - 30.0f, 379.0f, 60.0f, 11.0f }, 9.0f);
+
+    // FILTER MODULATION and KEYBOARD CONTROL 1 / 2 straddle the MIXER / MODIFIERS border.
+    auto borderSwitch = [this] (const char* pid, float top) {
+        rocker (pid, juce::Rectangle<float> (borderSwitchX - 25.0f, top, 50.0f, 24.0f).toNearestInt(), "orange")
+            .getProperties().set (props::rockerHorizontal, true);
+    };
+    // The top switch is centred on the CUTOFF knob (y = 102).
+    legend ("FILTER\nMODULATION", { borderSwitchX - 45.0f, 64.0f, 90.0f, 24.0f }, 9.0f);
+    borderSwitch (id::filterMod, 90.0f);
+    legend ("ON", { borderSwitchX, 117.0f, 25.0f, 11.0f }, 9.0f);
+    legend ("ON", { borderSwitchX, 131.0f, 25.0f, 11.0f }, 9.0f);
+    borderSwitch (id::kbd1, 144.0f);
+    legend ("KEYBOARD\nCONTROL", { borderSwitchX - 45.0f, 171.0f, 90.0f, 24.0f }, 9.0f);
+    borderSwitch (id::kbd2, 197.0f);
+    legend ("ON", { borderSwitchX, 224.0f, 25.0f, 11.0f }, 9.0f);
 
     // -------------------------------------------------------------- MODIFIERS
-    heading ("FILTER", 858.0f, 40.0f, 1212.0f);
-    rocker (id::filterMod, { 874, 78, 24, 44 }, "orange");
-    legend ("FILTER\nMOD.", { 856.0f, 126.0f, 60.0f, 24.0f }, 9.0f);
-    const float modX[3] = { 966.0f, 1064.0f, 1162.0f };
+    constexpr float headingX = 964.0f; // clear of the border switches
+    heading ("FILTER", headingX, 40.0f, 1244.0f);
+    const float modX[3] = { 998.0f, 1096.0f, 1194.0f };
     knob (id::cutoff, { int (modX[0]), 102 }, 92);
     knobLegend ("CUTOFF", { int (modX[0]), 102 }, 92);
     knob (id::emphasis, { int (modX[1]), 102 }, 92);
@@ -364,29 +441,30 @@ Panel::Panel (MiniMoopProcessor& p)
     knob (id::contourAmt, { int (modX[2]), 102 }, 92);
     knobLegend ("CONTOUR AMT.", { int (modX[2]), 102 }, 92);
 
-    heading ("FILTER CONTOUR", 858.0f, 174.0f, 1212.0f);
-    rocker (id::kbd1, { 862, 202, 24, 44 }, "orange");
-    rocker (id::kbd2, { 890, 202, 24, 44 }, "orange");
-    legend (juce::String::fromUTF8 ("KBD 1 \xc2\xb7 2"), { 851.0f, 250.0f, 74.0f, 12.0f }, 9.0f);
-    heading ("LOUDNESS CONTOUR", 858.0f, 290.0f, 1212.0f);
+    heading ("FILTER CONTOUR", headingX, 174.0f, 1244.0f);
+    heading ("LOUDNESS CONTOUR", headingX, 290.0f, 1244.0f);
     const char* fEnv[3] = { id::fAttack, id::fDecay, id::fSustain };
     const char* lEnv[3] = { id::lAttack, id::lDecay, id::lSustain };
-    const char* envName[3] = { "ATTACK", "DECAY", "SUSTAIN" };
+    const char* envName[3] = { "ATTACK TIME", "DECAY TIME", "SUSTAIN LEVEL" };
+    // Attack / decay time scale of the original panel (calibrated, irregular ticks).
+    const juce::String timeScale = "0=M-SEC.|0.08=10|0.12=|0.165=200|0.28=|0.385=600|0.5=|0.615=1|0.68=|0.735=5|0.815=|0.89=10|1=SEC.";
     for (int i = 0; i < 3; ++i)
     {
-        knob (fEnv[i], { int (modX[i]), 228 }, 80);
+        const bool time = i < 2;
+        knob (fEnv[i], { int (modX[i]), 228 }, 80, time ? "custom" : "pot", time ? timeScale : juce::String());
         knobLegend (envName[i], { int (modX[i]), 228 }, 80);
-        knob (lEnv[i], { int (modX[i]), 344 }, 80);
+        knob (lEnv[i], { int (modX[i]), 344 }, 80, time ? "custom" : "pot", time ? timeScale : juce::String());
         knobLegend (envName[i], { int (modX[i]), 344 }, 80);
     }
 
     // ----------------------------------------------------------------- OUTPUT
-    knob (id::volume, { 1295, 88 }, 92);
-    knobLegend ("VOLUME", { 1295, 88 }, 92);
-    rocker (id::mainOn, { 1283, 192, 24, 46 }, "blue");
-    legend ("ON", { 1265.0f, 242.0f, 60.0f, 12.0f }, 9.5f);
-    rocker (id::a440, { 1283, 296, 24, 46 }, "orange");
-    legend ("A-440", { 1265.0f, 346.0f, 60.0f, 12.0f }, 9.5f);
+    constexpr int outX = 1311; // centre of the OUTPUT section
+    knob (id::volume, { outX, 88 }, 92);
+    knobLegend ("VOLUME", { outX, 88 }, 92);
+    rocker (id::mainOn, { outX - 12, 192, 24, 46 }, "blue");
+    legend ("ON", { float (outX) - 30.0f, 242.0f, 60.0f, 12.0f }, 9.5f);
+    rocker (id::a440, { outX - 12, 296, 24, 46 }, "orange");
+    legend ("A-440", { float (outX) - 30.0f, 346.0f, 60.0f, 12.0f }, 9.5f);
 
     // ------------------------------------------------- left-hand controller
     rocker (id::glideOn, { 58, 538, 22, 38 }, "orange");
@@ -656,6 +734,7 @@ void Panel::timerCallback()
     if (led::needsScrolling (presetBox.getLocalBounds().toFloat().reduced (4.0f, 5.0f).withTrimmedRight (16.0f), presetBox.getText()))
         presetBox.repaint();
     if (pitchWheel.refresh()) pitchWheel.repaint();
+    if (overload.refresh()) overload.repaint();
     if (modWheel.refresh()) modWheel.repaint();
     syncProgramDisplay();
 }
@@ -741,13 +820,14 @@ void Panel::paint (juce::Graphics& g)
         {
             g.setColour (colours::legend.withAlpha (0.25f));
             const float x = r.getStart(), top = frontPanel.getY() + 10.0f, bottom = frontPanel.getBottom();
-            if (i == 1)
-            {
-                g.drawLine (x, top, x, oscModGap.getStart(), 1.0f);
-                g.drawLine (x, oscModGap.getEnd(), x, bottom, 1.0f);
-            }
-            else
+            const auto gap = borderGap[i];
+            if (gap.isEmpty())
                 g.drawLine (x, top, x, bottom, 1.0f);
+            else
+            {
+                if (gap.getStart() > top) g.drawLine (x, top, x, gap.getStart(), 1.0f);
+                g.drawLine (x, gap.getEnd(), x, bottom, 1.0f);
+            }
         }
         g.setColour (colours::legend);
         g.setFont (PanelLookAndFeel::legendFont (21.0f));
@@ -755,6 +835,11 @@ void Panel::paint (juce::Graphics& g)
                           juce::Rectangle<float> (r.getStart(), titleLine + 2.0f, r.getLength(), frontPanel.getBottom() - titleLine - 4.0f).toNearestInt(),
                           juce::Justification::centred, 1);
     }
+
+    // ---- painted lines joining mixer switches to their volume pots
+    g.setColour (colours::legend);
+    for (const auto& w : wires)
+        g.drawLine (w, 2.0f);
 
     // ---- sub-headings with rules (FILTER, FILTER CONTOUR, LOUDNESS CONTOUR)
     for (const auto& hd : headings)

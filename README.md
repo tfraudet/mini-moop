@@ -84,6 +84,7 @@ Each block's equations are derived from the physical models of its components. T
 | `Vca` | 4 | Differential pair + V→I converter, control feedthrough ("thump"), 80 dB range |
 | `NoiseSource` | 3 | Junction noise (Gaussian + 1/f + popcorn), −3 dB/oct RC network for pink noise |
 | `Glide` | 2 | RC on 1 µF (C6), 5 MΩ glide pot |
+| `ExtPreamp` | 4 | External input pre-amp (gain 201, 1 MΩ volume pot loaded by 100 kΩ, input/feedback/output coupling, saturation at +9.8 / −7.7 V) and OVERLOAD lamp driver (C14 peak detector, Q31/Q34 threshold at about 2.1 V peak, filament heating and cooling) |
 | `DriftModel` | 1 and 4 | Board temperature (Ornstein-Uhlenbeck), local hot spots, temperature difference within each expo pair. Tuning drift **results** from the physics; it is not an added LFO |
 
 Each voice draws its own component values from the "Unit" seed, then is **calibrated the way a technician would**: offset at A4, V/oct between A1 and A4, HF trim at A7, filter scale. Changing the "Unit" is like playing a different example of the instrument.
@@ -135,7 +136,8 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 | | | circuit 10: ±10 V regulators; circuit 11: headphone amplifier | | rails are ideal, so supply-borne oscillator bleed is absent; no headphone stage |
 | **4** Filter and VCA | 93-116, Fig. 9-10 / 9-11 | circuit 6: ladder filter (C3, C7, C11, C16 = 0.068 µF), cutoff expo pair Q26 / Q28, Emphasis | `LadderFilter`, `ExpoConverter` (cutoff) | |
 | | | circuit 7: voltage controlled amplifier | `Vca` | |
-| | | circuit 12: external input preamp and overload lamp; circuit 13: A-440 reference oscillator | | not simulated (the External Input is mixed directly) |
+| | | circuit 12: external input pre-amp and OVERLOAD lamp driver | `ExtPreamp` (the panel lamp shows the brightest lamp among the sounding units) | |
+| | | circuit 13: A-440 reference oscillator | | not simulated (A-440 is an ideal sine) |
 | **5** Rectifier | 93-118, Fig. 9-13 | bridge rectifier, filter capacitors, fuses | | not simulated (no audible effect) |
 | **6** Octave buffer | 93-119, Fig. 9-14 | three 741 followers buffering the range switches | | not simulated: range switching is ideal |
 | Front panel | Fig. 9-16, Tables 7-2 / 7-3 | passive mixer (pots, on/off switches, summing resistors), controls | `Mixer`, pot tapers in each block | |
@@ -170,6 +172,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 - Emphasis network and filter output amp values (board 4 not yet checked against Fig. 9-11);
 - filter cutoff expo converter values (reference current, input resistor);
 - contour decay path at minimum setting and release resistance (derived from the 4 ms decay spec);
+- attack / decay pot law: a two-segment audio taper (10 % at the knee) whose electrical travel covers the dial from 7.5 % to 89 %, with the knee at 61.5 %, calibrated so that the times match the ATTACK TIME / DECAY TIME legend of the panel (10, 200, 600 ms, 1, 5, 10 s);
 - VCO reset dead time (1.6 µs);
 - shark-tooth mix weighting;
 - filter modulation depth (2 octaves);
