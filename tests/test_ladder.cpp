@@ -60,6 +60,7 @@ TEST_CASE ("Ladder: -12 dB at the small-signal cutoff without emphasis", "[ladde
     const double fs = 192000.0;
     LadderFilter f;
     auto p = idealParams();
+    p.kMax = 0.0; // no feedback at all (EMPHASIS at 0 still leaks a little through R14)
     f.setParams (p);
     f.prepare (fs);
     f.setTemperature (300.15);
@@ -171,4 +172,17 @@ TEST_CASE ("Ladder reduced model matches transistor-level ngspice ladder", "[lad
     const double err = mmtest::relativeRmsError (a, b);
     INFO ("relative RMS error vs ngspice: " << err);
     CHECK (err < 0.05);
+}
+
+TEST_CASE ("EMPHASIS: reverse-audio law, self-oscillation from about 7.5", "[ladder]")
+{
+    const LadderParams p;
+    auto k = [&p] (double dial) { return p.kMax * LadderFilter::emphasisLaw (p, dial / 10.0); };
+    // The ladder self-oscillates for k above about 4.0
+    CHECK (k (7.0) < 4.0);
+    CHECK (k (8.0) > 4.0);
+    // Monotonic, small residual feedback fully counter-clockwise
+    for (int i = 0; i < 100; ++i)
+        CHECK (k (0.1 * (i + 1)) > k (0.1 * i));
+    CHECK (k (0.0) < 0.5);
 }

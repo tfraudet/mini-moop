@@ -48,7 +48,17 @@ struct LadderParams
     std::array<double, 5> offset {};  // Vbe mismatch of input pair + 4 ladder pairs (V)
     double beta       = 200.0;        // transistor current gain
     double inputGain  = 0.012;        // mixer volts -> input pair differential volts
-    double kMax       = 5.2;          // emphasis feedback at full rotation (oscillation from ~7.7/10)
+    double kMax       = 14.2;         // emphasis feedback at full rotation: oscillation (k = 4.0) from 7.5/10
+
+    // EMPHASIS feedback path (board 4 pins 7 -> 6, front panel Fig. 9-16): the
+    // filter output, through C10 10 uF, feeds the wiper of R14 (50k reverse
+    // audio taper, wired as a rheostat: wiper and terminal 3, terminal 1 open);
+    // terminal 3 returns through R76 330 and the REGEN CAL trimmer R73 to the
+    // bottom pair. The feedback is the divider of R14's track (plus the output
+    // node's source resistance) against the bottom pair side (shunt, assumed).
+    double rEmphasisPot    = 50.0e3;  // R14
+    double rEmphasisSource = 180.0;   // output node (R7)
+    double rEmphasisShunt  = 800.0;   // R76 + part of R73 || pair input (assumed)
     double outputGain = 18.0;         // output differential amp gain
     double noiseRms   = 2.0e-6;       // input-referred transistor noise (V rms)
 
@@ -87,8 +97,21 @@ public:
     /** Tail current of the bottom pair (from the filter expo converter). */
     void setCutoffCurrent (double amps) noexcept { iTail = std::fmax (amps, 1e-12); update(); }
 
-    /** Emphasis pot position 0..1 (linear pot in the feedback divider). */
-    void setEmphasis (double pos) noexcept { k = p.kMax * std::fmin (std::fmax (pos, 0.0), 1.0); }
+    /** Emphasis pot position 0..1. */
+    void setEmphasis (double pos) noexcept { k = p.kMax * emphasisLaw (p, pos); }
+
+    /** Feedback for an EMPHASIS position, relative to full rotation (0..1):
+        R14 track between wiper and terminal 3 = Rpot * audio(1 - pos) for a
+        reverse-audio pot, in a divider against the shunt resistance. */
+    static double emphasisLaw (const LadderParams& p, double pos) noexcept
+    {
+        auto feedback = [&p] (double a) {
+            const double series = p.rEmphasisPot * taper::audio (1.0 - a) + p.rEmphasisSource;
+            return p.rEmphasisShunt / (p.rEmphasisShunt + series);
+        };
+        const double a = std::fmin (std::fmax (pos, 0.0), 1.0);
+        return feedback (a) / feedback (1.0);
+    }
 
     void reset() noexcept
     {

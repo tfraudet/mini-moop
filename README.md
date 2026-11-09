@@ -169,7 +169,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 - mixer node resistance (4.7 k) and ladder input gain (set for mild saturation with one oscillator at 10);
 - noise level reaching the mixer (scaled so that the 11 kΩ noise resistor keeps the earlier noise/oscillator balance);
 - curve of the glide pot's "No. 1 taper" (modelled as an audio taper);
-- Emphasis network and filter output amp values (board 4 not yet checked against Fig. 9-11);
+- filter output amp values; the EMPHASIS shunt resistance (R76 + part of the REGEN CAL trimmer R73 against the bottom pair, about 800 Ω), which sets the shape of the reverse-audio EMPHASIS law (R14, 50 kΩ rheostat, Fig. 9-16); the maximum feedback is calibrated for self-oscillation from 7.5;
 - filter cutoff expo converter values (reference current, input resistor);
 - contour decay path at minimum setting and release resistance (derived from the 4 ms decay spec);
 - attack / decay pot law: a two-segment audio taper (10 % at the knee) whose electrical travel covers the dial from 7.5 % to 89 %, with the knee at 61.5 %, calibrated so that the times match the ATTACK TIME / DECAY TIME legend of the panel (10, 200, 600 ms, 1, 5, 10 s);
