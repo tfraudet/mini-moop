@@ -99,7 +99,7 @@ private:
     std::array<double, 3> oscStaticCv {};
     double filterStaticCv = 0.0, kbTrack = 0.0, contourOct = 0.0;
     double oscModDepth = 0.0, filterModDepth = 0.0, modMix = 0.0, volume = 0.0;
-    bool modEg = false, osc3Kbd = true, pink = false, feedback = false;
+    bool osc3Kbd = true, pink = false, feedback = false;
 };
 
 } // namespace mm

@@ -241,7 +241,6 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     oscModDepth = p.oscModulation ? wheel * oscModOctaves : 0.0;
     filterModDepth = p.filterModulation ? wheel * filterModOctaves : 0.0;
     modMix = p.modMix;
-    modEg = p.modSourceFilterEg;
     osc3Kbd = p.osc3Control;
     feedback = p.feedbackPatch;
     volume = p.mainOn ? taper::audio (p.volume) : 0.0;
@@ -269,9 +268,8 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         noise.process (white, pinkN);
         const double noiseOut = pink ? pinkN : white;
 
-        // Modulation bus: MODULATION MIX between osc 3 and noise / filter contour
-        const double srcB = modEg ? fEg : noiseOut / oscPeak;
-        const double mod = (1.0 - modMix) * (osc3Last / oscPeak) + modMix * srcB;
+        // Modulation bus: MODULATION MIX between osc 3 and noise
+        const double mod = (1.0 - modMix) * (osc3Last / oscPeak) + modMix * (noiseOut / oscPeak);
 
         // Oscillators (osc 3 first: it is the modulation source)
         const double cv3 = oscStaticCv[2] + (osc3Kbd ? kb : 0.0);

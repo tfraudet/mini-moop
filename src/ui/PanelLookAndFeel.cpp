@@ -212,8 +212,9 @@ void PanelLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
     const auto centre = bounds.getCentre();
     const bool stepped = kind == "stepped";
     const float knobR = knobSize * 0.33f;
-    const float scaleR = knobSize * (stepped ? 0.42f : 0.39f);
-    const float labelR = knobSize * (stepped ? 0.53f : 0.45f);
+    const float scaleR = knobSize * (stepped ? 0.42f : 0.40f);
+    const float labelR = knobSize * (stepped ? 0.535f : 0.48f);
+    const float legendH = knobSize * (stepped ? 0.10f : 0.11f); // scale legend font height
 
     // ---- Scale legends
     g.setColour (colours::legend);
@@ -228,42 +229,46 @@ void PanelLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
         for (int i = 0; i < n; ++i)
         {
             const float a = startAngle + (endAngle - startAngle) * float (i) / float (std::max (1, n - 1));
-            g.drawLine (juce::Line<float> (pointAt (a, knobR + 2.5f), pointAt (a, scaleR)), 1.5f);
+            g.drawLine (juce::Line<float> (pointAt (a, knobR + 2.5f), pointAt (a, scaleR + 1.5f)), 1.8f);
             const auto c = pointAt (a, labelR);
-            const auto box = juce::Rectangle<float> (knobSize * 0.2f, knobSize * 0.1f).withCentre (c);
+            const auto box = juce::Rectangle<float> (knobSize * 0.23f, knobSize * 0.115f).withCentre (c);
             if (labels[i].startsWith ("~"))
-                drawWaveIcon (g, box.reduced (box.getWidth() * 0.12f, box.getHeight() * 0.1f), labels[i]);
+                drawWaveIcon (g, box.reduced (box.getWidth() * 0.1f, box.getHeight() * 0.08f), labels[i]);
             else
             {
-                g.setFont (legendFont (knobSize * 0.085f));
+                g.setFont (legendFont (legendH));
                 g.drawFittedText (labels[i], box.toNearestInt().expanded (6, 0), juce::Justification::centred, 1);
             }
         }
     }
     else
     {
-        // Pot scale: 0..10 numbered every 2; bipolar pots numbered at both ends and centre
+        // Pot scale: 0..10 numbered every 2; bipolar pots numbered at both ends and
+        // centre, or, with more than three legends, one legend every other tick
+        // (TUNE: -2 -1 0 1 2 with a tick between each).
         const bool bip = kind == "bipolar";
-        for (int i = 0; i <= 10; ++i)
+        const auto labels = juce::StringArray::fromTokens (s.getProperties()[props::labels].toString(), "|", "");
+        const bool spread = bip && labels.size() > 3;
+        const int ticks = spread ? 2 * (labels.size() - 1) : 10;
+        for (int i = 0; i <= ticks; ++i)
         {
-            const float a = startAngle + (endAngle - startAngle) * float (i) / 10.0f;
-            const bool major = bip ? (i % 5 == 0) : (i % 2 == 0);
-            const float inner = knobR + 2.5f, outer = major ? scaleR + 1.0f : scaleR - 2.0f;
-            g.drawLine (juce::Line<float> (pointAt (a, inner), pointAt (a, outer)), 1.0f);
-            const bool numbered = bip ? (i == 0 || i == 5 || i == 10) : (i % 2 == 0);
+            const float a = startAngle + (endAngle - startAngle) * float (i) / float (ticks);
+            const bool major = spread ? (i % 2 == 0) : bip ? (i % 5 == 0) : (i % 2 == 0);
+            const float inner = knobR + 2.5f, outer = major ? scaleR + 1.5f : scaleR - 1.5f;
+            g.drawLine (juce::Line<float> (pointAt (a, inner), pointAt (a, outer)), major ? 1.5f : 1.1f);
+            const bool numbered = spread ? (i % 2 == 0) : bip ? (i == 0 || i == 5 || i == 10) : (i % 2 == 0);
             if (numbered)
             {
                 juce::String txt;
-                if (bip)
-                {
-                    const auto labels = juce::StringArray::fromTokens (s.getProperties()[props::labels].toString(), "|", "");
+                if (spread)
+                    txt = labels[i / 2];
+                else if (bip)
                     txt = labels.size() == 3 ? labels[i / 5] : juce::String (i == 0 ? "-" : i == 5 ? "0" : "+");
-                }
                 else
                     txt = juce::String (i);
-                g.setFont (legendFont (knobSize * 0.085f));
+                g.setFont (legendFont (legendH));
                 const auto c = pointAt (a, labelR);
-                g.drawFittedText (txt, juce::Rectangle<float> (knobSize * 0.18f, knobSize * 0.1f).withCentre (c).toNearestInt(),
+                g.drawFittedText (txt, juce::Rectangle<float> (knobSize * 0.26f, legendH * 1.2f).withCentre (c).toNearestInt(),
                                   juce::Justification::centred, 1);
             }
         }
@@ -315,16 +320,43 @@ void PanelLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& 
     const juce::Colour body = colourName == "orange" ? colours::rockerOrange
                             : colourName == "white" ? colours::rockerWhite : colours::rockerBlue;
 
+    const bool horizontal = b.getProperties()[props::rockerHorizontal];
+    const bool inactive = b.getProperties()[props::rockerInactive];
+    const bool on = b.getToggleState();
+    const auto lit = body.brighter (highlighted && ! inactive ? 0.25f : 0.1f);
+    const auto shade = body.darker (0.7f);
+
+    if (horizontal)
+    {
+        // Rocker: horizontal paddle in a black bezel, pivoting on a vertical
+        // ridge; the pressed half is darker (right half pressed = ON).
+        auto bezel = r.withSizeKeepingCentre (r.getWidth(), std::min (r.getHeight(), r.getWidth() * 0.55f)).reduced (1.0f);
+        g.setColour (juce::Colours::black);
+        g.fillRoundedRectangle (bezel, 3.0f);
+        auto paddle = bezel.reduced (2.5f);
+        auto left = paddle.removeFromLeft (paddle.getWidth() * 0.5f);
+        auto right = paddle;
+        g.setColour (on ? lit : shade);
+        g.fillRoundedRectangle (left, 2.0f);
+        g.setColour (on ? shade : lit);
+        g.fillRoundedRectangle (right, 2.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.35f));
+        g.drawLine (bezel.getCentreX(), bezel.getY() + 3.0f, bezel.getCentreX(), bezel.getBottom() - 3.0f, 1.0f);
+        if (inactive)
+        {
+            g.setColour (colours::panel.withAlpha (0.6f));
+            g.fillRoundedRectangle (bezel, 3.0f);
+        }
+        return;
+    }
+
     // Rocker: vertical paddle in a black bezel; the pressed half is darker.
     auto bezel = r.withSizeKeepingCentre (std::min (r.getWidth(), r.getHeight() * 0.55f), r.getHeight()).reduced (1.0f);
     g.setColour (juce::Colours::black);
     g.fillRoundedRectangle (bezel, 3.0f);
     auto paddle = bezel.reduced (2.5f);
-    const bool on = b.getToggleState();
     auto top = paddle.removeFromTop (paddle.getHeight() * 0.5f);
     auto bottom = paddle;
-    const auto lit = body.brighter (highlighted ? 0.25f : 0.1f);
-    const auto shade = body.darker (0.7f);
     g.setColour (on ? lit : shade);
     g.fillRoundedRectangle (top, 2.0f);
     g.setColour (on ? shade : lit);
@@ -332,6 +364,11 @@ void PanelLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& 
     // ridge
     g.setColour (juce::Colours::black.withAlpha (0.35f));
     g.drawLine (bezel.getX() + 3.0f, bezel.getCentreY(), bezel.getRight() - 3.0f, bezel.getCentreY(), 1.0f);
+    if (inactive)
+    {
+        g.setColour (colours::panel.withAlpha (0.6f));
+        g.fillRoundedRectangle (bezel, 3.0f);
+    }
 }
 
 } // namespace mm::ui

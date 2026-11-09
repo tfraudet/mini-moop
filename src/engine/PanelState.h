@@ -44,8 +44,7 @@ struct PanelState
     // Controllers
     double tune = 0.5;              // master tune pot, 0.5 = centre
     double glide = 0.0;
-    double modMix = 0.0;            // 0 = osc 3, 1 = noise / filter contour
-    bool modSourceFilterEg = false; // NOISE <-> FILTER EG switch (later serials)
+    double modMix = 0.0;            // 0 = osc 3, 1 = noise
     bool oscModulation = false;
     bool filterModulation = false;
     bool osc3Control = true;        // osc 3 follows keyboard

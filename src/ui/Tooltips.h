@@ -29,10 +29,11 @@ inline juce::String tooltipFor (const juce::String& id)
     static const std::pair<const char*, const char*> table[] = {
         // Controllers
         { "tune", "TUNE: master tuning of all three oscillators (+/-1.5 semitones). Centre = A-440." },
-        { "glide", "GLIDE: portamento time between notes (about 1 ms to 1 s per octave). Active only when the GLIDE switch is on." },
-        { "modMix", "MODULATION MIX: blends the modulation source, from oscillator 3 (0) to noise or filter contour (10). Depth is set by the MOD wheel." },
-        { "modSource", "Second modulation source for MODULATION MIX: NOISE (up) or FILTER CONTOUR (down)." },
-        { "oscMod", "OSCILLATOR MODULATION: routes the modulation mix to the pitch of oscillators 1 and 2 (vibrato, trills, FM)." },
+        { "glide", "GLIDE: portamento time between notes (time constant from about 1 ms to 5 s). Active only when the GLIDE switch is on." },
+        { "modMix", "MODULATION MIX: blends the modulation source, from oscillator 3 (0) to noise (10). Depth is set by the MOD wheel." },
+        { "oscMod", "OSCILLATOR MODULATION: routes the modulation mix to the pitch of oscillators 1 and 2 (vibrato, trills, FM). Right = ON." },
+        { "modSourceA", "OSC. 3 / FILTER EG: this switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." },
+        { "modSourceB", "NOISE / LFO: this switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." },
         { "osc3Control", "OSC. 3 CONTROL: on = oscillator 3 follows the keyboard; off = oscillator 3 is free-running, typically used as an LFO in the LO range." },
 
         // Oscillator bank

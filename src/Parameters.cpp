@@ -68,8 +68,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     l.add (bipolar (id::tune, "Tune", 1.5f, "st"));
     l.add (pot (id::glide, "Glide", 0.0f));
     l.add (pot (id::modMix, "Modulation Mix", 0.0f));
-    l.add (std::make_unique<APC> (juce::ParameterID { id::modSource, 1 }, "Mod Source B",
-                                  juce::StringArray { "Noise", "Filter EG" }, 0));
     l.add (sw (id::oscMod, "Oscillator Modulation", false));
     l.add (sw (id::filterMod, "Filter Modulation", false));
     l.add (sw (id::osc3Control, "Osc 3 Control", true));
@@ -141,7 +139,7 @@ std::atomic<float>* ParameterCache::get (juce::AudioProcessorValueTreeState& s, 
 void ParameterCache::attach (juce::AudioProcessorValueTreeState& s)
 {
     tune = get (s, id::tune); glide = get (s, id::glide); modMix = get (s, id::modMix);
-    modSource = get (s, id::modSource); oscMod = get (s, id::oscMod); filterMod = get (s, id::filterMod);
+    oscMod = get (s, id::oscMod); filterMod = get (s, id::filterMod);
     osc3Control = get (s, id::osc3Control);
     for (int i = 0; i < 3; ++i)
     {
@@ -177,7 +175,6 @@ void ParameterCache::read (PanelState& p) const noexcept
     p.tune = 0.5 + double (tune->load()) / 3.0;            // +/-1.5 st -> 0..1
     p.glide = pot01 (glide);
     p.modMix = pot01 (modMix);
-    p.modSourceFilterEg = on (modSource);
     p.oscModulation = on (oscMod);
     p.filterModulation = on (filterMod);
     p.osc3Control = on (osc3Control);

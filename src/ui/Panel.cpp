@@ -237,6 +237,10 @@ juce::Image makeSeamlessTile (const juce::Image& photo)
     return tile;
 }
 const juce::Range<float> sectionX[] = { { 34, 234 }, { 234, 614 }, { 614, 844 }, { 844, 1224 }, { 1224, 1366 } };
+// OSCILLATOR MODULATION rocker, centred on the CONTROLLERS / OSCILLATOR BANK border;
+// the border line is interrupted around it and its legends.
+const juce::Rectangle<float> oscModSwitch { 209.0f, 98.0f, 50.0f, 24.0f };
+const juce::Range<float> oscModGap { 62.0f, 140.0f };
 const char* sectionTitle[] = { "CONTROLLERS", "OSCILLATOR BANK", "MIXER", "MODIFIERS", "OUTPUT" };
 } // namespace
 
@@ -266,22 +270,56 @@ Panel::Panel (MiniMoopProcessor& p)
     }
 
     // ------------------------------------------------------------ CONTROLLERS
-    knob (id::tune, { 134, 86 }, 92, "bipolar", "-|0|+");
-    knobLegend ("TUNE", { 134, 86 }, 92);
-    knob (id::glide, { 86, 214 }, 92);
-    knobLegend ("GLIDE", { 86, 214 }, 92);
-    knob (id::modMix, { 182, 214 }, 92);
-    knobLegend ("MOD. MIX", { 182, 214 }, 92);
-    rocker (id::oscMod, { 82, 298, 24, 44 }, "orange");
-    legend ("OSC.\nMOD.", { 64.0f, 346.0f, 60.0f, 24.0f }, 9.0f);
-    rocker (id::modSource, { 162, 298, 24, 44 }, "orange");
-    legend ("F. EG", { 149.0f, 285.0f, 50.0f, 11.0f }, 8.0f, juce::Justification::centred, true);
-    legend ("NOISE", { 149.0f, 346.0f, 50.0f, 12.0f }, 9.0f);
+    // Legends above the knobs, as on the original panel.
+    auto legendAbove = [this] (const juce::String& text, juce::Point<int> centre, int size) {
+        legend (text, juce::Rectangle<float> (float (size) + 40.0f, 12.0f)
+                          .withCentre ({ float (centre.x), float (centre.y) - float (size) * 0.5f - 14.0f }), 9.5f);
+    };
+    // Rows placed so that the block (TUNE legend to the reissue switch legends)
+    // is centred vertically between the top of the panel and the section title.
+    const juce::Point<int> tunePos { 122, 134 }, glidePos { 86, 254 }, modMixPos { 182, 254 };
+    knob (id::tune, tunePos, 92, "bipolar", juce::String::fromUTF8 ("\xe2\x88\x92" "2|\xe2\x88\x92" "1|0|1|2"));
+    legendAbove ("TUNE", tunePos, 92);
+    knob (id::glide, glidePos, 92);
+    legendAbove ("GLIDE", glidePos, 92);
+    knob (id::modMix, modMixPos, 92);
+    legendAbove ("MODULATION MIX", modMixPos, 92);
+    legend ("OSC. 3", { float (modMixPos.x) - 52.0f, float (modMixPos.y) + 39.0f, 44.0f, 11.0f }, 9.0f);
+    legend ("NOISE", { float (modMixPos.x) + 8.0f, float (modMixPos.y) + 39.0f, 44.0f, 11.0f }, 9.0f);
+
+    // OSCILLATOR MODULATION straddles the CONTROLLERS / OSCILLATOR BANK border.
+    rocker (id::oscMod, oscModSwitch.toNearestInt(), "orange").getProperties().set (props::rockerHorizontal, true);
+    legend ("OSCILLATOR\nMODULATION", { oscModSwitch.getCentreX() - 45.0f, oscModSwitch.getY() - 28.0f, 90.0f, 24.0f }, 9.0f);
+    legend ("ON", { oscModSwitch.getCentreX(), oscModSwitch.getBottom() + 3.0f, oscModSwitch.getWidth() * 0.5f, 11.0f }, 9.0f);
+
+    // Modulation source switches of the modern reissues: shown, but inactive.
+    auto reissueSwitch = [this] (const char* tipId, juce::Rectangle<int> area, const char* leftText, const char* rightText) {
+        auto b = std::make_unique<juce::ToggleButton>();
+        b->getProperties().set (props::rocker, "orange");
+        b->getProperties().set (props::rockerHorizontal, true);
+        b->getProperties().set (props::rockerInactive, true);
+        b->setClickingTogglesState (false); // kept enabled so that its tooltip still shows
+        b->setBounds (area);
+        b->setTooltip (tooltipFor (tipId));
+        addAndMakeVisible (*b);
+        buttons.push_back (std::move (b));
+        const auto r = area.toFloat();
+        legend (leftText, { r.getX() - 16.0f, r.getBottom() + 3.0f, r.getWidth() * 0.5f + 16.0f, 11.0f }, 9.0f,
+                juce::Justification::centred, true);
+        legend (rightText, { r.getCentreX(), r.getBottom() + 3.0f, r.getWidth() * 0.5f + 16.0f, 11.0f }, 9.0f,
+                juce::Justification::centred, true);
+    };
+    reissueSwitch ("modSourceA", { glidePos.x - 28, glidePos.y + 66, 56, 24 }, "OSC. 3", "FILTER EG");
+    reissueSwitch ("modSourceB", { modMixPos.x - 28, modMixPos.y + 66, 56, 24 }, "NOISE", "LFO");
 
     // -------------------------------------------------------- OSCILLATOR BANK
     const float colX[3] = { 330.0f, 440.0f, 552.0f };
     legend ("RANGE", { colX[0] - 50.0f, 40.0f, 100.0f, 13.0f }, 10.5f);
-    legend ("FREQUENCY", { colX[1] - 50.0f, 40.0f, 100.0f, 13.0f }, 10.5f);
+    // Oscillator names as on the original panel: OSCILLATOR-1 over the FREQUENCY
+    // heading (oscillator 1 has no frequency pot), OSCILLATOR-2/3 above their pots.
+    auto oscName = [] (int n) { return juce::String::fromUTF8 ("OSCILLATOR\xe2\x80\x94") + juce::String (n); };
+    legend (oscName (1), { colX[1] - 60.0f, 33.0f, 120.0f, 13.0f }, 10.5f);
+    legend ("FREQUENCY", { colX[1] - 50.0f, 47.0f, 100.0f, 13.0f }, 10.5f);
     legend ("WAVEFORM", { colX[2] - 50.0f, 40.0f, 100.0f, 13.0f }, 10.5f);
     const int rowY[3] = { 114, 224, 334 };
     for (int i = 0; i < 3; ++i)
@@ -292,12 +330,11 @@ Panel::Panel (MiniMoopProcessor& p)
         if (i > 0)
         {
             knob (id::oscFreq[i], { int (colX[1]), rowY[i] }, 92, "bipolar", "-7|0|+7");
-            knobLegend ("OSCILLATOR " + juce::String (i + 1), { int (colX[1]), rowY[i] }, 92);
+            legendAbove (oscName (i + 1), { int (colX[1]), rowY[i] }, 92);
         }
     }
-    legend ("OSCILLATOR 1", { colX[1] - 55.0f, float (rowY[0]) - 7.0f, 110.0f, 14.0f }, 11.0f);
     rocker (id::osc3Control, { 244, 310, 24, 44 }, "orange");
-    legend ("OSC. 3\nCTRL", { 226.0f, 357.0f, 60.0f, 24.0f }, 9.0f);
+    legend ("OSC. 3\nCTRL", { 226.0f, 282.0f, 60.0f, 24.0f }, 9.0f); // above the switch
 
     // ------------------------------------------------------------------ MIXER
     legend ("VOLUME", { 630.0f, 40.0f, 80.0f, 13.0f }, 10.5f, juce::Justification::centredLeft);
@@ -400,15 +437,36 @@ Panel::~Panel()
     setLookAndFeel (nullptr);
 }
 
+namespace
+{
+/** Rotary knob whose component box is larger than the knob (room for the
+    scale legends) but which only takes mouse clicks on the knob itself, so
+    that it never steals clicks from its neighbours. */
+class PanelKnob : public juce::Slider
+{
+public:
+    PanelKnob (float knobSize) : juce::Slider (RotaryHorizontalVerticalDrag, NoTextBox), grabRadius (knobSize * 0.45f) {}
+
+    bool hitTest (int x, int y) override
+    {
+        return getLocalBounds().toFloat().getCentre().getDistanceFrom ({ float (x), float (y) }) <= grabRadius;
+    }
+
+private:
+    float grabRadius;
+};
+} // namespace
+
 juce::Slider& Panel::knob (const char* paramId, juce::Point<int> centre, int size, const juce::String& kind,
                            const juce::String& lbls, int boxSize)
 {
-    auto s = std::make_unique<juce::Slider> (juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox);
+    auto s = std::make_unique<PanelKnob> (float (size));
     s->setRotaryParameters (juce::MathConstants<float>::pi * 1.25f, juce::MathConstants<float>::pi * 2.75f, true);
     s->getProperties().set (props::scale, kind);
     s->getProperties().set (props::labels, lbls);
     s->getProperties().set (props::knobSize, size);
-    const int box = std::max (size, boxSize);
+    // The scale legends reach beyond the knob: give the component room for them.
+    const int box = std::max (int (std::ceil (float (size) * 1.3f)), boxSize);
     s->setBounds (juce::Rectangle<int> (box, box).withCentre (centre));
     s->setPopupDisplayEnabled (true, false, this);
     s->setMouseDragSensitivity (kind == "stepped" ? 120 : 220);
@@ -682,7 +740,14 @@ void Panel::paint (juce::Graphics& g)
         if (i > 0)
         {
             g.setColour (colours::legend.withAlpha (0.25f));
-            g.drawLine (r.getStart(), frontPanel.getY() + 10.0f, r.getStart(), frontPanel.getBottom(), 1.0f);
+            const float x = r.getStart(), top = frontPanel.getY() + 10.0f, bottom = frontPanel.getBottom();
+            if (i == 1)
+            {
+                g.drawLine (x, top, x, oscModGap.getStart(), 1.0f);
+                g.drawLine (x, oscModGap.getEnd(), x, bottom, 1.0f);
+            }
+            else
+                g.drawLine (x, top, x, bottom, 1.0f);
         }
         g.setColour (colours::legend);
         g.setFont (PanelLookAndFeel::legendFont (21.0f));

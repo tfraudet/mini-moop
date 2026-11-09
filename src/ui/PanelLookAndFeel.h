@@ -51,6 +51,8 @@ inline constexpr const char* scale = "mmScale";      // "pot" (0..10), "bipolar"
 inline constexpr const char* labels = "mmLabels";    // '|' separated legends for stepped/bipolar
 inline constexpr const char* rocker = "mmRocker";    // rocker colour for toggle buttons: blue/orange/white
 inline constexpr const char* knobSize = "mmKnobSize"; // nominal knob size when the component box is larger
+inline constexpr const char* rockerHorizontal = "mmRockerH"; // paddle rocks left/right (ON = right)
+inline constexpr const char* rockerInactive = "mmRockerInactive"; // drawn dimmed, fixed in its left position
 } // namespace props
 
 class PanelLookAndFeel : public juce::LookAndFeel_V4

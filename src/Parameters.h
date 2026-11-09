@@ -31,7 +31,6 @@ namespace id
 inline constexpr const char* tune = "tune";
 inline constexpr const char* glide = "glide";
 inline constexpr const char* modMix = "modMix";
-inline constexpr const char* modSource = "modSource";
 inline constexpr const char* oscMod = "oscMod";
 inline constexpr const char* filterMod = "filterMod";
 inline constexpr const char* osc3Control = "osc3Control";
@@ -88,7 +87,7 @@ public:
 private:
     std::atomic<float>* get (juce::AudioProcessorValueTreeState& s, const char* pid);
 
-    std::atomic<float> *tune {}, *glide {}, *modMix {}, *modSource {}, *oscMod {}, *filterMod {}, *osc3Control {};
+    std::atomic<float> *tune {}, *glide {}, *modMix {}, *oscMod {}, *filterMod {}, *osc3Control {};
     std::atomic<float> *oscRange[3] {}, *oscWave[3] {}, *oscFreq[3] {}, *oscVol[3] {}, *oscOn[3] {};
     std::atomic<float> *extVol {}, *extOn {}, *noiseVol {}, *noiseOn {}, *noiseColor {};
     std::atomic<float> *cutoff {}, *emphasis {}, *contourAmt {}, *kbd1 {}, *kbd2 {};
