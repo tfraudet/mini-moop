@@ -58,7 +58,8 @@ public:
     void process (float* out, const float* in, int n) noexcept;
 
     Voice& voice (int i) noexcept { return voices[size_t (i)]; }
-    static constexpr double outputScale = 0.25; // volts -> digital full scale (+/-4 V)
+    static constexpr double outputScale = 0.5;  // volts -> digital full scale (+/-2 V)
+    static constexpr double inputScale = 0.25;  // external input: digital full scale = +/-4 V
 
 private:
     void apply (const VoiceCommand& c) noexcept;
@@ -75,6 +76,7 @@ private:
     int osFactor = 4, maxBlock = 512;
     double dcState = 0.0, dcPrevIn = 0.0, dcCoeff = 0.9995;
     double refPhase = 0.0;
+    double polyGain = 1.0; // 1/sqrt(voices) in poly mode: a full chord stays below full scale
     float lastIn = 0.0f;
 };
 

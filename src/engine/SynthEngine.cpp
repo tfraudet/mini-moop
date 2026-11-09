@@ -51,6 +51,7 @@ void SynthEngine::setVoiceMode (bool poly, int n) noexcept
     if (poly != alloc.poly() || (poly && n != alloc.activeVoiceCount()))
     {
         alloc.setPoly (poly, n);
+        polyGain = poly ? 1.0 / std::sqrt (double (std::max (1, alloc.activeVoiceCount()))) : 1.0;
         for (auto& v : voices) v.noteOff();
         alloc.consumeAllOff();
     }
@@ -105,7 +106,7 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
             {
                 const float cur = in[done + i];
                 for (int k = 0; k < osFactor; ++k)
-                    extBuffer[size_t (i * osFactor + k)] = (lastIn + (cur - lastIn) * (k + 1) / double (osFactor)) / outputScale;
+                    extBuffer[size_t (i * osFactor + k)] = (lastIn + (cur - lastIn) * (k + 1) / double (osFactor)) / inputScale;
                 lastIn = cur;
             }
             ext = extBuffer.data();
@@ -124,7 +125,7 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
             const double hp = y - dcPrevIn + dcCoeff * dcState;
             dcPrevIn = y;
             dcState = hp;
-            y = hp * outputScale;
+            y = hp * outputScale * polyGain;
             if (panel.a440)
             {
                 refPhase += refInc;
