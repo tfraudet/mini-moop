@@ -61,6 +61,187 @@
           "values": { "osc1On": 0, "noiseOn": 1, "noiseVol": 9, "noiseColor": 1, "cutoff": 4, "emphasis": 8, "oscMod": 0, "filterMod": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Control": 0, "osc3Freq": -5, "lAttack": 6, "lDecay": 7, "decayOn": 1, "volume": 9 }
         }
       ]
+    },
+    {
+      "name": "Patch Sheets",
+      "presets": [
+        {
+          "name": "Midnight Funk",
+          "values": { "glide": 1, "modMix": 10, "oscMod": 1, "filterMod": 1, "osc3Control": 1, "osc1Range": 5, "osc1Wave": 5, "osc1Vol": 5, "osc1On": 1, "osc2Range": 2, "osc2Wave": 5, "osc2Freq": 0, "osc2Vol": 9, "osc2On": 1, "osc3Range": 2, "osc3Wave": 2, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extVol": 7, "extOn": 1, "feedback": 1, "noiseOn": 0, "cutoff": 1, "emphasis": 7, "contourAmt": 6, "kbd1": 0, "kbd2": 1, "fAttack": 0, "fDecay": 2, "fSustain": 4, "lAttack": 0, "lDecay": 5, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 0 }
+        },
+        {
+          "name": "Air Bass",
+          "values": { "glide": 3, "modMix": 0, "oscMod": 0, "filterMod": 0, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 2, "osc1Vol": 8, "osc1On": 1, "osc2Range": 1, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 2, "osc2On": 1, "osc3Range": 2, "osc3Wave": 5, "osc3Freq": 0, "osc3Vol": 3, "osc3On": 1, "extVol": 0, "extOn": 0, "noiseVol": 1.5, "noiseOn": 1, "noiseColor": 0, "cutoff": 2, "emphasis": 3, "contourAmt": 6, "kbd1": 0, "kbd2": 0, "fAttack": 0, "fDecay": 1.5, "fSustain": 0, "lAttack": 0, "lDecay": 3, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Sawyer = Bass",
+          "values": { "glide": 1, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 2, "osc1Vol": 10, "osc1On": 1, "osc2Range": 2, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 1, "osc3Wave": 1, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extVol": 9, "extOn": 1, "feedback": 1, "noiseOn": 0, "cutoff": 0, "emphasis": 7, "contourAmt": 8, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 7, "fSustain": 0, "lAttack": 0, "lDecay": 7, "lSustain": 9, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Kraft Bass",
+          "values": { "modMix": 10, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 2, "osc1Vol": 10, "osc1On": 1, "osc2Range": 1, "osc2Wave": 0, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 2, "osc3Wave": 2, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extVol": 8, "extOn": 1, "feedback": 1, "noiseOn": 0, "cutoff": 2, "emphasis": 0, "contourAmt": 5, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 0.5, "fSustain": 0, "lAttack": 0, "lDecay": 3, "lSustain": 9, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Dark Toms",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc1Range": 1, "osc1Wave": 1, "osc1Vol": 5, "osc1On": 1, "osc2On": 0, "osc3On": 0, "extVol": 7, "extOn": 1, "feedback": 1, "noiseVol": 2, "noiseOn": 1, "noiseColor": 0, "cutoff": 3, "emphasis": 0, "contourAmt": 4, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 1, "fSustain": 0, "lAttack": 0, "lDecay": 4, "lSustain": 0, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Vocal-Bot",
+          "values": { "glide": 2, "modMix": 5, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 3, "osc1Vol": 10, "osc1On": 1, "osc2On": 0, "osc3Range": 5, "osc3Wave": 3, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 1, "emphasis": 8, "contourAmt": 1, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 1, "fSustain": 0, "lAttack": 0, "lDecay": 5, "lSustain": 5, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Very Bad Place",
+          "values": { "glide": 0, "modMix": 5, "oscMod": 1, "filterMod": 1, "osc3Control": 1, "osc1Range": 0, "osc1Wave": 3, "osc1Vol": 7, "osc1On": 1, "osc2Range": 3, "osc2Wave": 0, "osc2Freq": 0, "osc2Vol": 4, "osc2On": 1, "osc3Range": 1, "osc3Wave": 4, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extOn": 0, "noiseVol": 5, "noiseOn": 1, "noiseColor": 1, "cutoff": 4, "emphasis": 8, "contourAmt": 4, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 3, "fSustain": 0, "lAttack": 0, "lDecay": 6.5, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "'70s Violin Lead",
+          "values": { "glide": 2, "modMix": 0, "oscMod": 1, "filterMod": 1, "osc1Range": 4, "osc1Wave": 2, "osc1Vol": 5, "osc1On": 1, "osc2Range": 4, "osc2Wave": 5, "osc2Freq": 0, "osc2Vol": 2, "osc2On": 1, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 5, "emphasis": 1.5, "contourAmt": 3, "kbd1": 1, "kbd2": 0, "fAttack": 1, "fDecay": 3, "fSustain": 6, "lAttack": 1, "lDecay": 6, "lSustain": 6, "volume": 9, "glideOn": 1, "decayOn": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 0, "osc3Control": 0 }
+        },
+        {
+          "name": "Room Snare",
+          "values": { "oscMod": 0, "filterMod": 0, "osc1On": 0, "osc2On": 0, "osc3On": 0, "extOn": 0, "noiseVol": 10, "noiseOn": 1, "noiseColor": 0, "cutoff": 5, "emphasis": 0, "contourAmt": 3, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 2, "fSustain": 0, "lAttack": 0, "lDecay": 5, "lSustain": 0, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Hi-Hat",
+          "values": { "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1On": 0, "osc2On": 0, "osc3Range": 5, "osc3Wave": 5, "osc3Freq": 0, "osc3Vol": 0, "osc3On": 0, "extOn": 0, "noiseVol": 10, "noiseOn": 1, "noiseColor": 0, "cutoff": 5, "emphasis": 0, "contourAmt": 5, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 1, "fSustain": 0, "lAttack": 0, "lDecay": 0.5, "lSustain": 0, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Droning Brass Intro",
+          "values": { "glide": 2, "modMix": 10, "oscMod": 1, "filterMod": 0, "osc3Control": 0, "osc1Range": 4, "osc1Wave": 2, "osc1Vol": 5, "osc1On": 1, "osc2Range": 3, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 2, "osc2On": 1, "osc3Range": 3, "osc3Wave": 2, "osc3Freq": 0, "osc3Vol": 4, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 6, "emphasis": 3, "contourAmt": 2, "kbd1": 1, "kbd2": 0, "fAttack": 1, "fDecay": 3, "fSustain": 3, "lAttack": 1, "lDecay": 6, "lSustain": 6, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Bright & Rude",
+          "values": { "glide": 0, "modMix": 10, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 3, "osc1Wave": 2, "osc1Vol": 8, "osc1On": 1, "osc2Range": 2, "osc2Wave": 3, "osc2Freq": 3, "osc2Vol": 8, "osc2On": 1, "osc3Range": 1, "osc3Wave": 3, "osc3Freq": 6, "osc3Vol": 9, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 2, "emphasis": 7, "contourAmt": 6, "kbd1": 1, "kbd2": 1, "fAttack": 1, "fDecay": 7, "fSustain": 0, "lAttack": 0, "lDecay": 7, "lSustain": 10, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "Steel Wound",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 3, "osc1Wave": 5, "osc1Vol": 4, "osc1On": 1, "osc2Range": 1, "osc2Wave": 0, "osc2Freq": 0, "osc2Vol": 5, "osc2On": 1, "osc3On": 0, "extOn": 0, "noiseVol": 4, "noiseOn": 1, "noiseColor": 0, "cutoff": 3, "emphasis": 2, "contourAmt": 6, "kbd1": 0, "kbd2": 0, "fAttack": 0, "fDecay": 2, "fSustain": 0, "lAttack": 0, "lDecay": 4, "lSustain": 0, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "Fuzz Lead",
+          "values": { "glide": 2, "modMix": 10, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 2, "osc1Wave": 3, "osc1Vol": 6, "osc1On": 1, "osc2Range": 4, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 7, "osc2On": 1, "osc3Range": 1, "osc3Wave": 4, "osc3Freq": 0, "osc3Vol": 4, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 5, "emphasis": 2, "contourAmt": 2, "kbd1": 1, "kbd2": 1, "fAttack": 1, "fDecay": 3, "fSustain": 7, "lAttack": 1, "lDecay": 4, "lSustain": 6, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Tri Kick",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc1Range": 1, "osc1Wave": 0, "osc1Vol": 10, "osc1On": 1, "osc2On": 0, "osc3On": 0, "extOn": 0, "noiseVol": 2, "noiseOn": 1, "noiseColor": 0, "cutoff": 4.5, "emphasis": 0, "contourAmt": 4, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 1, "fSustain": 0, "lAttack": 0, "lDecay": 4, "lSustain": 0, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Abandoned Planet",
+          "values": { "glide": 2, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 0, "osc1Range": 0, "osc1Wave": 3, "osc1Vol": 8, "osc1On": 1, "osc2Range": 5, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 5, "osc3Wave": 4, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 0.5, "emphasis": 5, "contourAmt": 2.5, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 4.5, "fSustain": 0, "lAttack": 1, "lDecay": 8.5, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Bubble Bass",
+          "values": { "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 5, "osc1Vol": 10, "osc1On": 1, "osc2Range": 1, "osc2Wave": 4, "osc2Freq": 0, "osc2Vol": 5, "osc2On": 1, "osc3Range": 1, "osc3Wave": 3, "osc3Freq": 0, "osc3On": 0, "extVol": 7, "extOn": 1, "feedback": 1, "noiseOn": 0, "cutoff": 0, "emphasis": 6.5, "contourAmt": 8, "kbd1": 0, "kbd2": 0, "fAttack": 0, "fDecay": 6, "fSustain": 0, "lAttack": 0, "lDecay": 5, "lSustain": 9, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "3-Square Lead",
+          "values": { "glide": 3, "modMix": 10, "oscMod": 1, "filterMod": 1, "osc3Control": 1, "osc1Range": 2, "osc1Wave": 3, "osc1Vol": 5, "osc1On": 1, "osc2Range": 2, "osc2Wave": 3, "osc2Freq": 0, "osc2Vol": 5, "osc2On": 1, "osc3Range": 2, "osc3Wave": 3, "osc3Freq": 0, "osc3Vol": 5, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 10, "emphasis": 0, "contourAmt": 0, "kbd1": 0, "kbd2": 0, "lAttack": 0, "lDecay": 5, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 0 }
+        },
+        {
+          "name": "Freqy",
+          "values": { "glide": 4, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 3, "osc1Vol": 10, "osc1On": 1, "osc2Range": 2, "osc2Wave": 3, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 5, "osc3Wave": 2, "osc3Freq": -4, "osc3Vol": 7, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 1, "emphasis": 7, "contourAmt": 9, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 4, "fSustain": 2.5, "lAttack": 0, "lDecay": 4, "lSustain": 7, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Jurassic Love",
+          "values": { "glide": 5, "modMix": 6, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 2, "osc1Wave": 5, "osc1Vol": 7, "osc1On": 1, "osc2Range": 2, "osc2Wave": 5, "osc2Freq": 0, "osc2Vol": 8, "osc2On": 1, "osc3Range": 1, "osc3Wave": 3, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 0, "emphasis": 5, "contourAmt": 6, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 8.5, "fSustain": 0, "lAttack": 0, "lDecay": 7, "lSustain": 0, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Tornadus",
+          "values": { "glide": 2, "modMix": 6, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 0, "osc1Vol": 10, "osc1On": 1, "osc2Range": 1, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 8, "osc2On": 1, "osc3Range": 4, "osc3Wave": 1, "osc3Freq": 4, "osc3Vol": 7, "osc3On": 1, "extOn": 0, "noiseVol": 6, "noiseOn": 1, "noiseColor": 1, "cutoff": 2, "emphasis": 4, "contourAmt": 4.5, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 4, "fSustain": 4, "lAttack": 0, "lDecay": 3, "lSustain": 6, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Octave Ouroborus",
+          "values": { "glide": 0, "modMix": 6, "oscMod": 1, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 5, "osc1Vol": 8, "osc1On": 1, "osc2Range": 2, "osc2Wave": 4, "osc2Freq": 0, "osc2Vol": 6, "osc2On": 1, "osc3Range": 1, "osc3Wave": 0, "osc3Freq": 0, "osc3Vol": 6, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 3, "emphasis": 3, "contourAmt": 8, "kbd1": 0, "kbd2": 1, "fAttack": 2, "fDecay": 6, "fSustain": 10, "lAttack": 0, "lDecay": 7, "lSustain": 10, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Light Cycle",
+          "values": { "glide": 0, "modMix": 6, "oscMod": 1, "filterMod": 1, "osc3Control": 0, "osc1Range": 5, "osc1Wave": 5, "osc1Vol": 4, "osc1On": 1, "osc2Range": 2, "osc2Wave": 4, "osc2Freq": 0, "osc2Vol": 8, "osc2On": 1, "osc3Range": 0, "osc3Wave": 2, "osc3Freq": -5, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 0, "emphasis": 3, "contourAmt": 8, "kbd1": 0, "kbd2": 1, "fAttack": 8.5, "fDecay": 4, "fSustain": 10, "lAttack": 0.5, "lDecay": 7, "lSustain": 10, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "More Bounce Bass",
+          "values": { "glide": 6, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc3Control": 0, "osc1Range": 1, "osc1Wave": 2, "osc1Vol": 10, "osc1On": 1, "osc2Range": 2, "osc2Wave": 1, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 4, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 1, "emphasis": 6, "contourAmt": 8, "kbd1": 1, "kbd2": 1, "fAttack": 3.5, "fDecay": 1, "fSustain": 2, "lAttack": 0, "lDecay": 6, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 0 }
+        },
+        {
+          "name": "'70s French Sci-Fi Movie",
+          "values": { "glide": 3, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 0, "osc1Range": 3, "osc1Wave": 2, "osc1Vol": 10, "osc1On": 1, "osc2Range": 2, "osc2Wave": 1, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 0, "osc3Wave": 1, "osc3Freq": 5, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 2, "emphasis": 6.5, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 5, "fSustain": 5, "lAttack": 0.5, "lDecay": 5, "lSustain": 5, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Classic Stanley",
+          "values": { "glide": 5, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc1Range": 4, "osc1Wave": 3, "osc1Vol": 5, "osc1On": 1, "osc2Range": 2, "osc2Wave": 0, "osc2Freq": 0, "osc2Vol": 3, "osc2On": 1, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 2, "emphasis": 6, "contourAmt": 5, "kbd1": 0, "kbd2": 1, "fAttack": 0.5, "fDecay": 1, "fSustain": 6, "lAttack": 0.5, "lDecay": 4, "lSustain": 8, "volume": 9, "glideOn": 1, "decayOn": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 0, "osc3Control": 0 }
+        },
+        {
+          "name": "Sub Bass",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc1Range": 1, "osc1Wave": 0, "osc1Vol": 10, "osc1On": 1, "osc2On": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 10, "emphasis": 0, "contourAmt": 0, "kbd1": 0, "kbd2": 0, "volume": 9, "glideOn": 0, "decayOn": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 0, "osc3Control": 0 }
+        },
+        {
+          "name": "Sync-Strike",
+          "values": { "glide": 1, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 4, "osc1Wave": 1, "osc1Vol": 5, "osc1On": 1, "osc2Range": 4, "osc2Wave": 3, "osc2Freq": 0, "osc2Vol": 3, "osc2On": 1, "osc3Range": 1, "osc3Wave": 3, "osc3Freq": 0, "osc3Vol": 3, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 2, "emphasis": 0, "contourAmt": 10, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 2.5, "fSustain": 0, "lAttack": 0, "lDecay": 6, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Nothin' Lead",
+          "values": { "glide": 4.5, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc1Range": 5, "osc1Wave": 0, "osc1Vol": 5, "osc1On": 1, "osc2On": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 5, "emphasis": 0, "contourAmt": 1, "kbd1": 1, "kbd2": 0, "fAttack": 1, "fDecay": 1, "fSustain": 0, "lAttack": 1, "lDecay": 3, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 0, "osc3Control": 0 }
+        },
+        {
+          "name": "Smooth-E-P",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 4, "osc1Wave": 3, "osc1Vol": 3, "osc1On": 1, "osc2Range": 3, "osc2Wave": 0, "osc2Freq": 0, "osc2Vol": 6, "osc2On": 1, "osc3Range": 2, "osc3Wave": 2, "osc3Freq": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 4, "emphasis": 5, "contourAmt": 1, "kbd1": 0, "kbd2": 0, "fAttack": 0, "fDecay": 1, "fSustain": 0, "lAttack": 0, "lDecay": 5, "lSustain": 5, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "'60s Space",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 0, "osc1Range": 3, "osc1Wave": 0, "osc1Vol": 8, "osc1On": 1, "osc2Range": 1, "osc2Wave": 0, "osc2Freq": 4, "osc2Vol": 10, "osc2On": 1, "osc3Range": 0, "osc3Wave": 3, "osc3Freq": 5, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 2, "emphasis": 5, "contourAmt": 7, "kbd1": 0, "kbd2": 0, "fAttack": 7, "fDecay": 6, "fSustain": 0, "lAttack": 0.5, "lDecay": 6.5, "lSustain": 10, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "Soft Rez Bass",
+          "values": { "glide": 1, "modMix": 0, "oscMod": 0, "filterMod": 0, "osc1Range": 2, "osc1Wave": 0, "osc1Vol": 10, "osc1On": 1, "osc2On": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 2, "emphasis": 5, "contourAmt": 5, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 2, "fSustain": 2, "lAttack": 0, "lDecay": 2, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "Singing Wind",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 0, "filterMod": 0, "osc1On": 0, "osc2On": 0, "osc3On": 0, "extOn": 0, "noiseVol": 7, "noiseOn": 1, "noiseColor": 0, "cutoff": 3, "emphasis": 7, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 0, "fSustain": 0, "lAttack": 1, "lDecay": 4, "lSustain": 3, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Sonic 7",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 0, "osc1Range": 2, "osc1Wave": 4, "osc1Vol": 10, "osc1On": 1, "osc2Range": 1, "osc2Wave": 3, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 0, "osc3Wave": 3, "osc3Freq": 0, "osc3Vol": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 3, "emphasis": 7, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "fAttack": 0, "fDecay": 0, "fSustain": 0, "lAttack": 0, "lDecay": 5, "lSustain": 8, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Destitution",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 3, "osc1Wave": 3, "osc1Vol": 8, "osc1On": 1, "osc2Range": 2, "osc2Wave": 3, "osc2Freq": 0, "osc2Vol": 8, "osc2On": 1, "osc3Range": 1, "osc3Wave": 0, "osc3Freq": 0, "osc3On": 0, "extVol": 5, "extOn": 1, "feedback": 1, "noiseOn": 0, "cutoff": 0, "emphasis": 7, "contourAmt": 5.5, "kbd1": 0, "kbd2": 0, "fAttack": 10, "fDecay": 7, "fSustain": 0, "lAttack": 10, "lDecay": 6, "lSustain": 8, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "Looking Glass Rock",
+          "values": { "glide": 3, "modMix": 2, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 2, "osc1Wave": 1, "osc1Vol": 5, "osc1On": 1, "osc2Range": 1, "osc2Wave": 2, "osc2Freq": 0, "osc2Vol": 7, "osc2On": 1, "osc3Range": 1, "osc3Wave": 4, "osc3Freq": 0, "osc3Vol": 9, "osc3On": 1, "extOn": 0, "noiseVol": 1, "noiseOn": 1, "noiseColor": 1, "cutoff": 2, "emphasis": 5, "contourAmt": 7, "kbd1": 0, "kbd2": 1, "fAttack": 0, "fDecay": 8.5, "fSustain": 0, "lAttack": 0, "lDecay": 4, "lSustain": 6, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "Rez Hit",
+          "values": { "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 3, "osc1Wave": 4, "osc1Vol": 6, "osc1On": 1, "osc2Range": 1, "osc2Wave": 1, "osc2Freq": 0, "osc2Vol": 6, "osc2On": 1, "osc3Range": 2, "osc3Wave": 3, "osc3Freq": 0, "osc3Vol": 6, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 0, "emphasis": 9, "contourAmt": 3, "kbd1": 0, "kbd2": 0, "fAttack": 0, "fDecay": 0.5, "fSustain": 0, "lAttack": 0, "lDecay": 2, "lSustain": 0, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "Square Meow",
+          "values": { "glide": 4, "modMix": 10, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 1, "osc1Wave": 3, "osc1Vol": 10, "osc1On": 1, "osc2Range": 3, "osc2Wave": 4, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 4, "osc3Wave": 5, "osc3Freq": 6, "osc3Vol": 10, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 0, "emphasis": 6, "contourAmt": 8, "kbd1": 0, "kbd2": 0, "fAttack": 4, "fDecay": 4, "fSustain": 4, "lAttack": 0, "lDecay": 4, "lSustain": 7, "volume": 9, "glideOn": 1, "decayOn": 0 }
+        },
+        {
+          "name": "Level 3",
+          "values": { "glide": 0, "modMix": 2, "oscMod": 0, "filterMod": 1, "osc3Control": 1, "osc1Range": 4, "osc1Wave": 3, "osc1Vol": 10, "osc1On": 1, "osc2Range": 3, "osc2Wave": 0, "osc2Freq": 4, "osc2Vol": 7, "osc2On": 1, "osc3Range": 1, "osc3Wave": 0, "osc3Freq": 0, "osc3Vol": 10, "osc3On": 1, "extOn": 0, "noiseVol": 5, "noiseOn": 1, "noiseColor": 0, "cutoff": 2, "emphasis": 5, "contourAmt": 9, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 6, "fSustain": 2, "lAttack": 0, "lDecay": 6, "lSustain": 10, "volume": 9, "glideOn": 1, "decayOn": 1 }
+        },
+        {
+          "name": "The Haunting",
+          "values": { "glide": 0, "modMix": 5, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 4, "osc1Wave": 1, "osc1Vol": 5, "osc1On": 1, "osc2Range": 2, "osc2Wave": 1, "osc2Freq": 0, "osc2Vol": 6, "osc2On": 1, "osc3Range": 3, "osc3Wave": 0, "osc3Freq": 0, "osc3Vol": 4, "osc3On": 1, "extOn": 0, "noiseVol": 1, "noiseOn": 1, "cutoff": 5, "emphasis": 5, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "lAttack": 0.5, "lDecay": 4, "lSustain": 5, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "The Jump",
+          "values": { "glide": 3, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc3Control": 0, "osc1Range": 1, "osc1Wave": 3, "osc1Vol": 5, "osc1On": 1, "osc2Range": 1, "osc2Wave": 1, "osc2Freq": 0, "osc2Vol": 10, "osc2On": 1, "osc3Range": 0, "osc3Wave": 4, "osc3Freq": 0, "osc3Vol": 7, "osc3On": 1, "extOn": 0, "noiseOn": 0, "cutoff": 7, "emphasis": 0, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "lAttack": 0, "lDecay": 5, "lSustain": 7, "volume": 9, "glideOn": 0, "decayOn": 0 }
+        },
+        {
+          "name": "Broken Radio",
+          "values": { "modMix": 0, "oscMod": 0, "filterMod": 1, "osc3Control": 0, "osc1On": 0, "osc2On": 0, "osc3Range": 3, "osc3Wave": 2, "osc3Freq": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 4, "emphasis": 10, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "lAttack": 0, "lDecay": 9.5, "lSustain": 10, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        },
+        {
+          "name": "West Coast Ghost Lead",
+          "values": { "glide": 7, "modMix": 0, "oscMod": 1, "filterMod": 1, "osc1On": 0, "osc2On": 0, "osc3Range": 0, "osc3Wave": 0, "osc3Freq": 3, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 2.5, "emphasis": 10, "contourAmt": 0, "kbd1": 1, "kbd2": 1, "lAttack": 0, "lDecay": 3.5, "lSustain": 8, "volume": 9, "glideOn": 1, "decayOn": 0 }
+        },
+        {
+          "name": "Outlaw",
+          "values": { "glide": 0, "modMix": 0, "oscMod": 1, "filterMod": 0, "osc3Control": 1, "osc1Range": 5, "osc1Wave": 3, "osc1Vol": 5, "osc1On": 1, "osc2Range": 1, "osc2Wave": 0, "osc2Freq": 0, "osc2Vol": 8, "osc2On": 1, "osc3Range": 2, "osc3Wave": 0, "osc3Freq": 0, "osc3On": 0, "extOn": 0, "noiseOn": 0, "cutoff": 0, "emphasis": 0, "contourAmt": 10, "kbd1": 1, "kbd2": 0, "fAttack": 0, "fDecay": 2, "fSustain": 0, "lAttack": 0, "lDecay": 6, "lSustain": 10, "volume": 9, "glideOn": 0, "decayOn": 1 }
+        }
+      ]
     }
   ]
 }

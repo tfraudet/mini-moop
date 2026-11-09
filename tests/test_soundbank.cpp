@@ -52,9 +52,13 @@ TEST_CASE ("Factory bank parses with the expected categories", "[banks]")
     INFO (r.getErrorMessage());
     REQUIRE (r.wasOk());
     CHECK (bank.name == "Factory");
-    CHECK (bank.numPresets() == mm::legacy::numFactoryPresets);
-    REQUIRE (bank.categories.size() == 5);
+    // The former hard-coded programs, then the patch sheets of the Model D manual
+    CHECK (bank.numPresets() == mm::legacy::numFactoryPresets + 44);
+    REQUIRE (bank.categories.size() == 6);
     CHECK (bank.categories[0].name == "Basic");
+    CHECK (bank.categories[5].name == "Patch Sheets");
+    CHECK (bank.categories[5].presets.size() == 44);
+    CHECK (bank.categories[5].presets.front().name == "Midnight Funk");
     CHECK (bank.presetAt (0)->name == "Init");
     // Init is the default panel, except for the output volume.
     REQUIRE (bank.presetAt (0)->values.size() == 1);
