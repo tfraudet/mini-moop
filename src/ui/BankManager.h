@@ -20,11 +20,16 @@
 // "Sound Banks" overlay shown over the panel (opened from the burger menu):
 // list of banks on the left, content of the selected bank by category on the
 // right. Activate / create / duplicate / rename / delete / import / export
-// banks, load / rename / delete presets, save the current sound.
+// banks, load / rename / delete presets, save the current sound. The preset
+// list can be filtered by category (click: show / hide, double-click: solo).
 
 #include "../SoundBank.h"
+#include "AboutBox.h" // CloseButton
 
 #include <juce_gui_basics/juce_gui_basics.h>
+
+#include <map>
+#include <set>
 
 class MiniMoopProcessor;
 
@@ -76,6 +81,7 @@ public:
     void hide();
 
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
     void mouseDown (const juce::MouseEvent&) override;
@@ -105,6 +111,17 @@ private:
         BankManager& owner;
     };
 
+    struct CategoryRows : juce::ListBoxModel
+    {
+        explicit CategoryRows (BankManager& o) : owner (o) {}
+        int getNumRows() override;
+        void paintListBoxItem (int row, juce::Graphics&, int w, int h, bool selected) override;
+        void listBoxItemClicked (int row, const juce::MouseEvent&) override;
+        void listBoxItemDoubleClicked (int row, const juce::MouseEvent&) override;
+        void returnKeyPressed (int row) override;
+        BankManager& owner;
+    };
+
     /** One line of the preset list: a category heading (preset < 0) or a preset. */
     struct Row { int category = -1, preset = -1, flat = -1; };
 
@@ -119,6 +136,12 @@ private:
     std::shared_ptr<const SoundBank> selectedBank() const;
     int selectedPreset() const;
     bool isActive (const juce::String& bankId) const;
+
+    // category filter (per bank, for the session)
+    bool isHidden (const juce::String& category) const;
+    void toggleCategory (int index);
+    void soloCategory (int index);
+    void showAllCategories (bool show);
 
     // actions
     void activateBank();
@@ -149,15 +172,20 @@ private:
 
     BankRows bankRows { *this };
     PresetRows presetRows { *this };
-    juce::ListBox bankList { "Banks", &bankRows }, presetList { "Presets", &presetRows };
+    CategoryRows categoryRows { *this };
+    juce::ListBox bankList { "Banks", &bankRows }, presetList { "Presets", &presetRows },
+        categoryList { "Categories", &categoryRows };
+    std::map<juce::String, std::set<juce::String>> hiddenCategories; // bank id -> hidden category names
 
     juce::TextButton activateButton { "Activate" }, newButton { "New" }, duplicateButton { "Duplicate" },
         renameButton { "Rename" }, deleteButton { "Delete" }, importButton { "Import..." },
         exportButton { "Export..." }, revealButton { "Show File" };
     juce::TextButton loadButton { "Load" }, renamePresetButton { "Rename" }, deletePresetButton { "Delete" },
-        saveButton { "Save Current Sound..." }, closeButton { "Close" };
+        saveButton { "Save Current Sound..." };
+    CloseButton closeButton;
+    juce::TextButton allCategoriesButton { "All" }, noCategoriesButton { "None" };
 
-    juce::Rectangle<float> infoArea, banksCaption, presetsCaption, footerArea;
+    juce::Rectangle<float> infoArea, banksCaption, categoriesCaption, presetsCaption, footerArea;
     juce::String shownActiveId;
     int shownLoadedProgram = -2;
 

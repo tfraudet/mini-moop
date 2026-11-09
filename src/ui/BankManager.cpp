@@ -238,15 +238,19 @@ BankManager::BankManager (MiniMoopProcessor& p) : proc (p), library (p.getLibrar
 
     styleList (bankList, 48);
     styleList (presetList, 26);
+    styleList (categoryList, 26);
+    categoryList.setTooltip ("Click a category to show or hide it, double-click to show only that one");
     addAndMakeVisible (bankList);
     addAndMakeVisible (presetList);
+    addAndMakeVisible (categoryList);
 
     auto button = [this] (juce::TextButton& b, const juce::String& tip, std::function<void()> action) {
         b.setTooltip (tip);
         b.onClick = std::move (action);
         addAndMakeVisible (b);
     };
-    button (activateButton, "Use this bank for the PROGRAM display, the host's program list and new instances",
+    button (activateButton, "Use this bank for the PROGRAM display, the host's program list and new instances, "
+                            "and load its first program",
             [this] { activateBank(); });
     button (newButton, "Create an empty bank", [this] { newBank(); });
     button (duplicateButton, "Copy this bank into a new one you can edit", [this] { duplicateBank(); });
@@ -260,7 +264,10 @@ BankManager::BankManager (MiniMoopProcessor& p) : proc (p), library (p.getLibrar
     button (deletePresetButton, "Remove the selected preset from the bank", [this] { deletePreset(); });
     button (saveButton, "Store the current panel settings as a preset of the selected bank",
             [this] { saveCurrentSound(); });
-    button (closeButton, "Close (Esc)", [this] { hide(); });
+    closeButton.onClick = [this] { hide(); };
+    addAndMakeVisible (closeButton);
+    button (allCategoriesButton, "Show every category", [this] { showAllCategories (true); });
+    button (noCategoriesButton, "Hide every category", [this] { showAllCategories (false); });
 
     addChildComponent (prompt);
     library.addChangeListener (this);
@@ -360,11 +367,15 @@ void BankManager::refreshPresets()
     if (shownBank != nullptr)
         for (int c = 0; c < int (shownBank->categories.size()); ++c)
         {
+            if (isHidden (shownBank->categories[size_t (c)].name))
+                continue;
             rows.push_back ({ c, -1, -1 });
             for (int p = 0; p < int (shownBank->categories[size_t (c)].presets.size()); ++p)
                 rows.push_back ({ c, p, shownBank->flatIndexOf (c, p) });
         }
     presetList.updateContent();
+    categoryList.updateContent();
+    categoryList.repaint();
     if (previous == nullptr || shownBank == nullptr || previous->id != shownBank->id)
     {
         presetList.deselectAllRows();
@@ -406,6 +417,11 @@ void BankManager::updateButtons()
     exportButton.setEnabled (have);
     revealButton.setEnabled (have);
     loadButton.setEnabled (preset);
+    const int numCategories = have ? int (bank->categories.size()) : 0;
+    const auto hidden = have ? hiddenCategories.find (bank->id) : hiddenCategories.end();
+    const int numHidden = hidden != hiddenCategories.end() ? int (hidden->second.size()) : 0;
+    allCategoriesButton.setEnabled (numHidden > 0);
+    noCategoriesButton.setEnabled (numCategories > 0 && numHidden < numCategories);
     renamePresetButton.setEnabled (preset && writable);
     deletePresetButton.setEnabled (preset && writable);
 }
@@ -530,6 +546,87 @@ void BankManager::PresetRows::listBoxItemDoubleClicked (int, const juce::MouseEv
 void BankManager::PresetRows::returnKeyPressed (int) { owner.loadPreset(); }
 void BankManager::PresetRows::deleteKeyPressed (int) { owner.deletePreset(); }
 
+// ---------------------------------------------------------------------------- category filter
+
+bool BankManager::isHidden (const juce::String& category) const
+{
+    if (shownBank == nullptr) return false;
+    const auto it = hiddenCategories.find (shownBank->id);
+    return it != hiddenCategories.end() && it->second.count (category) > 0;
+}
+
+void BankManager::toggleCategory (int index)
+{
+    if (shownBank == nullptr || ! juce::isPositiveAndBelow (index, int (shownBank->categories.size()))) return;
+    auto& hidden = hiddenCategories[shownBank->id];
+    const auto& name = shownBank->categories[size_t (index)].name;
+    if (! hidden.erase (name)) hidden.insert (name);
+    refreshPresets();
+}
+
+void BankManager::soloCategory (int index)
+{
+    if (shownBank == nullptr || ! juce::isPositiveAndBelow (index, int (shownBank->categories.size()))) return;
+    auto& hidden = hiddenCategories[shownBank->id];
+    hidden.clear();
+    for (int c = 0; c < int (shownBank->categories.size()); ++c)
+        if (c != index) hidden.insert (shownBank->categories[size_t (c)].name);
+    refreshPresets();
+}
+
+void BankManager::showAllCategories (bool show)
+{
+    if (shownBank == nullptr) return;
+    auto& hidden = hiddenCategories[shownBank->id];
+    hidden.clear();
+    if (! show)
+        for (const auto& c : shownBank->categories) hidden.insert (c.name);
+    refreshPresets();
+}
+
+int BankManager::CategoryRows::getNumRows()
+{
+    return owner.shownBank != nullptr ? int (owner.shownBank->categories.size()) : 0;
+}
+
+void BankManager::CategoryRows::paintListBoxItem (int row, juce::Graphics& g, int w, int h, bool)
+{
+    if (owner.shownBank == nullptr || ! juce::isPositiveAndBelow (row, getNumRows())) return;
+    const auto& category = owner.shownBank->categories[size_t (row)];
+    const bool shown = ! owner.isHidden (category.name);
+    auto r = juce::Rectangle<float> (float (w), float (h)).reduced (10.0f, 0.0f);
+
+    // check box: lit amber when the category is shown
+    const auto box = r.removeFromLeft (12.0f).withSizeKeepingCentre (12.0f, 12.0f);
+    g.setColour (shown ? colours::lcdText : juce::Colour (0xff2c2a26));
+    g.fillRoundedRectangle (box, 2.5f);
+    if (shown)
+    {
+        juce::Path tick;
+        tick.startNewSubPath (box.getX() + 2.5f, box.getCentreY());
+        tick.lineTo (box.getX() + 5.0f, box.getBottom() - 3.0f);
+        tick.lineTo (box.getRight() - 2.5f, box.getY() + 3.0f);
+        g.setColour (listBack);
+        g.strokePath (tick, juce::PathStrokeType (1.8f));
+    }
+    r.removeFromLeft (8.0f);
+
+    g.setFont (PanelLookAndFeel::lcdFont (12.0f));
+    g.setColour (colours::legendDim.withAlpha (shown ? 0.7f : 0.35f));
+    g.drawText (juce::String (category.presets.size()), r.removeFromRight (36.0f), juce::Justification::centredRight);
+    g.setFont (PanelLookAndFeel::legendFont (14.0f, false));
+    g.setColour (shown ? colours::legend : colours::legendDim.withAlpha (0.5f));
+    g.drawText (category.name, r, juce::Justification::centredLeft, true);
+}
+
+void BankManager::CategoryRows::listBoxItemClicked (int row, const juce::MouseEvent& e)
+{
+    if (e.getNumberOfClicks() < 2) owner.toggleCategory (row);
+}
+
+void BankManager::CategoryRows::listBoxItemDoubleClicked (int row, const juce::MouseEvent&) { owner.soloCategory (row); }
+void BankManager::CategoryRows::returnKeyPressed (int row) { owner.toggleCategory (row); }
+
 // ---------------------------------------------------------------------------- bank actions
 
 void BankManager::showError (const juce::String& title, const juce::Result& r)
@@ -539,8 +636,12 @@ void BankManager::showError (const juce::String& title, const juce::Result& r)
 
 void BankManager::activateBank()
 {
-    if (const auto bank = selectedBank())
-        proc.setActiveBank (bank->id);
+    // Like switching banks on a hardware synth: the first program is loaded.
+    const auto bank = selectedBank();
+    if (bank == nullptr || isActive (bank->id)) return; // never reset the sound of the active bank
+    proc.loadPreset (bank->id, 0);
+    if (const int loaded = proc.getLoadedProgram(); loaded >= 0)
+        selectPreset (loaded);
     timerCallback();
 }
 
@@ -790,7 +891,7 @@ void BankManager::resized()
 
     auto r = cardBounds().reduced (26.0f, 22.0f).toNearestInt();
     auto titleRow = r.removeFromTop (40);
-    closeButton.setBounds (titleRow.removeFromRight (90).withSizeKeepingCentre (90, 30));
+    closeButton.setBounds (titleRow.removeFromRight (30).withSizeKeepingCentre (30, 30));
     r.removeFromTop (8);
     footerArea = r.removeFromBottom (22).toFloat();
     r.removeFromBottom (10);
@@ -808,19 +909,30 @@ void BankManager::resized()
     for (int i = 0; i < 8; ++i)
         grid[i]->setBounds (buttonsArea.getX() + (i % 2) * (bw + 8), buttonsArea.getY() + (i / 2) * 38, bw, 30);
 
-    // right: content of the selected bank
+    // right: content of the selected bank, category filter beside the presets
     infoArea = r.removeFromTop (74).toFloat();
     r.removeFromTop (6);
-    presetsCaption = r.removeFromTop (20).toFloat();
+    auto captions = r.removeFromTop (20);
     auto bottom = r.removeFromBottom (30);
     r.removeFromBottom (12);
+    constexpr int categoryWidth = 190, gap = 12;
+    categoriesCaption = captions.removeFromLeft (categoryWidth).toFloat();
+    captions.removeFromLeft (gap);
+    presetsCaption = captions.toFloat();
+    categoryList.setBounds (r.removeFromLeft (categoryWidth));
+    r.removeFromLeft (gap);
     presetList.setBounds (r);
-    loadButton.setBounds (bottom.removeFromLeft (100));
+
+    auto categoryButtons = bottom.removeFromLeft (categoryWidth);
+    allCategoriesButton.setBounds (categoryButtons.removeFromLeft ((categoryWidth - 8) / 2));
+    noCategoriesButton.setBounds (categoryButtons.removeFromRight ((categoryWidth - 8) / 2));
+    bottom.removeFromLeft (gap);
+    loadButton.setBounds (bottom.removeFromLeft (86));
     bottom.removeFromLeft (8);
-    renamePresetButton.setBounds (bottom.removeFromLeft (100));
+    renamePresetButton.setBounds (bottom.removeFromLeft (86));
     bottom.removeFromLeft (8);
-    deletePresetButton.setBounds (bottom.removeFromLeft (100));
-    saveButton.setBounds (bottom.removeFromRight (230));
+    deletePresetButton.setBounds (bottom.removeFromLeft (86));
+    saveButton.setBounds (bottom.removeFromRight (200));
 }
 
 void BankManager::paint (juce::Graphics& g)
@@ -835,7 +947,18 @@ void BankManager::paint (juce::Graphics& g)
     g.drawText ("SOUND BANKS", title, juce::Justification::centredLeft);
 
     caption (g, "BANKS", banksCaption);
-    caption (g, "PRESETS", presetsCaption);
+    caption (g, "CATEGORIES", categoriesCaption);
+    {
+        juce::String presetsTitle = "PRESETS";
+        if (const auto bank = selectedBank())
+        {
+            int visible = 0;
+            for (const auto& row : rows) visible += row.preset >= 0 ? 1 : 0;
+            if (visible != bank->numPresets())
+                presetsTitle << "  (" << visible << " OF " << bank->numPresets() << ")";
+        }
+        caption (g, presetsTitle, presetsCaption);
+    }
 
     if (const auto bank = selectedBank())
     {
@@ -864,13 +987,6 @@ void BankManager::paint (juce::Graphics& g)
         g.drawText (line, r.removeFromTop (20.0f), juce::Justification::centredLeft, true);
         if (bank->description.isNotEmpty())
             g.drawText (bank->description, r.removeFromTop (20.0f), juce::Justification::centredLeft, true);
-        if (bank->numPresets() == 0)
-        {
-            g.setColour (colours::legendDim.withAlpha (0.8f));
-            g.setFont (PanelLookAndFeel::legendFont (14.0f, false));
-            g.drawFittedText ("This bank is empty. Set up a sound on the panel, then click \"Save Current Sound...\".",
-                              presetList.getBounds().reduced (20), juce::Justification::centred, 3);
-        }
     }
 
     g.setFont (PanelLookAndFeel::legendFont (11.5f, false));
@@ -883,12 +999,28 @@ void BankManager::paint (juce::Graphics& g)
     else
     {
         g.setColour (colours::legendDim.withAlpha (0.65f));
-        g.drawText ("Double-click a preset to load it, a bank to activate it.  Esc to close.", footerArea,
+        g.drawText ("Double-click a preset to load it, a bank to activate it, a category to show only that one.  Esc to close.", footerArea,
                     juce::Justification::centredLeft);
     }
     g.setColour (colours::legendDim.withAlpha (0.65f));
     g.drawText (library.getDirectory().getFullPathName(), footerArea.withTrimmedLeft (footerArea.getWidth() - 410.0f),
                 juce::Justification::centredRight, true);
+}
+
+void BankManager::paintOverChildren (juce::Graphics& g)
+{
+    // drawn over the (opaque) preset list when it has nothing to show
+    const auto bank = selectedBank();
+    if (bank == nullptr || prompt.isVisible()) return;
+    juce::String text;
+    if (bank->numPresets() == 0)
+        text = "This bank is empty. Set up a sound on the panel, then click \"Save Current Sound...\".";
+    else if (rows.empty())
+        text = "No category selected. Tick categories on the left, or click \"All\".";
+    if (text.isEmpty()) return;
+    g.setColour (colours::legendDim.withAlpha (0.8f));
+    g.setFont (PanelLookAndFeel::legendFont (14.0f, false));
+    g.drawFittedText (text, presetList.getBounds().reduced (20), juce::Justification::centred, 3);
 }
 
 } // namespace mm::ui

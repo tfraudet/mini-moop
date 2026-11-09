@@ -35,6 +35,14 @@ AboutBox::AboutBox (const juce::Image& woodTexture) : wood (woodTexture)
 {
     setWantsKeyboardFocus (true);
     setInterceptsMouseClicks (true, true);
+    closeButton.onClick = [this] { hide(); };
+    addAndMakeVisible (closeButton);
+}
+
+void AboutBox::resized()
+{
+    const auto card = cardBounds().toNearestInt();
+    closeButton.setBounds (card.getRight() - 14 - 30, card.getY() + 14, 30, 30);
 }
 
 void AboutBox::show()
@@ -137,6 +145,21 @@ void AboutBox::paint (juce::Graphics& g)
     g.setColour (colours::legendDim.withAlpha (0.6f));
     g.setFont (PanelLookAndFeel::legendFont (11.5f, false));
     g.drawText ("Click anywhere or press Esc to close", card.withTop (card.getBottom() - 24.0f), juce::Justification::centred);
+}
+
+void CloseButton::paintButton (juce::Graphics& g, bool highlighted, bool down)
+{
+    getLookAndFeel().drawButtonBackground (g, *this, {}, highlighted, down);
+    const auto r = getLocalBounds().toFloat();
+    const float half = r.getHeight() * 0.2f, thick = std::max (1.5f, r.getHeight() * 0.075f);
+    const auto c = r.getCentre();
+    juce::Path cross;
+    cross.startNewSubPath (c.x - half, c.y - half);
+    cross.lineTo (c.x + half, c.y + half);
+    cross.startNewSubPath (c.x + half, c.y - half);
+    cross.lineTo (c.x - half, c.y + half);
+    g.setColour (highlighted ? colours::lcdText : colours::legend);
+    g.strokePath (cross, juce::PathStrokeType (thick, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
 void BurgerButton::paintButton (juce::Graphics& g, bool highlighted, bool down)

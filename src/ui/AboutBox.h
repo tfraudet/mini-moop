@@ -18,12 +18,29 @@
 
 #pragma once
 // "About" overlay shown over the panel: logo, name, version, date, author,
-// licence and a short description. Click anywhere or press Escape to close.
+// licence and a short description. Click anywhere, the close button or
+// press Escape to close.
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
 namespace mm::ui
 {
+
+/** Three-bar "burger" menu button. */
+class BurgerButton : public juce::Button
+{
+public:
+    BurgerButton() : juce::Button ("Menu") {}
+    void paintButton (juce::Graphics&, bool highlighted, bool down) override;
+};
+
+/** Square button with a cross, to close an overlay. */
+class CloseButton : public juce::Button
+{
+public:
+    CloseButton() : juce::Button ("Close") { setTooltip ("Close (Esc)"); }
+    void paintButton (juce::Graphics&, bool highlighted, bool down) override;
+};
 
 class AboutBox : public juce::Component
 {
@@ -31,6 +48,7 @@ public:
     explicit AboutBox (const juce::Image& woodTexture);
 
     void paint (juce::Graphics&) override;
+    void resized() override;
     void mouseDown (const juce::MouseEvent&) override;
     bool keyPressed (const juce::KeyPress&) override;
 
@@ -40,14 +58,7 @@ public:
 private:
     juce::Rectangle<float> cardBounds() const;
     const juce::Image& wood;
-};
-
-/** Three-bar "burger" menu button. */
-class BurgerButton : public juce::Button
-{
-public:
-    BurgerButton() : juce::Button ("Menu") {}
-    void paintButton (juce::Graphics&, bool highlighted, bool down) override;
+    CloseButton closeButton;
 };
 
 } // namespace mm::ui
