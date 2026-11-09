@@ -30,7 +30,7 @@ inline juce::String tooltipFor (const juce::String& id)
         // Controllers
         { "tune", "TUNE: master tuning of all three oscillators (+/-1.5 semitones). Centre = A-440." },
         { "glide", "GLIDE: portamento time between notes (time constant from about 1 ms to 5 s). Active only when the GLIDE switch is on." },
-        { "modMix", "MODULATION MIX: blends the modulation source, from oscillator 3 (0) to noise (10). Depth is set by the MOD wheel." },
+        { "modMix", "MODULATION MIX: blends the modulation source, from oscillator 3 (0) to noise (10): pink noise, or red noise when the noise switch is on PINK. Depth is set by the MOD wheel." },
         { "oscMod", "OSCILLATOR MODULATION: routes the modulation mix to the pitch of oscillators 1 and 2 (vibrato, trills, FM). Right = ON." },
         { "modSourceA", "OSC. 3 / FILTER EG: this switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." },
         { "modSourceB", "NOISE / LFO: this switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." },
@@ -57,7 +57,7 @@ inline juce::String tooltipFor (const juce::String& id)
         { "osc3On", "Oscillator 3 on/off in the mixer (it can still modulate when switched off here). Right = ON." },
         { "extOn", "External input on/off in the mixer. Right = ON." },
         { "noiseOn", "Noise on/off in the mixer. Right = ON." },
-        { "noiseColor", "Noise colour: WHITE (up) or PINK (down, -3 dB/octave, darker)." },
+        { "noiseColor", "Noise colour, double switch as on the original: WHITE (up) = white noise to the mixer and pink noise to the MODULATION MIX; PINK (down) = pink noise (-3 dB/octave) to the mixer and red noise (slower, darker) to the MODULATION MIX." },
         { "overload", "OVERLOAD: lights when the external input pre-amplifier output exceeds about 2 V peak (board 4 lamp driver), i.e. when the external signal or the FEEDBACK patch drives the filter harder than an oscillator at full volume. Lower EXTERNAL INPUT VOLUME to turn it off." },
 
         // Modifiers
@@ -77,7 +77,7 @@ inline juce::String tooltipFor (const juce::String& id)
         // Output and left-hand controller
         { "volume", "Main output VOLUME." },
         { "mainOn", "Main output on/off." },
-        { "a440", "A-440: plays a 440 Hz reference tone for tuning against other instruments." },
+        { "a440", "A-440: plays a 440 Hz reference tone for tuning against other instruments. Its level follows the VOLUME knob and the ON switch." },
         { "glideOn", "GLIDE switch: enables portamento (time set by the GLIDE knob)." },
         { "decayOn", "DECAY switch: on = notes release with the DECAY times; off = notes stop almost immediately on key release." },
 

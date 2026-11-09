@@ -160,7 +160,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 - contour timing capacitor 10 µF (C5 / C2, Fig. 9-7), 100 Ω attack series resistor (R7 / R42), 1 MΩ audio-taper Attack and Decay pots (Table 7-3);
 - 50 kΩ audio-taper mod wheel and modulation injection over 0 to 1¼ octaves;
 - linear VCA over 80 dB;
-- pink noise at −3 dB/oct;
+- pink noise at −3 dB/oct; red noise (pink through R12 10 kΩ / C7 0.15 µF, Fig. 9-8) for the modulation bus; double-pole WHITE / PINK switch (white to the mixer and pink to MODULATION MIX, or pink to the mixer and red to MODULATION MIX);
 - lowest-note priority, single trigger;
 - rectangle duty cycles of about 50 / 30 / 15 %;
 - reverse ramp on oscillator 3.
@@ -178,6 +178,7 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 - filter modulation depth (2 octaves);
 - Frequency knob range (±7 semitones);
 - pink network values;
+- level of the noise reaching MODULATION MIX (pink noise at about 1 V rms, of the order of oscillator 3, which enters through an equal 24 kΩ resistor) and the size of the junction's popcorn noise;
 - LO range (−7 octaves).
 
 All these values live in the `*Params` structs in `src/circuit/blocks/`.

@@ -269,13 +269,17 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         const double fEg = filterContour.process() / 5.0;
         const double lEg = loudnessContour.process() / 5.0;
 
-        // Noise
-        double white, pinkN;
-        noise.process (white, pinkN);
+        // Noise. The WHITE / PINK switch is double-pole: WHITE gives white noise
+        // to the mixer and pink noise to the modulation bus; PINK gives pink
+        // to the mixer and red noise to the modulation bus ("PINK OR RED NOISE"
+        // into MODULATION MIX, Fig. 9-8 circuit 15).
+        double white, pinkN, redN;
+        noise.process (white, pinkN, redN);
         const double noiseOut = pink ? pinkN : white;
+        const double modNoise = NoiseSource::modulationGain * (pink ? redN : pinkN);
 
         // Modulation bus: MODULATION MIX between osc 3 and noise
-        const double mod = (1.0 - modMix) * (osc3Last / oscPeak) + modMix * (noiseOut / oscPeak);
+        const double mod = (1.0 - modMix) * (osc3Last / oscPeak) + modMix * (modNoise / oscPeak);
 
         // Oscillators (osc 3 first: it is the modulation source)
         const double cv3 = oscStaticCv[2] + (osc3Kbd ? kb : 0.0);

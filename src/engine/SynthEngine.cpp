@@ -134,9 +134,12 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
             y = hp * outputScale * polyGain;
             if (panel.a440)
             {
+                // A-440 reference: injected into the output VCA, so it follows the
+                // VOLUME pot and the OUTPUT ON switch like the voices do.
                 refPhase += refInc;
                 if (refPhase >= 1.0) refPhase -= 1.0;
-                y += 0.25 * std::sin (2.0 * M_PI * refPhase);
+                const double outGain = panel.mainOn ? taper::audio (panel.volume) : 0.0;
+                y += 0.25 * outGain * std::sin (2.0 * M_PI * refPhase);
             }
             out[done + i] = float (y);
         }
