@@ -57,9 +57,10 @@ If the link step fails with "linking with album file" after a Command Line Tools
 
 ```
 src/circuit/components   Component models: diode, BJT (Ebers-Moll/Gummel-Poon, as in SPICE),
-                         741/301 op-amp (GBW, slew, ±10 V rails), potentiometers (tapers), tolerances
+                         741/301 op-amp (GBW, slew, ±10 V rails), potentiometers (tapers), tolerances,
+                         band-limited steps and ramps (BLEP / BLAMP)
 src/circuit/solver       MnaCircuit<N>: modified nodal analysis + Newton-Raphson + pnjlim limiting
-src/circuit/blocks       One block per part of the schematic (see below)
+src/circuit/blocks       One block per circuit of the schematic (see "Which revision and which boards are simulated")
 src/engine               Voice (one complete "unit"), mono/poly allocation, thermal drift,
                          decimation (2x/4x/8x oversampling), SynthEngine
 src/                     JUCE plugin: parameters, processor, sound banks (SoundBank)
@@ -70,47 +71,61 @@ tests/                   Catch2 tests, including direct comparisons with ngspice
 
 The engine (`minimoop_dsp`) is plain C++20 with no JUCE dependency. After `prepare()` it allocates no memory; a test checks this.
 
-### "Hybrid component-level" simulation
-
-Each block's equations are derived from the physical models of its components. The block is then solved implicitly, either with the trapezoidal rule and Newton-Raphson or by exact integration of RC segments. Blocks exchange voltages with each other, as on the real circuit boards.
-
-| Block | Board | What is simulated |
-|---|---|---|
-| `ExpoConverter` | 1 (and 4) | Revision 2 CA3046 pair with tempco on board 1; the same model with estimated values for the filter cutoff on board 4. Transistor pair: Vt = kT/q at each transistor's temperature, Is temperature law (SPICE XTI/EG), +3500 ppm/K tempco resistor, Is mismatch, emitter resistance, V/oct, offset and HF trimmers |
-| `VcoCore` | 1 | Expo current integrated on a 0.01 µF polystyrene capacitor (ramp from 0 to −4 V), comparator and FET reset with dead time (high notes go flat, compensated by the HF trim), shapers for triangle, shark-tooth, reverse ramp and 3 rectangles with output-stage slew. polyBLEP correction at the exact instant of each discontinuity |
-| `LadderFilter` | 4 | 4 differential-pair stages (Ebers-Moll equations), 68 nF ±10 % capacitors, base current losses (β), pair offsets, zero-delay Emphasis feedback (solved implicitly), transistor noise, output op-amp |
-| `Mixer` | front panel | 25 kΩ linear volume pots loaded by 33 kΩ summing resistors (11 kΩ for noise), solved with Millman's theorem. The "pushed mixer" saturation happens in the ladder's input pair (tanh) |
-| `ContourGen` | 2 | 10 µF electrolytic timing capacitor, 1 MΩ audio-taper pots, end-of-attack comparator, Decay switch, leakage |
-| `Vca` | 4 | Differential pair + V→I converter, control feedthrough ("thump"), 80 dB range |
-| `NoiseSource` | 3 | Junction noise (Gaussian + 1/f + popcorn), −3 dB/oct RC network for pink noise |
-| `Glide` | 2 | RC on 1 µF (C6), 5 MΩ glide pot |
-| `ExtPreamp` | 4 | External input pre-amp (gain 201, 1 MΩ volume pot loaded by 100 kΩ, input/feedback/output coupling, saturation at +9.8 / −7.7 V) and OVERLOAD lamp driver (C14 peak detector, Q31/Q34 threshold at about 2.1 V peak, filament heating and cooling) |
-| `DriftModel` | 1 and 4 | Board temperature (Ornstein-Uhlenbeck), local hot spots, temperature difference within each expo pair. Tuning drift **results** from the physics; it is not an added LFO |
-
-Each voice draws its own component values from the "Unit" seed, then is **calibrated the way a technician would**: offset at A4, V/oct between A1 and A4, HF trim at A7, filter scale. Changing the "Unit" is like playing a different example of the instrument.
-
 ### Validation
 
-- The diode and BJT models and the MNA solver are compared with **ngspice** on identical netlists: RC filter, diode clipper, differential pair. RMS error is below 0.5 %.
-- The reduced ladder is compared with a **full transistor-level ladder simulated in ngspice** (10 NPN, 40 mV input, feedback k = 2.5). RMS error is about 0.01 %.
-- After calibration, tuning is within 1 cent at the calibration points and within 3 cents over 6 octaves, for 4 randomly drawn units.
-- The filter self-oscillates at its cutoff frequency. It tracks the keyboard at 1 octave per octave with KBD 1+2. Cutoff spans 14 Hz to 20 kHz.
-- Sawtooth aliasing at 3.5 kHz with 4x oversampling stays below −60 dB.
-- Nothing is allocated during audio rendering.
-- pluginval at strictness level 8: the VST3 passes consistently. Apple's `auval` passes for the AU.
-- pluginval on the AU fails intermittently (about 1 run in 2) on the state-restoration tests, each time on a different random parameter. This is a timing race in the validator's AU host: JUCE's AU hosting code caches parameter values and updates that cache from queued main-thread notifications, which can arrive after a state restore and overwrite it with old values. The same seed passes on some runs and fails on others, and the failure is identical with JUCE 8.0.17 and 9.0.5.
+Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `build/release/minimoop_tests`. A tag runs a group, for example `minimoop_tests "[vco]"`. The tests tagged `[spice]` run ngspice at test time and are skipped when it is not installed; the others that compare with ngspice hold its results as reference values (the benches that produced them are in `spikes/ngspice-*`).
 
-### CPU load (M3 Pro, 48 kHz)
+| What is checked | Result | Test (`tests/…`: test case) |
+|---|---|---|
+| Diode and BJT models and the MNA solver against ngspice on identical netlists | RMS error below 0.5 % | `test_spice_validation.cpp`: "RC low-pass matches ngspice", "Diode clipper matches ngspice", "BJT differential pair with collector capacitor matches ngspice" |
+| Solver and helpers | LU with pivoting, RC step against the analytic solution, deterministic tolerance draws, audio taper | `test_solver.cpp` |
+| Reduced ladder against a transistor-level ladder in ngspice (10 NPN, 40 mV input, k = 2.5) | RMS error about 0.01 % | `test_ladder.cpp`: "Ladder reduced model matches transistor-level ngspice ladder" |
+| Ladder small-signal response; self-oscillation | −12 dB at the cutoff; oscillates at the cutoff | `test_ladder.cpp`: "Ladder: -12 dB at the small-signal cutoff without emphasis", "Ladder: self-oscillates near cutoff at full emphasis"; `test_voice.cpp`: "Filter self-oscillates with emphasis at 10 and no input" |
+| Filter output stage (Q5–Q8) against ngspice; passband gain against the whole of circuit 6 | table within 0.1 mV; 53.5 against 56.7 (0.5 dB); clipping at +6.4 / −3.7 V | `test_filter_output.cpp` (four test cases) |
+| Contour levels against ngspice (circuit 8): rest, peak, sustain at six settings, both sections | within 0.07 V | `test_contour.cpp`: "Contour levels match the circuit (ngspice, Fig. 9-7)" |
+| VCA gain against the loudness contour, against ngspice (circuit 7) | within 0.25 dB | `test_vca.cpp`: "VCA gain follows the loudness contour as the circuit does (ngspice)", "VCA small-signal gain is unity at a 5 V contour" |
+| Oscillator tuning after calibration, 4 randomly drawn units | within 1 cent at the calibration points, 3 cents over 6 octaves | `test_vco.cpp`: "Calibrated oscillators track 1 V/oct to within a few cents over 6 octaves", "Simulated core frequency matches the analytic period" |
+| Oscillator aliasing in the audio band, against the fundamental | sawtooth and rectangles below −100 dB at 3.5 and 7 kHz (2x and 4x); triangle below −75 dB (the polyBLEP it replaced: −52 and −44 dB at 2x) | `test_vco.cpp`: "Band-limited steps and corners keep aliasing low at high pitch" |
+| Waveform levels | within the waveshaper's swing, no DC runaway | `test_vco.cpp`: "Waveforms stay within the waveshaper swing and have no DC runaway" |
+| Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; −4.2 / −1.3 / −0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
+| KEYBOARD CONTROL (KBD 1, KBD 2, both), the filter singing alone from C3 to C4 | 1/3, 2/3 and 1 octave an octave, within 0.03 octave (both: 0.995) | `test_reference_laws.cpp`: "KEYBOARD CONTROL: the filter follows the keys at 1/3, 2/3 and 1 octave an octave" |
+| Modulation line: depth at full MOD. wheel, the wheel's law, FILTER against OSCILLATOR MODULATION (oscillator 3 on LO) | oscillators 1.42 octaves peak to peak at full (ngspice: 1.46); half way 53 % of full; filter 2.96 times as deep (100K / 33K: 3.03) | `test_reference_laws.cpp`: "Modulation line: depth and MOD. wheel law from the circuit" |
+| Modulation polarity (oscillator 3's sawtooth on LO) | the pitch falls along the ramp and jumps up 1.3 octaves at each reset | `test_reference_laws.cpp`: "Modulation polarity: oscillator 3's rising sawtooth lowers the pitch" |
+| Laws measured on the CA-72 hardware reference: LO, FREQUENCY, GLIDE | LO 6.74 octaves; FREQUENCY within 0.05 semitone; GLIDE rates within 30 % | `test_reference_laws.cpp` (three test cases) |
+| CUTOFF law from the service manual (Filter Range, Table 5-4; Filter Cutoff Adjustment, 5.13; specifications) | 440 Hz at −1 within 0.25 semitone, −3 … +3 within 1 semitone of 0.9 octave a mark (averaged over units); every unit above 16 kHz fully clockwise and under 300 Hz fully anticlockwise | `test_reference_laws.cpp`: "CUTOFF: the service manual's law, 440 Hz at -1 and 0.9 octave a mark" |
+| ATTACK / DECAY pot laws; EMPHASIS passband loss | the reference's laws; self-oscillation from about 7 | `test_contour.cpp`: "ATTACK and DECAY follow the hardware reference's pot laws", "DECAY TIME spans the specification"; `test_ladder.cpp`: "EMPHASIS: the hardware reference's passband loss, self-oscillation from about 7" |
+| Pink noise against white, against ngspice (circuit 3); noise colours and levels | within 0.8 dB from 100 Hz to 10 kHz | `test_reference_laws.cpp`: "Pink noise against white follows board 3's network (ngspice)"; `test_noise_a440.cpp` |
+| External input pre-amp and OVERLOAD lamp | gain 201, rails +9.8 / −7.7 V, lamp from about 2.1 V | `test_extpreamp.cpp` |
+| MODULATION MIX, main VOLUME, A-440 | as wired on the original | `test_noise_a440.cpp` |
+| Voice behaviour: level, extreme settings stay finite, poly, MOD. AMOUNT | | `test_voice.cpp` |
+| No memory allocated during audio rendering, note events and panel changes | | `test_voice.cpp`: "Rendering, note events and panel changes do not allocate" |
+| CPU load, 1 and 8 voices at 2x, 4x and 8x | reported (table below); one voice at 4x must stay under 10 % of a core | `test_voice.cpp`: "CPU load: 1 and 8 voices at 2x, 4x and 8x oversampling" |
+| Sound banks: parsing, round trip, invalid banks, library, import / export | | `test_soundbank.cpp` (`minimoop_bank_tests`) |
+
+### CPU load (Apple M3 Pro, 48 kHz)
+
+Share of one core, real time being 100 %: three oscillators, EMPHASIS 6, DRIFT 1; 8 voices are an 8-note chord in POLY. Measured by `test_voice.cpp`: "CPU load: 1 and 8 voices at 2x, 4x and 8x oversampling" (run `minimoop_tests "[perf]"`; the figures vary by about 10 % from run to run).
 
 | Quality | 1 voice | 8 voices |
 |---|---|---|
-| Eco 2x | ~2.5 % | ~20 % |
-| High 4x | ~4.2 % | ~33 % |
-| Ultra 8x | ~8 % | ~66 % |
+| Eco 2x | ~2.8 % | ~23 % |
+| High 4x | ~5 % | ~42 % |
+| Ultra 8x | ~10 % | ~78 % |
+
+### Outside the test suite
+
+- pluginval at strictness level 8: the VST3 passes consistently. Apple's `auval` passes for the AU.
+- pluginval on the AU fails intermittently (about 1 run in 2) on the state-restoration tests, each time on a different random parameter. This is a timing race in the validator's AU host: JUCE's AU hosting code caches parameter values and updates that cache from queued main-thread notifications, which can arrive after a state restore and overwrite it with old values. The same seed passes on some runs and fails on others, and the failure is identical with JUCE 8.0.17 and 9.0.5.
 
 ## Which revision and which boards are simulated
 
 Figure, table and circuit numbers below refer to the Minimoog Model D service manual.
+
+A **board** is a physical part of the instrument: one of its six printed circuit boards, numbered 1 to 6 in the service manual (plus the front panel and the left-hand controller). A board carries several *circuits* (the service manual numbers them too: board 4 holds circuit 6, the filter, and circuit 7, the VCA, among others). A **block** is the code that simulates one of these circuits: a C++ class in `src/circuit/blocks/`, such as `LadderFilter` for circuit 6 or `Vca` for circuit 7. A board is therefore simulated by several blocks, and one block can serve more than once (`ExpoConverter` on boards 1 and 4, `ContourGen` for both contours of board 2). The table below says which blocks simulate each board, and what is left out.
+
+Each block's equations are derived from the physical models of its components. The block is then solved implicitly, either with the trapezoidal rule and Newton-Raphson or by exact integration of RC segments. Blocks exchange voltages with each other, as the circuits do on the real boards.
+
+Each voice draws its own component values from the "Unit" seed, then is **calibrated the way a technician would**: offset at A4, V/oct between A1 and A4, HF trim at A7, filter scale. Changing the "Unit" is like playing a different example of the instrument.
 
 ### Oscillator board revision: revision 2
 
@@ -145,43 +160,136 @@ Mini Moop models revision 2. Each oscillator has a 741 CV summer (IC1, IC4, …)
 
 `DriftModel` (in `src/engine`) is not a board: it supplies the temperatures of boards 1 and 4 to the expo pairs and the ladder.
 
-## Where the values come from: sourced or assumed
+## Where the values come from
 
-**Sourced** (Model D service manual, OCR of the parts lists, specifications):
-- ±10 V supply rails;
-- sawtooth core with FET reset, 0.01 µF polystyrene capacitor and a ramp from 0 to −4 V (Fig. 9-3); waveform outputs of ±1.7 V (triangle +1.7 to −1.7 V, rectangle 3.5 Vpp, Fig. 9-3);
-- expo converter of board 1 rev 2 (Fig. 9-3): 1 kΩ tempco resistor R20, 51.1 kΩ CV input R27, reference current of about 103 µA (−4 V across R50 = 39 kΩ);
-- ladder with 4 × 68 nF ±10 % (C3, C7, C11, C16, Fig. 9-11);
-- self-oscillation at Emphasis 7–8;
-- filter contour over 0 to 4 octaves, KBD 1/3 and 2/3;
-- attack from 1 ms to 10 s and decay from 4 ms to 35 s;
-- glide on 1 µF (C6, Fig. 9-7) with a 5 MΩ glide pot (R2, Table 7-3);
-- mixer on the front panel (Fig. 9-16, Tables 7-2 / 7-3): 25 kΩ linear volume pots (R6, R7, R8, R10), 33 kΩ summing resistors (R45, R46, R47, R49) and 11 kΩ for noise (R48), external input volume 1 MΩ audio taper (R9) buffered by the board 4 preamp; the summing node drives the base of the ladder's input pair directly (C27, R54 470 Ω to the AC-grounded bias, Fig. 9-11), so the drive into the `tanh` of that pair follows from these values (one oscillator at full volume: about 22 mV peak, saturation from 2 to 3 oscillators);
-- contour timing capacitor 10 µF (C5 / C2, Fig. 9-7), 100 Ω attack series resistor (R7 / R42), 1 MΩ audio-taper Attack and Decay pots (Table 7-3);
-- 50 kΩ audio-taper mod wheel and modulation injection over 0 to 1¼ octaves;
-- linear VCA over 80 dB; main VOLUME is a passive divider after it (R75 1 kΩ into R20, a 5 kΩ linear pot, Fig. 9-16), with an assumed 10 kΩ load;
-- pink noise at −3 dB/oct; red noise (pink through R12 10 kΩ / C7 0.15 µF, Fig. 9-8) for the modulation bus; double-pole WHITE / PINK switch (white to the mixer and pink to MODULATION MIX, or pink to the mixer and red to MODULATION MIX);
-- lowest-note priority, single trigger;
-- rectangle duty cycles of about 50 / 30 / 15 %;
-- reverse ramp on oscillator 3.
+Every parameter of the model has one of these sources:
 
-**Assumed or estimated** (no source found; these are the parameters to refine first if you have the scanned schematics in front of you):
-- output level calibration: the filter output amp gain (47.7) keeps one oscillator at the level of the earlier calibration, and digital full scale is ±4 V so that the FEEDBACK patch with a saturated pre-amp stays below 0 dBFS;
-- noise level reaching the mixer (scaled so that the 11 kΩ noise resistor keeps the earlier noise/oscillator balance);
-- curve of the glide pot's "No. 1 taper" (modelled as an audio taper);
-- filter output amp values; the EMPHASIS shunt resistance (R76 + part of the REGEN CAL trimmer R73 against the bottom pair, about 800 Ω), which sets the shape of the reverse-audio EMPHASIS law (R14, 50 kΩ rheostat, Fig. 9-16); the maximum feedback is calibrated for self-oscillation from 7.5;
-- filter cutoff expo converter values (reference current, input resistor);
-- contour decay path at minimum setting and release resistance (derived from the 4 ms decay spec);
-- attack / decay pot law: a two-segment audio taper (10 % at the knee) whose electrical travel covers the dial from 7.5 % to 89 %, with the knee at 61.5 %, calibrated so that the times match the ATTACK TIME / DECAY TIME legend of the panel (10, 200, 600 ms, 1, 5, 10 s);
-- VCO reset dead time (1.6 µs);
-- shark-tooth mix weighting;
-- filter modulation depth (2 octaves);
-- Frequency knob range (±7 semitones);
-- pink network values;
-- level of the noise reaching MODULATION MIX (pink noise at about 1 V rms, of the order of oscillator 3, which enters through an equal 24 kΩ resistor) and the size of the junction's popcorn noise;
-- LO range (−7 octaves).
+| Tag | Source |
+|---|---|
+| **Moog** | Official Moog documentation: Model D service manual (figures, parts lists in Tables 7-x, calibration procedure, specifications) and operation manuals (`doc/`); R. J. Folkman's *Model D Technical Service Manual* (`doc/`) |
+| **CA-72 sim** | Derived by ngspice simulation of the CA-72 project's netlists, which transcribe the service manual's figures ([idlefoundry/ca-72](https://github.com/idlefoundry/ca-72), GPL-3.0; benches in `spikes/ngspice-*`) |
+| **CA-72 ref** | Measured by the CA-72 project on its hardware reference, a modern recreation of the Model D its owner could not tell from an original in matched recordings ([docs/calibration](https://github.com/idlefoundry/ca-72/tree/main/docs/calibration)). Used only where this model had an assumption |
+| **Other** | Component data sheets, standard SPICE models, usual part tolerances |
+| **Assumed** | No source found: estimated, or calibrated by ear against earlier versions. These are the values to refine first |
 
-All these values live in the `*Params` structs in `src/circuit/blocks/`.
+All block values live in the `*Params` structs in `src/circuit/blocks/`; the panel laws and conventions in `src/engine/Voice.cpp`.
+
+### Oscillators (board 1, revision 2)
+
+| Parameter | Value | Source |
+|---|---|---|
+| Expo converter: tempco resistor R20, CV input R27, reference current | 1 kΩ +3500 ppm/K, 51.1 kΩ 1 %, −4 V across R50 39 kΩ (≈103 µA) | Moog (Fig. 9-3, 9-4) |
+| CA3046 transistors: saturation current, emitter resistance | 6.734 fA, 0.8 Ω | Other (generic small-signal NPN SPICE model) |
+| Timing capacitor, ramp | 0.01 µF polystyrene, 0 to −4 V | Moog (Fig. 9-3) |
+| Waveform outputs | ±1.7 V, rectangle 3.5 Vpp | Moog (Fig. 9-3) |
+| Rectangle widths | ≈50 / 30 / 15 % | Moog (specifications) |
+| Reverse ramp on oscillator 3 | | Moog (Fig. 9-3) |
+| Reset dead time | 1.6 µs | Assumed |
+| Triangle fold rounding, rectangle slew, comparator jitter | 3 % of the swing, 2 V/µs, 4·10⁻⁵ | Assumed |
+| Shark-tooth mix | sawtooth through R030 47 kΩ, triangle through R031 10 kΩ, against the outputs' dividers: 17.8 % sawtooth | Moog (drawing 1448, Table 7-2, Fig. 9-3) |
+| Output source resistances loading the VOLUME pot | sawtooth R34 / R33 (2.25 kΩ), triangle R28 / R23 behind Q1 (0.69 kΩ), shark tooth 8.8 kΩ (at VOLUME 10, against the pot and the 33 kΩ summing resistor: −4.2 dB, sawtooth −1.3 dB, triangle −0.4 dB) | Moog (Fig. 9-3, transcribed by CA-72) |
+| Rectangles' and oscillator 3's reverse ramp's source resistance | not modelled (0) | Assumed |
+| Band-limiting kernel (not a circuit value) | windowed sinc at 0.48 of the rate, Kaiser β 8, 32 taps | Other (the CA-72 project's choice from its kernel sweep, decision R-BLEP) |
+| Calibration: offset at A4, V/oct A1–A4, HF trim at A7 | | Moog (calibration procedure) |
+| Technician's tuning error | 0.5 cent rms | Assumed |
+| RANGE 32' to 2' | octave steps | Moog |
+| RANGE LO | 6.74 octaves below 8' | CA-72 ref |
+| FREQUENCY knobs (oscillators 2 and 3) | −6.48 / +6.61 and −6.73 / +6.92 semitones at the −5 / +5 marks, −8.6 / +8.2 at the stops | CA-72 ref |
+| TUNE span | ±1.5 semitones | Assumed |
+
+### Mixer and external input (front panel, board 4)
+
+| Parameter | Value | Source |
+|---|---|---|
+| VOLUME pots, summing resistors | 25 kΩ linear (R6, R7, R8, R10); 33 kΩ (R45, R46, R47, R49), 11 kΩ for noise (R48) | Moog (Fig. 9-16, Tables 7-2 / 7-3) |
+| Summing node into the ladder's input pair | C27 10 µF, R54 470 Ω | Moog (Fig. 9-11) |
+| EXTERNAL INPUT volume, pre-amp gain, couplings | R9 1 MΩ audio, R66 100 kΩ, gain 201 (1 + R61/R62), C23, C26, C20 | Moog (Fig. 9-11, 9-16) |
+| Pre-amp saturation | +9.8 / −7.7 V | Moog (derived from the rails, R57 and the mixer load) |
+| OVERLOAD lamp driver: C14 peak detector, R56 / R48, threshold | ≈2.1 V peak | Moog (Fig. 9-11) |
+| Lamp filament heating / cooling | 25 / 60 ms | Assumed |
+| Noise level reaching the mixer | white noise 0.8 V rms, scaled into the 11 kΩ channel | Assumed |
+
+### Filter (board 4, circuit 6)
+
+| Parameter | Value | Source |
+|---|---|---|
+| Ladder capacitors | 4 × 68 nF ±10 % (C3, C7, C11, C16) | Moog (Fig. 9-11) |
+| Ladder transistors: current gain, offsets, input noise | β 200, 4 % Is spread, 2 µV rms | Other (generic small-signal NPN) / Assumed (noise) |
+| CUTOFF law and the filter's position | self-oscillation at 440 Hz at the −1 mark with KEYBOARD CONTROL off (Filter Range trim, Table 5-4), 0.9 octave a mark: 9 octaves over the dial (specifications: "40Hz to 20kHz (9 octaves)"), 36 Hz … 18.5 kHz from −5 to +5. The model sings at 41 to 45 Hz at −5 (its self-oscillation rises above the law below about −3, by 3 semitones at −5) | Moog (service manual, section 5 and specifications; [archive.org copy](https://archive.org/details/moog_Moog_Minimoog_Service_Manual)) |
+| Cutoff expo converter (reference current, input resistor, scale) | 20 µA, 100 kΩ, 0.85 | Assumed (they now shape only the curvature) |
+| KEYBOARD CONTROL | 1/3 and 2/3 | Moog (specifications) |
+| Keyboard CV zero | the lowest key, F2 (MIDI 41) | Moog (Fig. 9-7: the key string's grounded end) |
+| AMOUNT OF CONTOUR | 0 to 4 octaves | Moog (specifications) |
+| FILTER MODULATION depth | 100K / 33K × the oscillators' (±2.2 octaves at full wheel): the line reaches the filter's control node through R52 33 kΩ, where KEYBOARD CONTROL 1 + 2 (R53 300 kΩ ∥ R54 150 kΩ = 100 kΩ) make 1 octave a volt | Moog (Fig. 9-3, 9-11, 9-16, transcribed by CA-72) |
+| EMPHASIS pot | R14 50 kΩ reverse audio rheostat, output node R7 180 Ω | Moog (Fig. 9-11, 9-16) |
+| EMPHASIS law up to 8.5 | passband −2.25, −9.53, −10.43, −11.92, −12.50, −14.67 dB at 2.5, 5, 6, 7, 7.5, 8.5 | CA-72 ref |
+| Self-oscillation | from about 7 | Moog (specifications: 7–8) |
+| EMPHASIS shunt (R76 + part of R73) | ≈800 Ω (residual feedback at 0, law from 8.5 to 10) | Assumed |
+| Output coupling | C5 / C1 0.22 µF into R31 / R38 47 kΩ | Moog (Fig. 9-11) |
+| Output stage Q5–Q8: transfer, gain 68, clipping +6.4 / −3.7 V | table | CA-72 sim (TIS97 model from CA-72's data-sheet-derived library) |
+
+### Contour generators (board 2, circuit 8)
+
+| Parameter | Value | Source |
+|---|---|---|
+| Timing capacitors, attack resistors, ATTACK / DECAY pots | C5 / C2 10 µF, R7 / R42 100 Ω, 1 MΩ rheostats | Moog (Fig. 9-7, Table 7-3) |
+| +9.3 V rail, peak detector, sustain networks | Q26; R24 6.8 kΩ / R33 5.6 kΩ against R27 / R29 16.9 kΩ; R19 / R18 5 kΩ, R57 / R13 4.7 kΩ, 4.7 kΩ, R1 3 kΩ, R17 150 kΩ | Moog (Fig. 9-7) |
+| Release dump with DECAY off | R1401 1.5 kΩ | Moog (Fig. 9-12) |
+| Junction drops: output followers, sustain follower, rest, peak detector | 1.16 / 0.52 V, 0.64 V, 0.66 V, 1.23 V | CA-72 sim |
+| ATTACK / DECAY pot laws (each of the four pots) | resistance at the dial's marks, ÷ 0.89 (CA-72 models the electrolytic's dielectric absorption, this model does not) | CA-72 ref |
+| Attack and decay ranges | 1 ms to 10 s, 4 ms to 35 s | Moog (specifications) |
+| Decay path at minimum setting | 100 Ω | Assumed (from the 4 ms specification) |
+| Lowest-note priority, single trigger | | Moog |
+
+### VCA and output (board 4, circuit 7, front panel)
+
+| Parameter | Value | Source |
+|---|---|---|
+| Input attenuator | R2 82 kΩ / R34 820 Ω | Moog (Fig. 9-11) |
+| V→I converter Q18 | R59 68 kΩ, R37 6.8 kΩ, R43 270 kΩ to −10 V, R35 1 kΩ | Moog (Fig. 9-11) |
+| Q18 (TIS97): saturation current, current gain | 5 fA, 420 | CA-72 sim (CA-72's data-sheet-derived library) |
+| The pair's emitter node | 4.10 V | CA-72 sim (operating point) |
+| Range | 80 dB | Moog (specifications) |
+| Feedthrough ("thump"), output amp gain | 0.004, 0.5 | Assumed |
+| Main VOLUME | R75 1 kΩ into R20, 5 kΩ linear | Moog (Fig. 9-16) |
+| Load on the output | 10 kΩ | Assumed |
+| Digital full scale | ±2.85 V | Assumed (a level choice, not part of the circuit) |
+
+### Noise (board 3, circuit 3) and modulation (circuit 15, left-hand controller)
+
+| Parameter | Value | Source |
+|---|---|---|
+| Pink network | R16 10 kΩ, C3 0.12 µF with R8 3.3 kΩ, C1 2.5 µF into Q3 | Moog (Fig. 9-8) |
+| Pink network's upper branch | C2 0.022 µF, R13 510 Ω (drawn 0.033 µF, 220 Ω) | CA-72 ref |
+| Q3's input resistance and gain | 92 kΩ, 14.6 | CA-72 sim (fitted, within 0.2 dB) |
+| Red noise | R12 10 kΩ / C7 0.15 µF | Moog (Fig. 9-8) |
+| Junction noise: 1/f corner, popcorn, amplifier bandwidth | 20 Hz, rare 0.03 steps, 40 kHz | Assumed |
+| MODULATION MIX | R3 25 kΩ linear with its wiper grounded, 24 kΩ inputs, 43 kΩ into the amplifier's virtual ground, R60 91 kΩ feedback | Moog (Fig. 9-8, 9-16) |
+| Noise level reaching MODULATION MIX | pink ≈0.68 V rms | Assumed |
+| Modulation line | MODULATION MIX into the inverting amplifier's virtual ground (R60 91 kΩ feedback over the 43 kΩ inputs: 0.825 of oscillator 3's triangle fully at osc 3, with its output resistance) through R57 1 kΩ, against the MOD. wheel and the loads (three 51.1 kΩ MOD inputs, R52 33 kΩ) | Moog (Fig. 9-8, 9-12); checked with ngspice (CA-72's netlist: +0.75 / −0.71 V on the line) |
+| MOD. wheel | R1402 50 kΩ audio used as a rheostat from the line to ground, 90° of rotation, 1.2 kΩ fully forward | Moog (Fig. 9-12) |
+| MOD. wheel's shape over its travel | the generic audio taper's first third scaled to 1.2 kΩ (half way: 0.39 kΩ, about half the depth) | Assumed (as the CA-72 project's) |
+| Oscillator modulation at full wheel | ±0.74 octave (51.1 kΩ inputs, 1 octave a volt) | Moog (derived from the line) |
+| Modulation polarity | inverted: the amplifier inverts and the line enters the oscillators' summer as the keyboard does, so oscillator 3's rising sawtooth lowers the pitch and the cutoff | Moog (Fig. 9-3, 9-8) |
+
+### Glide (board 2, circuit 1)
+
+| Parameter | Value | Source |
+|---|---|---|
+| Glide capacitor, GLIDE pot | C6 1 µF, R2 5 MΩ | Moog (Fig. 9-7, Table 7-3) |
+| Straight slide from the saturated hold amplifier | | CA-72 sim / ref (their circuit and measurements) |
+| GLIDE law, drives | 162 kΩ, 257 kΩ, 2.1 MΩ, 5 MΩ at 2.5, 5, 7.5, 10; 8.0 V up, 4.45 V down | CA-72 ref |
+| Series resistance with the switch off | 1 kΩ | Assumed |
+
+### Components, tolerances and drift
+
+| Parameter | Value | Source |
+|---|---|---|
+| Supply rails | ±10 V (ideal) | Moog |
+| 741 / 301 op-amps | GBW, slew rate, output limits | Other (data sheets) |
+| BJT and diode models | Ebers-Moll / Gummel-Poon as in SPICE | Other (SPICE) |
+| Tolerances | rated values where the drawing gives them (1 %, 10 %); otherwise 5 % resistors, 20 % pots and electrolytics | Moog / Other |
+| Board temperatures and drift (`DriftModel`) | time constants, amplitudes | Assumed |
 
 ## Added controls (not on the original)
 
@@ -190,6 +298,7 @@ All these values live in the `*Params` structs in `src/circuit/blocks/`.
 - **Drift**: from 0 (stable) to 3 (hot stage).
 - **Unit**: tolerance seed, i.e. which example of the instrument you are playing.
 - **Bend**: pitch bend range.
+- **Mod. Amt**: modulation depth stored with the sound, as if the MOD. wheel were left in position. The wheel can only add to it (the deeper of the two is used). Presets converted from synths that store the depth (Arturia Mini V4) need it.
 - **Feedback**: the "output → External Input" patch; the level is set with the mixer's Ext. Input volume.
 
 ## Sound banks
@@ -214,6 +323,18 @@ Format (values in parameter units, keyed by parameter ID; a parameter that is no
 ```
 
 Rocker switches are two-state choice parameters (Off/On) rather than boolean parameters, so they survive a host state save and restore unchanged (required to pass pluginval).
+
+## References
+
+Period documents the simulation is built from. Local copies are kept in `doc/` (not tracked by git).
+
+- Moog Music, *Minimoog Service Manual* (Model 204D): schematics and board figures (section 9), parts lists, calibration procedure (section 5) and specifications.
+  - Complete scan, with the calibration procedure: [archive.org/details/moog_Moog_Minimoog_Service_Manual](https://archive.org/details/moog_Moog_Minimoog_Service_Manual)
+  - Scan of sections 8 and 9 (`doc/Minimoog_Service_Manual.pdf`): [archive.org/details/JL11387](https://archive.org/details/JL11387)
+- R. J. Folkman, *The minimoog Model D Technical Service Manual* (`doc/Minimoog_Model_D_Technical_Service_Manual_Folkman.pdf`): [synfo.nl](https://www.synfo.nl/servicemanuals/Moog/MINIMOOG-D_SERVICE_MANUAL.pdf), mirrored at [archive.org/details/moog_MINIMOOG-D_SERVICE_MANUAL](https://archive.org/details/moog_MINIMOOG-D_SERVICE_MANUAL)
+- Moog Music, *A Guide to the Operation of the Mini Moog Model D*, the original owner's manual (`doc/minimoog_operation_manual_1.pdf`): [archive.org/details/synthmanual-moog-minimoog-owners-manual](https://archive.org/details/synthmanual-moog-minimoog-owners-manual)
+
+Also consulted, not a period document: the reissue's *Minimoog Model D Manual* (`doc/Minimoog_Model_D_Manual.pdf`), for the switches only found on the reissues: [Moog / inMusic](https://cdn.inmusicbrands.com/Moog/Model%20D/Minimoog_Model_D_Manual.pdf)
 
 ## License
 

@@ -77,6 +77,15 @@ public:
         update();
     }
 
+    /** Source resistance of a channel's input (ohm): the output it comes
+        from, in series with the top of the VOLUME pot. */
+    void setSourceResistance (int ch, double ohms) noexcept
+    {
+        if (rSource[size_t (ch)] == ohms) return;
+        rSource[size_t (ch)] = ohms;
+        update();
+    }
+
     double process (const std::array<double, MixerParams::numChannels>& in) const noexcept
     {
         double v = 0.0;
@@ -96,19 +105,22 @@ private:
         for (size_t i = 0; i < rSrc.size(); ++i)
         {
             frac[i] = p.linearPot[i] ? taper::linear (pots[i]) : taper::audio (pots[i]);
-            const double rWiper = frac[i] * (1.0 - frac[i]) * p.rPot[i]; // Thevenin of the pot divider
+            // Thevenin at the wiper of the pot driven through the source resistance
+            const double lower = frac[i] * p.rPot[i], upper = (1.0 - frac[i]) * p.rPot[i] + rSource[i];
+            const double rWiper = p.rPot[i] > 0.0 ? lower * upper / (lower + upper) : 0.0;
+            attenuation[i] = p.rPot[i] > 0.0 ? p.rPot[i] / (p.rPot[i] + rSource[i]) : 1.0;
             rSrc[i] = p.rSum[i] + rWiper;
             gTotal += 1.0 / rSrc[i];
         }
         for (size_t i = 0; i < rSrc.size(); ++i)
         {
             const double a = switches[i] ? frac[i] : 0.0;
-            gains[i] = p.nodeGain * a * (1.0 / rSrc[i]) / gTotal;
+            gains[i] = p.nodeGain * a * attenuation[i] * (1.0 / rSrc[i]) / gTotal;
         }
     }
 
     MixerParams p;
-    std::array<double, MixerParams::numChannels> pots {}, gains {};
+    std::array<double, MixerParams::numChannels> pots {}, gains {}, rSource {}, attenuation {};
     std::array<bool, MixerParams::numChannels> switches {};
 };
 

@@ -34,34 +34,54 @@ class MiniMoopProcessor;
 namespace mm::ui
 {
 
-/** Performance wheel bound to an atomic float. Pitch wheel springs back. */
-class Wheel : public juce::Component, public juce::SettableTooltipClient
+class HelpBubble;
+
+/** Performance wheel bound to an atomic float. Pitch wheel springs back.
+    While hovered, shows a help bubble: "<name>: <value>", then a description. */
+class Wheel : public juce::Component
 {
 public:
     Wheel (std::atomic<float>& target, bool bipolar, juce::String name);
+    ~Wheel() override;
+    /** `valueText` formats the wheel's value (-1..1 or 0..1) for the bubble. */
+    void setHelp (juce::String description, std::function<juce::String (float)> valueText);
     void paint (juce::Graphics&) override;
+    void mouseEnter (const juce::MouseEvent&) override;
+    void mouseExit (const juce::MouseEvent&) override;
     void mouseDown (const juce::MouseEvent&) override;
     void mouseDrag (const juce::MouseEvent&) override;
     void mouseUp (const juce::MouseEvent&) override;
     bool refresh(); // returns true if the displayed value changed
 
 private:
+    void updateBubble();
+
     std::atomic<float>& value;
     bool bipolar;
     float shown = 0.0f, dragStartValue = 0.0f;
+    juce::String description;
+    std::function<juce::String (float)> valueText;
+    std::unique_ptr<HelpBubble> bubble;
 };
 
-/** OVERLOAD lamp: chrome bezel and red lens, lit from an atomic brightness
-    (0..1) published by the audio thread. */
-class OverloadLamp : public juce::Component, public juce::SettableTooltipClient
+/** Panel lamp (OVERLOAD, main output): chrome bezel and coloured lens, lit
+    from an atomic brightness (0..1) published by the audio thread or a
+    parameter. */
+class Lamp : public juce::Component
 {
 public:
-    explicit OverloadLamp (std::atomic<float>& level) : brightness (level) {}
+    /** Lens colours: unlit, lit, and the filament's hot centre. */
+    struct Lens { juce::Colour dark, lit, hot; };
+    static inline const Lens red { juce::Colour (0xff3c0f0b), juce::Colour (0xffff5530), juce::Colour (0xffffd2a0) };
+    static inline const Lens green { juce::Colour (0xff0e2a10), juce::Colour (0xff46e05a), juce::Colour (0xffd4ffc8) };
+
+    Lamp (std::atomic<float>& level, Lens lensColours) : brightness (level), lens (lensColours), shown (level.load()) {}
     void paint (juce::Graphics&) override;
     bool refresh(); // returns true if the displayed brightness changed
 
 private:
     std::atomic<float>& brightness;
+    Lens lens;
     float shown = 0.0f;
 };
 
@@ -127,6 +147,7 @@ private:
     std::vector<std::unique_ptr<ComboAttachment>> comboAtt;
     std::vector<std::unique_ptr<juce::ComboBox>> combos;
     std::vector<std::unique_ptr<juce::Label>> labels;
+    std::vector<std::unique_ptr<juce::MouseListener>> hoverHelps; // cleared first in ~Panel()
     std::vector<Legend> legends;
     struct Heading { juce::String text; float x, y, lineEnd; };
     std::vector<Heading> headings;
@@ -136,7 +157,7 @@ private:
     juce::ComboBox presetBox;
     juce::TextButton prevProgram { "<" }, nextProgram { ">" };
     Wheel pitchWheel, modWheel;
-    OverloadLamp overload;
+    Lamp overload, mainLamp;
     Keyboard keyboard;
     BurgerButton burger;
     AboutBox about { wood };

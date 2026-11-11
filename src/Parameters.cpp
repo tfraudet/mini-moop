@@ -19,6 +19,7 @@
 #include "Parameters.h"
 
 #include "circuit/blocks/ContourGen.h"
+#include "engine/PanelLaws.h"
 
 namespace mm::params
 {
@@ -38,16 +39,25 @@ std::unique_ptr<APF> pot (const char* pid, const juce::String& name, float def)
                                       .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); }));
 }
 
+/** "473Hz", "1.5kHz", "12.4kHz". */
+juce::String formatHz (double hz)
+{
+    if (hz < 1000.0) return juce::String (juce::roundToInt (hz)) + "Hz";
+    return juce::String (hz / 1000.0, 1) + "kHz";
+}
+
 /** CUTOFF FREQUENCY: a 0..10 pot internally (as stored in presets), shown
-    -5..+5 as engraved on the original panel. */
-std::unique_ptr<APF> centredPot (const char* pid, const juce::String& name, float def)
+    -5..+5 as engraved on the original panel, followed by the frequency the
+    filter sings at there (KEYBOARD CONTROL off): "-3.2 (1.5kHz)". */
+std::unique_ptr<APF> cutoffPot (const char* pid, const juce::String& name, float def)
 {
     return std::make_unique<APF> (juce::ParameterID { pid, 1 }, name,
                                   juce::NormalisableRange<float> (0.0f, 10.0f, 0.0f), def,
                                   juce::AudioParameterFloatAttributes()
                                       .withStringFromValueFunction ([] (float v, int) {
                                           const float c = v - 5.0f;
-                                          return (c > 0.04f ? "+" : "") + juce::String (c, 1);
+                                          return (c > 0.04f ? "+" : "") + juce::String (c, 1)
+                                                 + " (" + formatHz (laws::cutoffHz (double (v) / 10.0)) + ")";
                                       })
                                       .withValueFromStringFunction ([] (const juce::String& t) { return t.getFloatValue() + 5.0f; }));
 }
@@ -82,11 +92,14 @@ juce::String formatTime (double seconds)
 
 /** ATTACK TIME / DECAY TIME pots: still 0..10 internally, but shown (and
     typed) as the time the circuit gives, as engraved on the panel. */
-std::unique_ptr<APF> timePot (const char* pid, const juce::String& name, float def, bool attack)
+std::unique_ptr<APF> timePot (const char* pid, const juce::String& name, float def, bool attack, bool loudness)
 {
-    auto time = [attack] (double pos) {
-        const mm::ContourParams nominal;
-        return attack ? mm::ContourGen::attackTime (nominal, pos) : mm::ContourGen::decayTime (nominal, pos);
+    auto time = [attack, loudness] (double pos) {
+        // The timing network's time constant: about the attack's 10-90 % time
+        // (the peak comes after about 1.3 of them, see ContourGen.h).
+        const auto nominal = loudness ? mm::ContourParams::loudness() : mm::ContourParams::filter();
+        return attack ? mm::ContourGen::attackTime (nominal, pos) / mm::ContourGen::attackSpan (nominal)
+                      : mm::ContourGen::decayTime (nominal, pos);
     };
     return std::make_unique<APF> (juce::ParameterID { pid, 1 }, name,
                                   juce::NormalisableRange<float> (0.0f, 10.0f, 0.0f), def,
@@ -145,16 +158,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                   juce::StringArray { "White", "Pink" }, 0));
 
     // Modifiers
-    l.add (centredPot (id::cutoff, "Cutoff Frequency", 6.0f));
+    l.add (cutoffPot (id::cutoff, "Cutoff Frequency", 6.0f));
     l.add (pot (id::emphasis, "Emphasis", 2.0f));
     l.add (pot (id::contourAmt, "Amount of Contour", 5.0f));
     l.add (sw (id::kbd1, "Keyboard Control 1", false));
     l.add (sw (id::kbd2, "Keyboard Control 2", true));
-    l.add (timePot (id::fAttack, "Filter Attack", 0.0f, true));
-    l.add (timePot (id::fDecay, "Filter Decay", 4.0f, false));
+    l.add (timePot (id::fAttack, "Filter Attack", 0.0f, true, false));
+    l.add (timePot (id::fDecay, "Filter Decay", 4.0f, false, false));
     l.add (pot (id::fSustain, "Filter Sustain", 5.0f));
-    l.add (timePot (id::lAttack, "Loudness Attack", 0.0f, true));
-    l.add (timePot (id::lDecay, "Loudness Decay", 4.0f, false));
+    l.add (timePot (id::lAttack, "Loudness Attack", 0.0f, true, true));
+    l.add (timePot (id::lDecay, "Loudness Decay", 4.0f, false, true));
     l.add (pot (id::lSustain, "Loudness Sustain", 10.0f));
 
     // Output and left-hand controller
@@ -177,6 +190,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                       .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); })));
     l.add (std::make_unique<API> (juce::ParameterID { id::unitSeed, 1 }, "Unit", 1, 999, 1));
     l.add (std::make_unique<API> (juce::ParameterID { id::bendRange, 1 }, "Bend Range", 1, 12, 5));
+    // Modulation depth kept with the sound (the MOD. wheel is a performance
+    // control and is not stored): the deeper of the two is used.
+    l.add (pot (id::modAmount, "Modulation Amount", 0.0f));
     return l;
 }
 
@@ -210,6 +226,7 @@ void ParameterCache::attach (juce::AudioProcessorValueTreeState& s)
     glideOn = get (s, id::glideOn); decayOn = get (s, id::decayOn); feedback = get (s, id::feedback);
     voiceModeP = get (s, id::voiceMode); voicesP = get (s, id::voices); qualityP = get (s, id::quality);
     drift = get (s, id::drift); unitSeedP = get (s, id::unitSeed); bendRange = get (s, id::bendRange);
+    modAmount = get (s, id::modAmount);
 }
 
 int ParameterCache::oversampling() const noexcept
@@ -258,6 +275,7 @@ void ParameterCache::read (PanelState& p) const noexcept
     p.feedbackPatch = on (feedback);
     p.drift = double (drift->load());
     p.bendRange = double (bendRange->load());
+    p.modAmount = pot01 (modAmount);
 }
 
 } // namespace mm::params

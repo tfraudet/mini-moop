@@ -67,6 +67,7 @@ inline constexpr const char* quality = "quality";
 inline constexpr const char* drift = "drift";
 inline constexpr const char* unitSeed = "unitSeed";
 inline constexpr const char* bendRange = "bendRange";
+inline constexpr const char* modAmount = "modAmount";
 } // namespace id
 
 juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
@@ -93,7 +94,7 @@ private:
     std::atomic<float> *cutoff {}, *emphasis {}, *contourAmt {}, *kbd1 {}, *kbd2 {};
     std::atomic<float> *fAttack {}, *fDecay {}, *fSustain {}, *lAttack {}, *lDecay {}, *lSustain {};
     std::atomic<float> *volume {}, *mainOn {}, *a440 {}, *glideOn {}, *decayOn {}, *feedback {};
-    std::atomic<float> *voiceModeP {}, *voicesP {}, *qualityP {}, *drift {}, *unitSeedP {}, *bendRange {};
+    std::atomic<float> *voiceModeP {}, *voicesP {}, *qualityP {}, *drift {}, *unitSeedP {}, *bendRange {}, *modAmount {};
 };
 
 } // namespace mm::params

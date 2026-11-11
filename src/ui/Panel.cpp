@@ -31,6 +31,65 @@ namespace mm::ui
 
 namespace id = mm::params::id;
 
+// ============================================================================ HelpBubble
+
+/** Hover help of the switches, wheels and settings, drawn as the knobs' value
+    bubble (same bubble, colours and bold font): "<name>: <state>", then the
+    description wrapped below it. An empty title leaves just the description. */
+class HelpBubble : public juce::BubbleComponent
+{
+public:
+    /** `margin`: room left between the control and the arrow's tip. */
+    explicit HelpBubble (juce::Component& switchToDescribe, int margin = 0) : owner (switchToDescribe), tipMargin (margin)
+    {
+        setAlwaysOnTop (true);
+    }
+
+    void setText (const juce::String& newTitle, const juce::String& newDescription)
+    {
+        auto& lf = owner.getLookAndFeel();
+        const juce::Font titleFont (lf.withDefaultMetrics (juce::FontOptions (15.0f, juce::Font::bold)));
+        const juce::Font bodyFont (lf.withDefaultMetrics (juce::FontOptions (13.0f)));
+        const auto colour = owner.findColour (juce::TooltipWindow::textColourId, true);
+
+        juce::AttributedString text;
+        if (newTitle.isNotEmpty())
+            text.append (newTitle, titleFont, colour);
+        if (newDescription.isNotEmpty())
+            text.append ((newTitle.isNotEmpty() ? "\n" : "") + newDescription, bodyFont, colour);
+
+        // As wide as the longest line, wrapped beyond maxWidth.
+        float natural = newTitle.isNotEmpty() ? juce::GlyphArrangement::getStringWidth (titleFont, newTitle) : 0.0f;
+        if (newDescription.isNotEmpty())
+            natural = std::max (natural, juce::GlyphArrangement::getStringWidth (bodyFont, newDescription));
+        layout.createLayout (text, std::ceil (std::min (natural, maxWidth)) + 1.0f);
+
+        if (auto* parent = getParentComponent(); parent != nullptr && tipMargin > 0)
+            BubbleComponent::setPosition (parent->getLocalArea (&owner, owner.getLocalBounds()).expanded (tipMargin));
+        else
+            BubbleComponent::setPosition (&owner);
+        repaint();
+    }
+
+    void getContentSize (int& w, int& h) override
+    {
+        w = int (std::ceil (layout.getWidth())) + 2 * padX;
+        h = int (std::ceil (layout.getHeight())) + 2 * padY;
+    }
+
+    void paintContent (juce::Graphics& g, int w, int h) override
+    {
+        layout.draw (g, juce::Rectangle<int> (w, h).reduced (padX, padY).toFloat());
+    }
+
+private:
+    static constexpr float maxWidth = 300.0f;
+    static constexpr int padX = 9, padY = 5;
+    juce::Component& owner;
+    int tipMargin;
+    juce::TextLayout layout;
+};
+
 // ============================================================================ Wheel
 
 Wheel::Wheel (std::atomic<float>& target, bool bip, juce::String name)
@@ -45,6 +104,7 @@ bool Wheel::refresh()
     const float v = value.load();
     if (std::abs (v - shown) < 1.0e-4f) return false;
     shown = v;
+    updateBubble();
     return true;
 }
 
@@ -71,6 +131,35 @@ void Wheel::paint (juce::Graphics& g)
     g.fillRect (juce::Rectangle<float> (wheel.getX() + 2.0f, my - 1.5f, wheel.getWidth() - 4.0f, 3.0f));
 }
 
+Wheel::~Wheel() = default;
+
+void Wheel::setHelp (juce::String newDescription, std::function<juce::String (float)> newValueText)
+{
+    description = std::move (newDescription);
+    valueText = std::move (newValueText);
+}
+
+void Wheel::mouseEnter (const juce::MouseEvent&)
+{
+    auto* parent = getParentComponent();
+    if (parent == nullptr) return;
+    if (bubble == nullptr)
+    {
+        bubble = std::make_unique<HelpBubble> (*this);
+        parent->addChildComponent (*bubble);
+    }
+    updateBubble();
+    bubble->setVisible (true);
+}
+
+void Wheel::mouseExit (const juce::MouseEvent&) { bubble.reset(); }
+
+void Wheel::updateBubble()
+{
+    if (bubble != nullptr)
+        bubble->setText (getName() + ": " + (valueText != nullptr ? valueText (shown) : juce::String (shown, 2)), description);
+}
+
 void Wheel::mouseDown (const juce::MouseEvent&) { dragStartValue = value.load(); }
 
 void Wheel::mouseDrag (const juce::MouseEvent& e)
@@ -87,9 +176,9 @@ void Wheel::mouseUp (const juce::MouseEvent&)
     if (refresh()) repaint();
 }
 
-// ============================================================================ OverloadLamp
+// ============================================================================ Lamp
 
-bool OverloadLamp::refresh()
+bool Lamp::refresh()
 {
     const float v = brightness.load();
     if (std::abs (v - shown) < 0.01f) return false;
@@ -97,7 +186,7 @@ bool OverloadLamp::refresh()
     return true;
 }
 
-void OverloadLamp::paint (juce::Graphics& g)
+void Lamp::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat();
     const auto c = r.getCentre();
@@ -115,12 +204,12 @@ void OverloadLamp::paint (juce::Graphics& g)
     g.setColour (juce::Colours::black);
     g.fillEllipse (circle (rl + 1.2f));
 
-    // red lens, lit by the filament (perceived brightness rises fast at first)
+    // coloured lens, lit by the filament (perceived brightness rises fast at first)
     const float b = std::pow (juce::jlimit (0.0f, 1.0f, shown), 0.6f);
-    const auto dark = juce::Colour (0xff3c0f0b), lit = juce::Colour (0xffff5530);
-    juce::ColourGradient lens (dark.interpolatedWith (juce::Colour (0xffffd2a0), b).brighter (0.1f), c.translated (-rl * 0.3f, -rl * 0.4f),
-                               dark.interpolatedWith (lit, b).darker (0.3f * (1.0f - b)), c.translated (rl, rl), true);
-    g.setGradientFill (lens);
+    const auto dark = lens.dark, lit = lens.lit;
+    juce::ColourGradient glass (dark.interpolatedWith (lens.hot, b).brighter (0.1f), c.translated (-rl * 0.3f, -rl * 0.4f),
+                                dark.interpolatedWith (lit, b).darker (0.3f * (1.0f - b)), c.translated (rl, rl), true);
+    g.setGradientFill (glass);
     g.fillEllipse (circle (rl));
     if (b > 0.01f)
     {
@@ -289,13 +378,105 @@ constexpr float borderSwitchX = 912.0f;
 // Each section border is interrupted (vertical range) around the switches and legends sitting on it.
 const juce::Range<float> borderGap[] = { {}, { 62.0f, 140.0f }, {}, { 58.0f, 240.0f }, {} };
 const char* sectionTitle[] = { "CONTROLLERS", "OSCILLATOR BANK", "MIXER", "MODIFIERS", "OUTPUT" };
+
+/** Rocker switch showing its help bubble while hovered (instead of a
+    tooltip); the bubble follows the switch's state. */
+class PanelSwitch : public juce::ToggleButton
+{
+public:
+    PanelSwitch (const juce::String& helpId, juce::Component& bubbleParent)
+        : help (switchHelpFor (helpId)), parent (bubbleParent) {}
+
+    void mouseEnter (const juce::MouseEvent& e) override
+    {
+        ToggleButton::mouseEnter (e);
+        if (bubble == nullptr)
+        {
+            bubble = std::make_unique<HelpBubble> (*this);
+            parent.addChildComponent (*bubble);
+        }
+        updateBubble();
+        bubble->setVisible (true);
+    }
+
+    void mouseExit (const juce::MouseEvent& e) override
+    {
+        ToggleButton::mouseExit (e);
+        bubble.reset();
+    }
+
+protected:
+    void buttonStateChanged() override
+    {
+        ToggleButton::buttonStateChanged();
+        if (bubble != nullptr) updateBubble();
+    }
+
+private:
+    void updateBubble()
+    {
+        bubble->setText (juce::String (help.name) + ": " + (getToggleState() ? help.on : help.off),
+                         help.description);
+    }
+
+    SwitchHelp help;
+    juce::Component& parent;
+    std::unique_ptr<HelpBubble> bubble;
+};
+
+/** Help bubble for any control (settings strip faders and boxes), shown
+    while the mouse is over it or its parts. `title` may be null (description
+    only); call refresh() when what it shows changes. */
+class HoverHelp : public juce::MouseListener
+{
+public:
+    HoverHelp (juce::Component& c, std::function<juce::String()> titleText, juce::String desc, int tipMargin = 0)
+        : target (c), title (std::move (titleText)), description (std::move (desc)), margin (tipMargin)
+    {
+        target.addMouseListener (this, true);
+    }
+
+    ~HoverHelp() override { target.removeMouseListener (this); }
+
+    void refresh()
+    {
+        if (bubble != nullptr)
+            bubble->setText (title != nullptr ? title() : juce::String(), description);
+    }
+
+    void mouseEnter (const juce::MouseEvent&) override
+    {
+        if (bubble != nullptr) return;
+        auto* parent = target.getParentComponent();
+        if (parent == nullptr) return;
+        bubble = std::make_unique<HelpBubble> (target, margin);
+        parent->addChildComponent (*bubble);
+        refresh();
+        bubble->setVisible (true);
+    }
+
+    void mouseExit (const juce::MouseEvent& e) override
+    {
+        // Moving onto one of the control's own parts (a box's label) is not leaving it.
+        if (! target.getLocalBounds().contains (e.getEventRelativeTo (&target).getPosition()))
+            bubble.reset();
+    }
+
+private:
+    juce::Component& target;
+    std::function<juce::String()> title;
+    juce::String description;
+    int margin;
+    std::unique_ptr<HelpBubble> bubble;
+};
 } // namespace
 
 Panel::Panel (MiniMoopProcessor& p)
     : proc (p),
-      pitchWheel (p.pitchWheel, true, "PITCH"),
-      modWheel (p.modWheel, false, "MOD."),
-      overload (p.overloadLamp),
+      pitchWheel (p.pitchWheel, true, "PITCH WHEEL"),
+      modWheel (p.modWheel, false, "MOD. WHEEL"),
+      overload (p.overloadLamp, Lamp::red),
+      mainLamp (*p.state.getRawParameterValue (id::mainOn), Lamp::green),
       keyboard (p.keyboardState)
 {
     setLookAndFeel (&lnf);
@@ -342,13 +523,12 @@ Panel::Panel (MiniMoopProcessor& p)
 
     // Modulation source switches of the modern reissues: shown, but inactive.
     auto reissueSwitch = [this] (const char* tipId, juce::Rectangle<int> area, const char* leftText, const char* rightText) {
-        auto b = std::make_unique<juce::ToggleButton>();
+        auto b = std::make_unique<PanelSwitch> (tipId, *this);
         b->getProperties().set (props::rocker, "orange");
         b->getProperties().set (props::rockerHorizontal, true);
         b->getProperties().set (props::rockerInactive, true);
-        b->setClickingTogglesState (false); // kept enabled so that its tooltip still shows
+        b->setClickingTogglesState (false); // kept enabled so that its help still shows
         b->setBounds (area);
-        b->setTooltip (tooltipFor (tipId));
         addAndMakeVisible (*b);
         buttons.push_back (std::move (b));
         const auto r = area.toFloat();
@@ -409,7 +589,8 @@ Panel::Panel (MiniMoopProcessor& p)
     legend ("NOISE VOLUME", { float (rightX) - 45.0f, float (mixY[3]) - 56.0f, 90.0f, 12.0f }, 9.0f);
     legend ("OVERLOAD", { float (rightX) - 40.0f, 40.0f, 80.0f, 13.0f }, 9.0f);
     overload.setBounds (juce::Rectangle<int> (26, 26).withCentre ({ rightX, 68 }));
-    overload.setTooltip (tooltipFor ("overload"));
+    hoverHelps.push_back (std::make_unique<HoverHelp> (overload, [] { return juce::String ("OVERLOAD"); }, tooltipFor ("overload"),
+                                                       6)); // the arrow stops short of the lamp
     addAndMakeVisible (overload);
     rocker (id::noiseColor, { rightX - 11, 340, 22, 36 }, "blue");
     legend ("WHITE", { float (rightX) - 30.0f, 327.0f, 60.0f, 11.0f }, 9.0f);
@@ -429,6 +610,9 @@ Panel::Panel (MiniMoopProcessor& p)
     legend ("KEYBOARD\nCONTROL", { borderSwitchX - 45.0f, 171.0f, 90.0f, 24.0f }, 9.0f);
     borderSwitch (id::kbd2, 197.0f);
     legend ("ON", { borderSwitchX, 224.0f, 25.0f, 11.0f }, 9.0f);
+    // KEYBOARD CONTROL 1 / 2 numbers, right of their switches.
+    legend ("1", { borderSwitchX + 25.0f, 150.0f, 10.0f, 12.0f }, 10.0f);
+    legend ("2", { borderSwitchX + 25.0f, 203.0f, 10.0f, 12.0f }, 10.0f);
 
     // -------------------------------------------------------------- MODIFIERS
     constexpr float headingX = 964.0f; // clear of the border switches
@@ -464,6 +648,9 @@ Panel::Panel (MiniMoopProcessor& p)
     knob (id::volume, { outX, 88 }, 92);
     knobLegend ("VOLUME", { outX, 88 }, 92);
     rocker (id::mainOn, { outX - 12, 192, 24, 46 }, "blue");
+    // Lamp showing whether the main output is on, right of its switch.
+    mainLamp.setBounds (juce::Rectangle<int> (20, 20).withCentre ({ outX + 32, 215 }));
+    addAndMakeVisible (mainLamp);
     legend ("ON", { float (outX) - 30.0f, 242.0f, 60.0f, 12.0f }, 9.5f);
     rocker (id::a440, { outX - 12, 296, 24, 46 }, "orange");
     legend ("A-440", { float (outX) - 30.0f, 346.0f, 60.0f, 12.0f }, 9.5f);
@@ -473,8 +660,13 @@ Panel::Panel (MiniMoopProcessor& p)
     legend ("GLIDE", { 44.0f, 578.0f, 50.0f, 11.0f }, 9.0f);
     rocker (id::decayOn, { 116, 538, 22, 38 }, "blue");
     legend ("DECAY", { 102.0f, 578.0f, 50.0f, 11.0f }, 9.0f);
-    pitchWheel.setTooltip ("PITCH wheel: bends all oscillators (range set by BEND). Springs back to centre. Also driven by MIDI pitch bend.");
-    modWheel.setTooltip ("MOD. wheel: amount of modulation sent through the OSC. MOD. / FILTER MOD. switches. Also driven by MIDI CC 1.");
+    pitchWheel.setHelp ("Bends all oscillators (range set by BEND). Springs back to centre. Also driven by MIDI pitch bend.",
+                        [this] (float v) {
+                            const float semis = v * proc.state.getRawParameterValue (id::bendRange)->load();
+                            return (semis > 0.005f ? "+" : "") + juce::String (semis, 2) + " st";
+                        });
+    modWheel.setHelp ("Amount of modulation sent through the OSC. MOD. / FILTER MOD. switches. Also driven by MIDI CC 1. MOD. AMT sets a minimum kept with the sound.",
+                      [] (float v) { return juce::String (v * 10.0f, 1); });
     addAndMakeVisible (pitchWheel);
     addAndMakeVisible (modWheel);
     pitchWheel.setBounds (52, 594, 34, 128);
@@ -513,6 +705,7 @@ Panel::Panel (MiniMoopProcessor& p)
 Panel::~Panel()
 {
     stopTimer();
+    hoverHelps.clear(); // before the controls they watch (some are declared after them)
     for (auto& s : sliders) s->setLookAndFeel (nullptr);
     setLookAndFeel (nullptr);
 }
@@ -548,10 +741,11 @@ juce::Slider& Panel::knob (const char* paramId, juce::Point<int> centre, int siz
     // The scale legends reach beyond the knob: give the component room for them.
     const int box = std::max (int (std::ceil (float (size) * 1.3f)), boxSize);
     s->setBounds (juce::Rectangle<int> (box, box).withCentre (centre));
-    s->setPopupDisplayEnabled (true, false, this);
+    // No help tooltip on knobs: hovering shows the value bubble instead (the
+    // one shown while dragging), kept until the mouse leaves the knob.
+    s->setPopupDisplayEnabled (true, true, this, -1);
     s->setMouseDragSensitivity (kind == "stepped" ? 120 : 220);
     s->setVelocityBasedMode (false);
-    s->setTooltip (tooltipFor (paramId) + "\n(double-click to reset)");
     addAndMakeVisible (*s);
     sliderAtt.push_back (std::make_unique<SliderAttachment> (proc.state, paramId, *s));
     if (auto* param = proc.state.getParameter (paramId))
@@ -562,10 +756,9 @@ juce::Slider& Panel::knob (const char* paramId, juce::Point<int> centre, int siz
 
 juce::ToggleButton& Panel::rocker (const char* paramId, juce::Rectangle<int> area, const juce::String& colour)
 {
-    auto b = std::make_unique<juce::ToggleButton>();
+    auto b = std::make_unique<PanelSwitch> (paramId, *this);
     b->getProperties().set (props::rocker, colour);
     b->setBounds (area);
-    b->setTooltip (tooltipFor (paramId));
     addAndMakeVisible (*b);
     buttonAtt.push_back (std::make_unique<ButtonAttachment> (proc.state, paramId, *b));
     buttons.push_back (std::move (b));
@@ -607,7 +800,7 @@ void Panel::buildExtras()
         if (auto* param = dynamic_cast<juce::AudioParameterChoice*> (proc.state.getParameter (pid)))
             c->addItemList (param->choices, 1);
         c->setBounds (x, y, w, h);
-        c->setTooltip (tooltipFor (pid));
+        hoverHelps.push_back (std::make_unique<HoverHelp> (*c, nullptr, tooltipFor (pid)));
         addAndMakeVisible (*c);
         comboAtt.push_back (std::make_unique<ComboAttachment> (proc.state, pid, *c));
         combos.push_back (std::move (c));
@@ -621,14 +814,13 @@ void Panel::buildExtras()
         s->setTextBoxStyle (juce::Slider::TextBoxLeft, true, 52, h); // read-only LED display
         s->setIncDecButtonsMode (juce::Slider::incDecButtonsNotDraggable);
         s->setBounds (x, y, w, h);
-        s->setTooltip (tooltipFor (pid));
+        hoverHelps.push_back (std::make_unique<HoverHelp> (*s, nullptr, tooltipFor (pid)));
         addAndMakeVisible (*s);
         sliderAtt.push_back (std::make_unique<SliderAttachment> (proc.state, pid, *s));
         sliders.push_back (std::move (s));
     };
 
     burger.setBounds (52, y, 30, h);
-    burger.setTooltip ("Menu: sound banks, about");
     burger.onClick = [this] { showMenu(); };
     addAndMakeVisible (burger);
 
@@ -642,8 +834,6 @@ void Panel::buildExtras()
     addAndMakeVisible (presetBox);
     prevProgram.setBounds (292, y + 2, 26, h - 4);
     nextProgram.setBounds (322, y + 2, 26, h - 4);
-    prevProgram.setTooltip ("Previous program");
-    nextProgram.setTooltip ("Next program");
     prevProgram.onClick = [this] { stepProgram (-1); };
     nextProgram.onClick = [this] { stepProgram (1); };
     addAndMakeVisible (prevProgram);
@@ -651,27 +841,34 @@ void Panel::buildExtras()
 
     caption ("VOICES", 372, 80);
     combo (id::voiceMode, 372, 84);
-    caption ("POLY", 478, 80);
-    incDec (id::voices, 478, 108);
-    caption ("QUALITY", 608, 100);
-    combo (id::quality, 608, 142);
+    caption ("POLY", 474, 80);
+    incDec (id::voices, 474, 108);
+    caption ("QUALITY", 598, 100);
+    combo (id::quality, 598, 122);
 
-    caption ("DRIFT", 770, 80);
-    {
+    // Faders: the help bubble shows "<name>: <value>" and follows the value.
+    auto fader = [&] (const char* pid, const juce::String& name, int x, int w) {
         auto s = std::make_unique<juce::Slider> (juce::Slider::LinearHorizontal, juce::Slider::NoTextBox);
-        s->setBounds (770, y, 80, h);
-        s->setPopupDisplayEnabled (true, false, this);
-        s->setTooltip (tooltipFor (id::drift));
+        s->setBounds (x, y, w, h);
+        auto* sp = s.get();
+        auto help = std::make_unique<HoverHelp> (*s, [sp, name] { return name + ": " + sp->getTextFromValue (sp->getValue()); },
+                                                 tooltipFor (pid));
+        s->onValueChange = [hp = help.get()] { hp->refresh(); };
+        hoverHelps.push_back (std::move (help));
         addAndMakeVisible (*s);
-        sliderAtt.push_back (std::make_unique<SliderAttachment> (proc.state, id::drift, *s));
+        sliderAtt.push_back (std::make_unique<SliderAttachment> (proc.state, pid, *s));
         sliders.push_back (std::move (s));
-    }
-    caption ("UNIT", 870, 80);
-    incDec (id::unitSeed, 870, 114);
-    caption ("BEND", 1004, 80);
-    incDec (id::bendRange, 1004, 114);
-    caption ("FEEDBACK", 1138, 70);
-    rocker (id::feedback, { 1150, 476, 22, 38 }, "orange");
+    };
+    caption ("DRIFT", 736, 70);
+    fader (id::drift, "DRIFT", 736, 70);
+    caption ("MOD. AMT", 822, 70);
+    fader (id::modAmount, "MOD. AMT", 822, 70);
+    caption ("UNIT", 908, 80);
+    incDec (id::unitSeed, 908, 108);
+    caption ("BEND", 1032, 80);
+    incDec (id::bendRange, 1032, 108);
+    caption ("FEEDBACK", 1156, 56);
+    rocker (id::feedback, { 1168, 476, 22, 38 }, "orange");
 }
 
 void Panel::showMenu()
@@ -698,9 +895,6 @@ void Panel::rebuildProgramList (std::shared_ptr<const SoundBank> bank)
             ++flat;
         }
     }
-    presetBox.setTooltip ("Programs of the bank \"" + programListBank->name
-                          + "\". Choosing one resets the panel (Unit, Quality and Drift are kept). "
-                            "Banks are managed from the menu on the left.");
 }
 
 void Panel::syncProgramDisplay()
@@ -737,6 +931,7 @@ void Panel::timerCallback()
         presetBox.repaint();
     if (pitchWheel.refresh()) pitchWheel.repaint();
     if (overload.refresh()) overload.repaint();
+    if (mainLamp.refresh()) mainLamp.repaint();
     if (modWheel.refresh()) modWheel.repaint();
     syncProgramDisplay();
 }

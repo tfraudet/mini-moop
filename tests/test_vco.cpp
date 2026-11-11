@@ -20,11 +20,13 @@
 
 #include "engine/Voice.h"
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
 #include <vector>
 
 using namespace mm;
+using Catch::Approx;
 
 namespace
 {
@@ -125,44 +127,89 @@ TEST_CASE ("Waveforms stay within the waveshaper swing and have no DC runaway", 
     }
 }
 
-TEST_CASE ("polyBLEP keeps sawtooth aliasing low at high pitch", "[vco]")
+namespace
 {
-    // 4x oversampling at 48 kHz host: 192 kHz. A 3.5 kHz sawtooth has harmonics
-    // folding above 96 kHz; compare energy at a non-harmonic bin with a harmonic.
-    const double fs = 192000.0;
+/** Strongest in-band alias (0.02 to 20 kHz) against the fundamental, dB, for an
+    oscillator alone at `fs`: harmonics folding back, away from the harmonics. */
+double worstAlias (double fs, Waveform w, double f0)
+{
     VcoCore core;
     VcoParams p;
-    p.tReset = 0.0;
     p.thrJitter = 0.0;
     core.setParams (p);
     core.prepare (fs, 1);
-    core.setWaveform (Waveform::Sawtooth, false);
-    const double f0 = 3520.0;
-    const double amps = f0 * p.c * p.swing;
+    core.setWaveform (w, false);
+    const double amps = p.c * p.swing / (1.0 / f0 - p.tReset);
     const int n = 1 << 16;
     std::vector<double> y (static_cast<size_t> (n));
+    for (int i = 0; i < 4096; ++i) core.process (amps);
     for (auto& s : y) s = core.process (amps);
-
     auto dftMag = [&] (double f) {
         double re = 0.0, im = 0.0;
         for (int i = 0; i < n; ++i)
         {
-            const double w = 0.5 - 0.5 * std::cos (2 * M_PI * i / (n - 1)); // Hann
-            re += w * y[size_t (i)] * std::cos (2 * M_PI * f * i / fs);
-            im += w * y[size_t (i)] * std::sin (2 * M_PI * f * i / fs);
+            const double win = 0.5 - 0.5 * std::cos (2 * M_PI * i / (n - 1)); // Hann
+            re += win * y[size_t (i)] * std::cos (2 * M_PI * f * i / fs);
+            im += win * y[size_t (i)] * std::sin (2 * M_PI * f * i / fs);
         }
         return std::sqrt (re * re + im * im);
     };
     const double fundamental = dftMag (f0);
-    // Strongest alias inside the audio band: harmonic k folds to |k f0 - fs|.
     double worst = 0.0;
-    for (int k = 28; k <= 80; ++k)
+    for (int k = 2; k <= 400; ++k)
     {
+        if (k * f0 < fs / 2) continue;
         double fa = std::fmod (k * f0, fs);
         if (fa > fs / 2) fa = fs - fa;
-        if (fa < 20000.0) worst = std::fmax (worst, dftMag (fa));
+        double r = std::fmod (fa, f0);
+        if (r > f0 / 2) r = f0 - r;
+        if (fa > 20.0 && fa < 20000.0 && r > 5.0) worst = std::fmax (worst, dftMag (fa));
     }
-    const double db = 20.0 * std::log10 (worst / fundamental);
-    INFO ("worst in-band alias: " << db << " dB");
-    CHECK (db < -60.0);
+    return 20.0 * std::log10 (worst / fundamental + 1e-20);
+}
+} // namespace
+
+TEST_CASE ("Band-limited steps and corners keep aliasing low at high pitch", "[vco]")
+{
+    // Windowed-sinc BLEP / BLAMP (the polyBLEP it replaced gave -52 dB for the
+    // sawtooth and -59 dB for the triangle at 2x, 3.5 kHz).
+    struct Case { double fs; Waveform w; double f0, limit; const char* name; };
+    for (const auto& c : { Case { 96000.0, Waveform::Sawtooth, 3520.0, -100.0, "sawtooth 2x" },
+                           Case { 96000.0, Waveform::Square, 3520.0, -100.0, "square 2x" },
+                           Case { 96000.0, Waveform::Triangle, 3520.0, -75.0, "triangle 2x" },
+                           Case { 192000.0, Waveform::Sawtooth, 7040.0, -100.0, "sawtooth 4x, 7 kHz" },
+                           Case { 192000.0, Waveform::Triangle, 7040.0, -75.0, "triangle 4x, 7 kHz" } })
+    {
+        const double db = worstAlias (c.fs, c.w, c.f0);
+        INFO (c.name << ": worst in-band alias " << db << " dB");
+        CHECK (db < c.limit);
+    }
+}
+
+TEST_CASE ("Shark tooth: the front panel's R030 / R031 against the board's outputs", "[vco]")
+{
+    // Sawtooth through R34 / R33 (2.25K) and R030 47K, triangle through
+    // R28 / R23 (0.69K) and R031 10K (Fig. 9-3, drawing 1448): 17.8 % sawtooth,
+    // 8.8K source resistance.
+    const VcoParams p;
+    CHECK (p.sharkMix() == Approx (0.178).margin (0.002));
+    CHECK (p.rSharkOut() == Approx (8.78e3).epsilon (0.01));
+
+    // Loading the VOLUME pot at 10: the output sees the 25K pot in parallel
+    // with the 33K summing resistor into the bus (about 14.3K).
+    auto gainWith = [] (double rSource) {
+        Mixer m;
+        m.setParams ({});
+        m.setChannel (0, 1.0, true);
+        m.setSourceResistance (0, rSource);
+        return m.process ({ 1.0, 0.0, 0.0, 0.0, 0.0 });
+    };
+    const double open = gainWith (0.0);
+    const double load = 25.0e3 * 33.47e3 / (25.0e3 + 33.47e3);
+    for (double rs : { p.rSharkOut(), p.rSawOut, p.rTriOut })
+    {
+        INFO ("source " << rs << " ohm");
+        CHECK (20.0 * std::log10 (gainWith (rs) / open) == Approx (20.0 * std::log10 (load / (load + rs))).margin (0.1));
+    }
+    CHECK (20.0 * std::log10 (gainWith (p.rSharkOut()) / open) == Approx (-4.2).margin (0.15));
 }

@@ -17,7 +17,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
-// Hover help for every panel control (English).
+// Hover help for the panel controls (English): tooltips, and the switches'
+// help bubbles.
 
 #include <juce_core/juce_core.h>
 
@@ -31,10 +32,6 @@ inline juce::String tooltipFor (const juce::String& id)
         { "tune", "TUNE: master tuning of all three oscillators (+/-1.5 semitones). Centre = A-440." },
         { "glide", "GLIDE: portamento time between notes (time constant from about 1 ms to 5 s). Active only when the GLIDE switch is on." },
         { "modMix", "MODULATION MIX: blends the modulation source, from oscillator 3 (0) to noise (10): pink noise, or red noise when the noise switch is on PINK. Depth is set by the MOD wheel." },
-        { "oscMod", "OSCILLATOR MODULATION: routes the modulation mix to the pitch of oscillators 1 and 2 (vibrato, trills, FM). Right = ON." },
-        { "modSourceA", "OSC. 3 / FILTER EG: this switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." },
-        { "modSourceB", "NOISE / LFO: this switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." },
-        { "osc3Control", "OSC. 3 CONTROL: on = oscillator 3 follows the keyboard; off = oscillator 3 is free-running, typically used as an LFO in the LO range." },
 
         // Oscillator bank
         { "osc1Range", "Oscillator 1 RANGE: octave footage (32' to 2'), or LO for sub-audio frequencies." },
@@ -52,21 +49,12 @@ inline juce::String tooltipFor (const juce::String& id)
         { "osc3Vol", "Oscillator 3 level into the filter. High levels from several sources overdrive the filter input." },
         { "extVol", "EXTERNAL INPUT VOLUME: level of the plugin's audio input and/or the FEEDBACK patch into the external input pre-amplifier (gain of about 200). Watch the OVERLOAD lamp." },
         { "noiseVol", "NOISE level into the filter." },
-        { "osc1On", "Oscillator 1 on/off in the mixer. Right = ON." },
-        { "osc2On", "Oscillator 2 on/off in the mixer. Right = ON." },
-        { "osc3On", "Oscillator 3 on/off in the mixer (it can still modulate when switched off here). Right = ON." },
-        { "extOn", "External input on/off in the mixer. Right = ON." },
-        { "noiseOn", "Noise on/off in the mixer. Right = ON." },
-        { "noiseColor", "Noise colour, double switch as on the original: WHITE (up) = white noise to the mixer and pink noise to the MODULATION MIX; PINK (down) = pink noise (-3 dB/octave) to the mixer and red noise (slower, darker) to the MODULATION MIX." },
-        { "overload", "OVERLOAD: lights when the external input pre-amplifier output exceeds about 2 V peak (board 4 lamp driver), i.e. when the external signal or the FEEDBACK patch drives the filter harder than an oscillator at full volume. Lower EXTERNAL INPUT VOLUME to turn it off." },
+        { "overload", "Lights when the external input pre-amplifier output exceeds about 2 V peak (board 4 lamp driver), i.e. when the external signal or the FEEDBACK patch drives the filter harder than an oscillator at full volume. Lower EXTERNAL INPUT VOLUME to turn it off." },
 
         // Modifiers
-        { "filterMod", "FILTER MODULATION: routes the modulation mix to the filter cutoff (wah, growl, sample-and-hold-like effects with noise). Right = ON." },
-        { "cutoff", "CUTOFF FREQUENCY of the 24 dB/octave transistor ladder low-pass filter (about 14 Hz to 20 kHz)." },
+        { "cutoff", "CUTOFF FREQUENCY of the 24 dB/octave transistor ladder low-pass filter: about 36 Hz to 18.5 kHz over the dial, 440 Hz at -1 (KEYBOARD CONTROL off)." },
         { "emphasis", "EMPHASIS: filter resonance. The filter starts to self-oscillate (sine whistle) at about 7-8." },
         { "contourAmt", "AMOUNT OF CONTOUR: how far the filter contour opens the cutoff (0 to 4 octaves)." },
-        { "kbd1", "KEYBOARD CONTROL 1 (upper switch): cutoff follows the keyboard by 1/3. With switch 2 also on, it tracks 1:1. Right = ON." },
-        { "kbd2", "KEYBOARD CONTROL 2 (lower switch): cutoff follows the keyboard by 2/3. With switch 1 also on, it tracks 1:1. Right = ON." },
         { "fAttack", "Filter contour ATTACK TIME: time to reach the peak, from about 1 ms to 10 s." },
         { "fDecay", "Filter contour DECAY TIME: time constant of the decay, from about 1 ms to 10 s (the decay is complete after about 3.5 times this). Also the release time when the DECAY switch is on." },
         { "fSustain", "Filter contour SUSTAIN LEVEL held while a key is down." },
@@ -76,24 +64,66 @@ inline juce::String tooltipFor (const juce::String& id)
 
         // Output and left-hand controller
         { "volume", "Main output VOLUME: a passive 5k linear pot after the output amplifier (about -6 dB at 5)." },
-        { "mainOn", "Main output on/off." },
-        { "a440", "A-440: plays a 440 Hz reference tone for tuning against other instruments. Its level follows the VOLUME knob and the ON switch." },
-        { "glideOn", "GLIDE switch: enables portamento (time set by the GLIDE knob)." },
-        { "decayOn", "DECAY switch: on = notes release with the DECAY times; off = notes stop almost immediately on key release." },
 
         // Added settings
-        { "voiceMode", "Voice mode: MONO (original behaviour: lowest-note priority, single trigger) or POLY." },
+        { "voiceMode", "MONO plays one note at a time, as the original (lowest-note priority, single trigger); POLY plays several." },
         { "voices", "Number of voices in POLY mode (2 to 8). Each voice is a separately drawn and calibrated unit." },
-        { "quality", "Oversampling of the circuit simulation: Eco 2x, High 4x, Ultra 8x. Higher = less aliasing, more CPU." },
-        { "drift", "Analog drift: thermal wandering of the circuits (0 = lab-stable, 1 = typical vintage unit, 3 = hot stage)." },
-        { "unitSeed", "Unit: selects which example of the instrument you play (different component tolerances, recalibrated)." },
+        { "quality", "Oversampling of the circuit simulation (2x, 4x or 8x). Higher = less aliasing, more CPU." },
+        { "drift", "Thermal wandering of the circuits (0 = lab-stable, 1 = typical vintage unit, 3 = hot stage)." },
+        { "unitSeed", "Selects which example of the instrument you play (different component tolerances, recalibrated)." },
         { "bendRange", "Pitch wheel range in semitones." },
-        { "feedback", "FEEDBACK patch: connects the output back into the EXTERNAL INPUT (the classic overdrive trick). Level is set by the EXT. INPUT volume." },
+        { "modAmount", "Modulation depth stored with the sound, like a MOD. wheel left in position. The wheel can only add to it (the deeper of the two is used)." },
     };
     for (const auto& [key, text] : table)
         if (id == key)
             return text;
     return {};
+}
+
+/** A switch's help bubble: "<name>: <state>", then the description. */
+struct SwitchHelp
+{
+    const char* name;
+    const char* off; // state shown when the switch is off (toggle state false)
+    const char* on;
+    const char* description;
+};
+
+inline SwitchHelp switchHelpFor (const juce::String& id)
+{
+    static const std::pair<const char*, SwitchHelp> table[] = {
+        // Controllers
+        { "oscMod", { "OSCILLATOR MODULATION", "OFF", "ON", "Routes the modulation mix to the pitch of oscillators 1 and 2 (vibrato, trills, FM)." } },
+        { "modSourceA", { "OSC. 3 / FILTER EG", "INACTIVE", "INACTIVE", "This switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." } },
+        { "modSourceB", { "NOISE / LFO", "INACTIVE", "INACTIVE", "This switch only exists on the modern reissues of the Model D, not on the original instrument. Shown for reference; it has no effect." } },
+        { "osc3Control", { "OSC. 3 CONTROL", "OFF", "ON", "On: oscillator 3 follows the keyboard. Off: oscillator 3 is free-running, typically used as an LFO in the LO range." } },
+
+        // Mixer
+        { "osc1On", { "OSCILLATOR 1", "OFF", "ON", "Switches oscillator 1 into the mixer." } },
+        { "osc2On", { "OSCILLATOR 2", "OFF", "ON", "Switches oscillator 2 into the mixer." } },
+        { "osc3On", { "OSCILLATOR 3", "OFF", "ON", "Switches oscillator 3 into the mixer. It can still modulate when switched off here." } },
+        { "extOn", { "EXTERNAL INPUT", "OFF", "ON", "Switches the external input into the mixer." } },
+        { "noiseOn", { "NOISE", "OFF", "ON", "Switches the noise into the mixer." } },
+        { "noiseColor", { "NOISE COLOUR", "WHITE", "PINK", "Double switch, as on the original. WHITE (up): white noise to the mixer, pink noise to the MODULATION MIX. PINK (down): pink noise (-3 dB/octave) to the mixer, red noise (slower, darker) to the MODULATION MIX." } },
+
+        // Modifiers
+        { "filterMod", { "FILTER MODULATION", "OFF", "ON", "Routes the modulation mix to the filter cutoff (wah, growl, sample-and-hold-like effects with noise)." } },
+        { "kbd1", { "KEYBOARD CONTROL 1", "OFF", "ON", "Upper switch: the cutoff follows the keyboard by 1/3. With switch 2 also on, it tracks 1:1." } },
+        { "kbd2", { "KEYBOARD CONTROL 2", "OFF", "ON", "Lower switch: the cutoff follows the keyboard by 2/3. With switch 1 also on, it tracks 1:1." } },
+
+        // Output and left-hand controller
+        { "mainOn", { "MAIN OUTPUT", "OFF", "ON", "Switches the main output on or off." } },
+        { "a440", { "A-440", "OFF", "ON", "Plays a 440 Hz reference tone for tuning against other instruments. Its level follows the VOLUME knob and the ON switch." } },
+        { "glideOn", { "GLIDE", "OFF", "ON", "Enables portamento (time set by the GLIDE knob)." } },
+        { "decayOn", { "DECAY", "OFF", "ON", "On: notes release with the DECAY times. Off: notes stop almost immediately on key release." } },
+
+        // Added settings
+        { "feedback", { "FEEDBACK", "OFF", "ON", "Patches the output back into the EXTERNAL INPUT (the classic overdrive trick). Its level is set by the EXTERNAL INPUT VOLUME." } },
+    };
+    for (const auto& [key, help] : table)
+        if (id == key)
+            return help;
+    return { "", "OFF", "ON", "" };
 }
 
 } // namespace mm::ui

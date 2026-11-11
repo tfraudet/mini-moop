@@ -135,24 +135,36 @@ TEST_CASE ("Poly mode plays a chord on separate voices", "[voice]")
     CHECK (active == 3);
 }
 
-TEST_CASE ("CPU budget: one voice at 4x oversampling", "[voice][perf]")
+TEST_CASE ("CPU load: 1 and 8 voices at 2x, 4x and 8x oversampling", "[voice][perf]")
 {
-    SynthEngine e;
-    e.build (5);
-    e.prepare (48000.0, 512, 4);
-    PanelState p;
-    p.emphasis = 0.6;
-    p.drift = 1.0;
-    e.setPanel (p);
-    e.noteOn (48, 1.0f);
-    std::vector<float> buf (512);
-    const int blocks = 48000 * 2 / 512;
-    const auto t0 = std::chrono::steady_clock::now();
-    for (int b = 0; b < blocks; ++b) e.process (buf.data(), nullptr, 512);
-    const double secs = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count();
-    const double load = secs / 2.0;
-    WARN ("one voice, 4x: " << load * 100.0 << " % of a core");
-    CHECK (load < 0.10);
+    // Three oscillators, EMPHASIS 6, DRIFT 1; 8 voices: an 8-note chord in POLY.
+    // Reported as the share of one core at 48 kHz (real time = 100 %).
+    for (int os : { 2, 4, 8 })
+        for (int voices : { 1, 8 })
+        {
+            SynthEngine e;
+            e.build (5);
+            e.prepare (48000.0, 512, os);
+            if (voices > 1)
+                e.setVoiceMode (true, voices);
+            PanelState p;
+            p.emphasis = 0.6;
+            p.drift = 1.0;
+            e.setPanel (p);
+            for (int v = 0; v < voices; ++v)
+                e.noteOn (48 + 3 * v, 1.0f);
+            std::vector<float> buf (512);
+            const double seconds = 1.0;
+            const int blocks = int (48000.0 * seconds / 512.0);
+            for (int b = 0; b < 10; ++b) e.process (buf.data(), nullptr, 512); // warm up
+            const auto t0 = std::chrono::steady_clock::now();
+            for (int b = 0; b < blocks; ++b) e.process (buf.data(), nullptr, 512);
+            const double load = std::chrono::duration<double> (std::chrono::steady_clock::now() - t0).count()
+                              / (blocks * 512.0 / 48000.0);
+            WARN (voices << (voices == 1 ? " voice, " : " voices, ") << os << "x: " << load * 100.0 << " % of a core");
+            if (voices == 1 && os == 4)
+                CHECK (load < 0.10);
+        }
 }
 
 // ---------------------------------------------------------------------------
@@ -198,4 +210,33 @@ TEST_CASE ("Rendering, note events and panel changes do not allocate", "[voice][
     e.allNotesOff();
     trackAllocations = false;
     CHECK (allocationCount.load() == 0);
+}
+
+TEST_CASE ("MOD. AMOUNT acts as a stored MOD. wheel position", "[voice]")
+{
+    auto play = [] (double wheel, double amount) {
+        SynthEngine e;
+        e.build (5);
+        e.prepare (48000.0, 512, 2);
+        PanelState p = basicPatch();
+        p.oscModulation = true;
+        p.osc[2].range = Range::Ft8; // audio-rate FM: clearly audible
+        p.modMix = 0.0;
+        p.modWheel = wheel;
+        p.modAmount = amount;
+        e.setPanel (p);
+        e.noteOn (57, 1.0f);
+        std::vector<float> buf (9600);
+        e.process (buf.data(), nullptr, int (buf.size()));
+        return buf;
+    };
+    const auto byWheel = play (1.0, 0.0);
+    const auto byAmount = play (0.0, 1.0);
+    const auto deeper = play (0.3, 1.0);
+    const auto none = play (0.0, 0.0);
+    CHECK (byAmount == byWheel);
+    CHECK (deeper == byWheel); // the deeper of the two wins
+    double diff = 0.0;
+    for (size_t i = 0; i < none.size(); ++i) diff = std::fmax (diff, std::abs (double (none[i]) - byWheel[i]));
+    CHECK (diff > 0.01);
 }

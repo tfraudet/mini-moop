@@ -23,11 +23,13 @@
 #include "SpiceRunner.h"
 #include "circuit/blocks/LadderFilter.h"
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
 #include <sstream>
 
 using namespace mm;
+using Catch::Approx;
 
 namespace
 {
@@ -146,6 +148,7 @@ TEST_CASE ("Ladder reduced model matches transistor-level ngspice ladder", "[lad
     p.inputGain = 1.0;
     p.kMax = k;
     p.noiseRms = 0.0;
+    p.feedbackThroughOutputStage = false; // the netlist's feedback is an ideal VCVS
     LadderFilter f;
     f.setParams (p);
     f.prepare (fs);
@@ -174,15 +177,22 @@ TEST_CASE ("Ladder reduced model matches transistor-level ngspice ladder", "[lad
     CHECK (err < 0.05);
 }
 
-TEST_CASE ("EMPHASIS: reverse-audio law, self-oscillation from about 7.5", "[ladder]")
+TEST_CASE ("EMPHASIS: the hardware reference's passband loss, self-oscillation from about 7", "[ladder]")
 {
     const LadderParams p;
     auto k = [&p] (double dial) { return p.kMax * LadderFilter::emphasisLaw (p, dial / 10.0); };
-    // The ladder self-oscillates for k above about 4.0
-    CHECK (k (7.0) < 4.0);
-    CHECK (k (8.0) > 4.0);
-    // Monotonic, small residual feedback fully counter-clockwise
+    // The passband falls as the CA-72 project's hardware reference's does
+    const double k0 = k (0.0);
+    struct Drop { double dial, dB; };
+    for (const auto& d : { Drop { 2.5, -2.25 }, Drop { 5.0, -9.53 }, Drop { 6.0, -10.43 }, Drop { 7.0, -11.92 },
+                           Drop { 7.5, -12.50 }, Drop { 8.5, -14.67 } })
+        CHECK (20.0 * std::log10 ((1.0 + k0) / (1.0 + k (d.dial))) == Approx (d.dB).margin (0.01));
+    // The ladder self-oscillates for k above about 4.0: from about 7 (the panel's 7-8)
+    CHECK (k (6.5) < 4.0);
+    CHECK (k (7.5) > 4.0);
+    // Monotonic, small residual feedback fully counter-clockwise, full rotation unchanged
     for (int i = 0; i < 100; ++i)
         CHECK (k (0.1 * (i + 1)) > k (0.1 * i));
     CHECK (k (0.0) < 0.5);
+    CHECK (k (10.0) == Approx (p.kMax));
 }

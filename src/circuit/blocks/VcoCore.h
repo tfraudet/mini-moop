@@ -30,15 +30,20 @@
 //
 // Waveshapers (from the buffered sawtooth):
 //   triangle    : transistor fold of the sawtooth (rounded fold point)
-//   sharktooth  : triangle + sawtooth mixed through two resistors (osc 1, 2)
+//   sharktooth  : sawtooth and triangle mixed through the front panel's R030
+//                 47K and R031 10K (drawing 1448, Table 7-2), against the
+//                 board's output dividers (osc 1, 2): 18 % sawtooth
 //   reverse saw : inverted sawtooth (osc 3 instead of sharktooth)
 //   rectangles  : comparator against the sawtooth at three thresholds
 //                 (~50 %, ~30 %, ~15 %), slew-limited output stage
 //
-// Discontinuities (ramp reset, comparator edges) are located with sub-sample
-// precision and corrected with a 2-point polyBLEP residual, so the simulated
-// waveform stays exact while aliasing is suppressed.
+// Discontinuities are located with sub-sample precision and band-limited
+// with a windowed-sinc kernel (BlepLine): value jumps (the ramp's reset, the
+// comparator's edges) with band-limited steps, slope jumps (the reset, the end
+// of the reset's hold, the triangle's fold) with band-limited ramps. The
+// output comes BlepLine::delay samples late.
 
+#include "../components/Blep.h"
 #include "../components/Passives.h"
 
 #include <cmath>
@@ -63,7 +68,10 @@ struct VcoParams
     double tReset     = 1.6e-6;    // reset dead time (s)
     double outPeak    = 1.7;       // waveshaper output peak: triangle +1.7 to -1.7 V, rectangle 3.5 Vpp (Fig. 9-3)
     double foldRound  = 0.03;      // triangle fold rounding (fraction of swing)
-    double sharkMix   = 0.5;       // sawtooth weight in the sharktooth mix
+    double rSawOut    = 4.3e3 * 4.7e3 / 9.0e3; // sawtooth output divider R34 / R33 (Fig. 9-3): its source resistance
+    double rTriOut    = 750.0 * 8.2e3 / 8.95e3; // triangle output, R28 / R23 behind Q1 (Fig. 9-3)
+    double rSharkSaw  = 47.0e3;    // R030: sawtooth into the shark tooth (drawing 1448, Table 7-2, 5 %)
+    double rSharkTri  = 10.0e3;    // R031: triangle into the shark tooth
     double thrSquare  = 0.0;       // comparator thresholds, normalised ramp
     double thrWide    = -0.4;
     double thrNarrow  = -0.7;
@@ -78,8 +86,23 @@ struct VcoParams
         p.thrSquare = nominal.thrSquare + 0.01 * rng.normal();
         p.thrWide = nominal.thrWide + 0.01 * rng.normal();
         p.thrNarrow = nominal.thrNarrow + 0.01 * rng.normal();
-        p.sharkMix = rng.tolerance (nominal.sharkMix, 0.05);
+        p.rSharkSaw = rng.tolerance (nominal.rSharkSaw, 0.05);
+        p.rSharkTri = rng.tolerance (nominal.rSharkTri, 0.05);
         return p;
+    }
+
+    /** The shark tooth's sawtooth weight: each source through its output
+        resistance and its front-panel resistor (Millman). */
+    double sharkMix() const noexcept
+    {
+        const double gs = 1.0 / (rSawOut + rSharkSaw), gt = 1.0 / (rTriOut + rSharkTri);
+        return gs / (gs + gt);
+    }
+
+    /** The shark tooth's source resistance (the two paths in parallel). */
+    double rSharkOut() const noexcept
+    {
+        return 1.0 / (1.0 / (rSawOut + rSharkSaw) + 1.0 / (rTriOut + rSharkTri));
     }
 };
 
@@ -94,14 +117,27 @@ public:
         slewStep = p.pulseSlew * h;
         x = 2.0 * rng.uniform() - 1.0; // free-running: random phase at power-up
         hold = 0.0;
-        prevNaive = pulseState = 0.0;
-        pendingCorrection = 0.0;
+        pulseState = 0.0;
+        BlepTables::get(); // made here, not on the audio thread
+        line.reset (shape (x));
     }
+
+    /** Output delay of the band-limiting, samples. */
+    static constexpr int latency = BlepLine::delay;
 
     void setParams (const VcoParams& params) noexcept { p = params; slewStep = p.pulseSlew * h; }
     const VcoParams& params() const noexcept { return p; }
 
-    void setWaveform (Waveform w, bool isOsc3) noexcept { wave = w; osc3 = isOsc3; }
+    /** The WAVEFORM switch. A change restarts the band-limiting line from the
+        new shape (the samples still in it belong to the old one). */
+    void setWaveform (Waveform w, bool isOsc3) noexcept
+    {
+        if (w == wave && isOsc3 == osc3)
+            return;
+        wave = w;
+        osc3 = isOsc3;
+        line.reset (shape (x));
+    }
 
     /** Frequency (Hz) for a given expo current, including the reset dead time. */
     double frequencyForCurrent (double amps) const noexcept
@@ -113,19 +149,8 @@ public:
     double process (double amps) noexcept
     {
         const double rate = 2.0 * std::fmax (amps, 0.0) / (p.c * p.swing); // normalised ramp units / s
+        const double perSample = rate * h;                                    // ramp units / sample
         double t = h;
-        double correctionNow = pendingCorrection; // residuals belonging to this sample
-        double correctionNext = 0.0;
-
-        // 2-point polyBLEP. An event of height A at tau samples before the end
-        // of this sample needs +A*tau^2/2 on the previous sample and
-        // -A*(1-tau)^2/2 on this one. Output is delayed by one sample so that
-        // the previous sample can still be corrected.
-        auto addEvent = [&] (double jump, double tSinceEvent) {
-            const double tau = tSinceEvent / h; // 0..1
-            correctionNow += jump * 0.5 * tau * tau;
-            correctionNext -= jump * 0.5 * (1.0 - tau) * (1.0 - tau);
-        };
 
         int guard = 0;
         while (t > 0.0 && guard++ < 16)
@@ -135,6 +160,8 @@ public:
                 const double use = std::fmin (t, hold);
                 hold -= use;
                 t -= use;
+                if (hold <= 0.0 && rate > 0.0)
+                    line.corner (slope (x) * perSample, t / h); // the ramp starts again
                 continue;
             }
             if (rate <= 0.0)
@@ -143,34 +170,58 @@ public:
             const double tReset = (1.0 - x) / rate;
             const double thr = pulseThreshold();
             const double tThr = (isPulse() && x < thr) ? (thr - x) / rate : 1e30;
-
-            if (tThr <= t && tThr < tReset)
+            const double tFold = (hasFold() && x < 0.0) ? -x / rate : 1e30;
+            const double tNext = std::fmin (tReset, std::fmin (tThr, tFold));
+            if (tNext > t)
             {
-                x = thr;
-                t -= tThr;
-                const double before = shape (x - 1e-9), after = shape (x + 1e-9);
-                addEvent (after - before, t);
-                continue;
+                x += rate * t;
+                t = 0.0;
+                break;
             }
-            if (tReset <= t)
+            x += rate * tNext;
+            t -= tNext;
+            if (tNext == tThr)
             {
-                const double before = shape (1.0);
+                // comparator edge: a value jump
+                x = thr;
+                line.step (shape (x + 1e-9) - shape (x - 1e-9), t / h);
+            }
+            else if (tNext == tFold)
+            {
+                // the triangle's fold: a rounded corner (the transistors'
+                // knee), as eight band-limited ramps spread where its slope
+                // turns (equal slope steps). Wider than a sample, the
+                // sampled curve is already smooth and it is left as it is.
+                x = 0.0;
+                constexpr double pieces[] = { 0.126, 0.405, 0.801, 1.81 }; // r / foldRound at slope 1/8, 3/8, 5/8, 7/8
+                const double reach = pieces[3] * p.foldRound / std::fmax (perSample, 1e-30); // samples
+                if (reach <= 1.0)
+                {
+                    const double each = (foldSlope (+1) - foldSlope (-1)) * perSample / 8.0;
+                    for (double q : pieces)
+                    {
+                        const double shift = q * p.foldRound / perSample;
+                        line.corner (each, t / h + shift); // before the crossing
+                        line.corner (each, t / h - shift); // after it
+                    }
+                }
+                x = 1e-12; // past the fold
+            }
+            else
+            {
+                // reset: the ramp jumps back and holds for the dead time
+                const double before = shape (1.0), slopeBefore = slope (1.0);
                 x = -1.0;
-                t -= tReset;
-                addEvent (shape (-1.0) - before, t);
+                line.step (shape (-1.0) - before, t / h);
+                line.corner (-slopeBefore * perSample, t / h);
                 hold = p.tReset;
                 thrNoise = p.thrJitter * rng.normal();
-                continue;
+                if (hold <= 0.0)
+                    line.corner (slope (-1.0) * perSample, t / h);
             }
-            x += rate * t;
-            t = 0.0;
         }
 
-        // Naive value at the end of this sample; the output is one sample late.
-        const double naive = shape (x);
-        double y = prevNaive + correctionNow;
-        prevNaive = naive;
-        pendingCorrection = correctionNext;
+        double y = line.push (shape (x));
 
         if (isPulse())
         {
@@ -180,6 +231,20 @@ public:
             y = pulseState;
         }
         return y;
+    }
+
+    /** The selected output's source resistance (ohm), loading the mixer's
+        VOLUME pot. Rectangles and oscillator 3's reverse sawtooth: not
+        modelled (0). */
+    double sourceResistance() const noexcept
+    {
+        switch (wave)
+        {
+            case Waveform::Triangle:   return p.rTriOut;
+            case Waveform::Sawtooth:   return p.rSawOut;
+            case Waveform::SharkTooth: return osc3 ? 0.0 : p.rSharkOut();
+            default:                   return 0.0;
+        }
     }
 
     /** Normalised ramp position (-1..1), for tests and modulation taps. */
@@ -194,7 +259,7 @@ public:
             case Waveform::Triangle:    return a * triangle (r);
             case Waveform::SharkTooth:
                 if (osc3) return -a * r; // reverse sawtooth
-                return a * ((1.0 - p.sharkMix) * triangle (r) + p.sharkMix * r);
+                return a * ((1.0 - p.sharkMix()) * triangle (r) + p.sharkMix() * r);
             case Waveform::Sawtooth:    return a * r;
             case Waveform::Square:
             case Waveform::WideRect:
@@ -204,6 +269,43 @@ public:
     }
 
 private:
+    /** d(shape)/d(ramp) at `r`, volts per ramp unit. */
+    double slope (double r) const noexcept
+    {
+        const double a = p.outPeak;
+        switch (wave)
+        {
+            case Waveform::Triangle:    return a * triangleSlope (r);
+            case Waveform::SharkTooth:
+                if (osc3) return -a;
+                return a * ((1.0 - p.sharkMix()) * triangleSlope (r) + p.sharkMix());
+            case Waveform::Sawtooth:    return a;
+            case Waveform::Square:
+            case Waveform::WideRect:
+            case Waveform::NarrowRect:  return 0.0;
+        }
+        return 0.0;
+    }
+
+    /** The slope on either side of the fold, as if it were sharp (side -1 / +1). */
+    double foldSlope (int side) const noexcept
+    {
+        const double e = p.foldRound;
+        const double peak = std::sqrt (1.0 + e * e) - e;
+        const double tri = 2.0 * side / peak;
+        const double a = p.outPeak;
+        return wave == Waveform::Triangle ? a * tri : a * (1.0 - p.sharkMix()) * tri + a * p.sharkMix();
+    }
+
+    bool hasFold() const noexcept { return wave == Waveform::Triangle || (wave == Waveform::SharkTooth && ! osc3); }
+
+    double triangleSlope (double r) const noexcept
+    {
+        const double e = p.foldRound;
+        const double peak = std::sqrt (1.0 + e * e) - e;
+        return 2.0 * r / std::sqrt (r * r + e * e) / peak;
+    }
+
     double triangle (double r) const noexcept
     {
         // Fold point rounded by the transistor knee: smooth |r|
@@ -226,7 +328,8 @@ private:
     bool osc3 = false;
     double fs = 48000.0, h = 1.0 / 48000.0, slewStep = 1.0;
     double x = 0.0, hold = 0.0, thrNoise = 0.0;
-    double prevNaive = 0.0, pulseState = 0.0, pendingCorrection = 0.0;
+    double pulseState = 0.0;
+    BlepLine line;
 };
 
 } // namespace mm

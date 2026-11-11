@@ -85,6 +85,7 @@ struct PanelState
     bool feedbackPatch = false;     // output patched into EXTERNAL INPUT
     double bendRange = 5.0;         // semitones
     double drift = 1.0;             // 0..3
+    double modAmount = 0.0;         // 0..1, stored modulation depth (acts as a minimum MOD. wheel position)
 
     /** Moves the continuous controls a fraction `a` towards `t` and copies
         the switches: a real pot cannot jump, so neither do ours. */
@@ -110,6 +111,7 @@ struct PanelState
         keep (volume, old.volume); s (volume, t.volume);
         keep (pitchWheel, old.pitchWheel); s (pitchWheel, t.pitchWheel);
         keep (modWheel, old.modWheel); s (modWheel, t.modWheel);
+        keep (modAmount, old.modAmount); s (modAmount, t.modAmount);
     }
 };
 

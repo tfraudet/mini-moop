@@ -61,10 +61,12 @@ public:
 
     /** OVERLOAD lamp brightness, 0..1: the brightest lamp of the sounding units. */
     double overloadLamp() const noexcept { return lamp; }
-    // Volts -> digital full scale (+/-4 V). Leaves room for the loudest case,
-    // the FEEDBACK patch with the external input pre-amp saturated (about
-    // +7 dB above one oscillator at full volume), below 0 dBFS.
-    static constexpr double outputScale = 0.25;
+    // Volts -> digital full scale (+/-2.85 V). The absolute level of an analogue
+    // instrument in a DAW is set by the interface's gain, so this is a choice,
+    // not part of the circuit: one oscillator at full volume peaks near -7 dBFS
+    // and three near -5 dBFS. The FEEDBACK patch with the external input
+    // pre-amp saturated can go above 0 dBFS (floating point keeps it intact).
+    static constexpr double outputScale = 0.35;
     static constexpr double inputScale = 0.25;  // external input: digital full scale = +/-4 V
 
 private:

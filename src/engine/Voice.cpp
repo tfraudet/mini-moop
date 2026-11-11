@@ -17,6 +17,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "Voice.h"
+#include "PanelLaws.h"
+
+#include <array>
+#include <utility>
 
 #include <algorithm>
 #include <tuple>
@@ -30,14 +34,43 @@ namespace
 // Control-voltage conventions (1 V/oct everywhere):
 //   oscillator CV 0 V   = A4 (440 Hz) on the 8' range
 //   filter CV 0 V       = 640 Hz cutoff
-//   keyboard CV         = (note - 60) / 12 for the filter tracking reference
-constexpr double rangeOffset[] = { -7.0, -2.0, -1.0, 0.0, 1.0, 2.0 }; // LO, 32', 16', 8', 4', 2'
-constexpr double detuneSemis = 7.0;      // osc 2/3 FREQUENCY pot span (+/-)
+//   keyboard CV         = 0 V on the lowest key, F2 (MIDI 41): the key string's
+//                         grounded end (Fig. 9-7), for the filter's KEYBOARD CONTROL
+// LO: 6.74 octaves below 8', as measured on the CA-72 project's hardware
+// reference (oscillator 3, OSC. 3 CONTROL off and on: 6.732 and 6.745).
+constexpr double rangeOffset[] = { -6.74, -2.0, -1.0, 0.0, 1.0, 2.0 }; // LO, 32', 16', 8', 4', 2'
+constexpr double keyboardZero = (41.0 - 69.0) / 12.0; // the lowest key's CV against A4's
 constexpr double tuneSemis = 1.5;        // master TUNE span (+/-)
-constexpr double oscModOctaves = 1.25;   // modulation injection, oscillators
-constexpr double filterModOctaves = 2.0; // modulation injection, filter (assumed)
+// The modulation line (board 3 circuit 15, Fig. 9-8; left hand controller,
+// Fig. 9-12). MODULATION MIX drives an inverting amplifier (ModulationMix);
+// fully at oscillator 3, its triangle comes out at 0.825 of its swing,
+// inverted (ngspice: +0.84 / -0.79, the PNP output stage only sources). The
+// line has the keyboard's sense (the MOD inputs share the oscillators' summer
+// with it), so a rising oscillator 3 lowers the pitch and the cutoff. The
+// output reaches the line through R57 1K; the MODULATION wheel R1402 is a
+// rheostat from the line to ground, 0 at the back and 1.2K fully forward. The
+// oscillators take the line through 51.1K MOD inputs (as the keyboard's R27: 1
+// octave a volt; three of them load it), the filter's control node through R52
+// 33K, where KEYBOARD CONTROL 1 + 2 (R53 300K || R54 150K = 100K) make 1 octave
+// a volt: 100K / 33K as deep. At full wheel the oscillators swing +-0.74 octave.
+constexpr double rModOut = 1.0e3;               // R57
+constexpr double rWheelFull = 1.2e3;            // R1402 fully forward (Fig. 9-12)
+constexpr double rOscModLoad = 51.1e3 / 3.0;    // the three oscillators' MOD inputs
+constexpr double rFilterModLoad = 33.0e3;       // R52
+constexpr double filterModRatio = 100.0e3 / 33.0e3;
+
+/** The MODULATION wheel's resistance (R1402, 50K audio, 90 degrees of its
+    rotation used from the counter-clockwise stop): 1.2K fully forward (Fig.
+    9-12); its shape over that travel is the generic audio taper's first third
+    (an assumption, as in the CA-72 project). */
+double modWheelOhms (double pos)
+{
+    const double w = pos < 0.0 ? 0.0 : pos > 1.0 ? 1.0 : pos;
+    constexpr double third = 4.326748710922225; // 81^(1/3)
+    return rWheelFull * (std::pow (third, w) - 1.0) / (third - 1.0);
+}
+
 constexpr double contourOctaves = 4.0;   // AMOUNT OF CONTOUR at 10
-constexpr double oscPeak = 1.7;          // waveshaper output peak (V), Fig. 9-3
 // Noise level reaching the mixer, relative to the level on the modulation
 // bus. The noise channel's 11 k summing resistor (R48) is 3x the conductance
 // of the oscillators' 33 k; the generator's output level is not documented,
@@ -45,7 +78,29 @@ constexpr double oscPeak = 1.7;          // waveshaper output peak (V), Fig. 9-3
 // (1/3 with 2.5 V oscillators, scaled for the 1.7 V of Fig. 9-3).
 constexpr double noiseToMixer = (1.0 / 3.0) * (1.7 / 2.5);
 
-double cutoffCv (double pos) { return -5.5 + 10.5 * pos; } // ~14 Hz .. ~23 kHz
+using laws::piecewise;
+
+/** Oscillators 2 and 3's FREQUENCY knobs (R4 / R5, 5K linear), as measured on
+    the CA-72 project's hardware reference: semitones from the centre at the
+    dial's -5 and +5 marks and at its stops (+-7.5 marks, the pot's ends).
+    The knob 0..1 covers the dial's -7.5..+7.5. */
+double frequencySemitones (int osc, double pos)
+{
+    static constexpr std::array<std::pair<double, double>, 5> osc2 { { { -7.5, -8.56 }, { -5.0, -6.48 }, { 0.0, 0.0 }, { 5.0, 6.61 }, { 7.5, 8.24 } } };
+    static constexpr std::array<std::pair<double, double>, 5> osc3 { { { -7.5, -8.63 }, { -5.0, -6.73 }, { 0.0, 0.0 }, { 5.0, 6.92 }, { 7.5, 8.22 } } };
+    const double mark = (pos - 0.5) * 15.0;
+    return piecewise (osc == 1 ? osc2 : osc3, mark);
+}
+
+/** CUTOFF knob -> filter CV (octaves): the service manual's law
+    (PanelLaws.h). `cutoffCalCv` is the Filter Range trim: the CV at the -1
+    mark that makes this model's filter sing at 440 Hz there (EMPHASIS 10,
+    KEYBOARD CONTROL off), averaged over units 1 to 4. */
+double cutoffCv (double pos)
+{
+    constexpr double cutoffCalCv = -0.437;
+    return cutoffCalCv + laws::cutoffOctaves (pos);
+}
 } // namespace
 
 void Voice::build (uint64_t s)
@@ -72,8 +127,8 @@ void Voice::build (uint64_t s)
     ladder.setParams (LadderParams::drawn (rng, LadderParams {}));
 
     mixer.setParams (MixerParams::drawn (rng, MixerParams {}));
-    filterContour.setParams (ContourParams::drawn (rng, ContourParams {}));
-    loudnessContour.setParams (ContourParams::drawn (rng, ContourParams {}));
+    filterContour.setParams (ContourParams::drawn (rng, ContourParams::filter()));
+    loudnessContour.setParams (ContourParams::drawn (rng, ContourParams::loudness()));
     vca.setParams (VcaParams::drawn (rng, VcaParams {}));
     glide.setParams (GlideParams::drawn (rng, GlideParams {}));
     extPreamp.setParams (ExtPreampParams::drawn (rng, ExtPreampParams {}));
@@ -210,11 +265,14 @@ void Voice::controlUpdate (const PanelState& p) noexcept
         const auto& o = p.osc[size_t (i)];
         double cv = common + rangeOffset[int (o.range)];
         if (i > 0)
-            cv += (o.frequency - 0.5) * 2.0 * detuneSemis / 12.0;
+            cv += frequencySemitones (i, o.frequency) / 12.0;
         oscStaticCv[size_t (i)] = cv;
         vcos[size_t (i)].setWaveform (o.wave, i == 2);
     }
 
+    mixer.setSourceResistance (0, vcos[0].sourceResistance());
+    mixer.setSourceResistance (2, vcos[1].sourceResistance());
+    mixer.setSourceResistance (4, vcos[2].sourceResistance());
     mixer.setChannel (0, p.osc[0].volume, p.osc[0].on);
     // EXTERNAL INPUT VOLUME sits ahead of the board 4 pre-amp; the mixer only
     // sees the pre-amp output through its ON switch.
@@ -242,10 +300,19 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     glide.setTime (p.glide);
     glide.setEnabled (p.glideOn);
 
-    const double wheel = taper::audio (p.modWheel); // 50k audio-taper mod wheel
-    oscModDepth = p.oscModulation ? wheel * oscModOctaves : 0.0;
-    filterModDepth = p.filterModulation ? wheel * filterModOctaves : 0.0;
-    std::tie (modOsc3, modNoise) = ModulationMix::gains (p.modMix);
+    // The modulation line: the amplifier through R57 against the wheel (a
+    // rheostat to ground) and the loads the switches connect. MOD. AMOUNT sets
+    // a stored minimum wheel position. Depths in octaves per volt of the
+    // amplifier's output (`mod`).
+    const double rWheel = modWheelOhms (std::max (p.modWheel, p.modAmount));
+    double gLine = rWheel > 0.0 ? 1.0 / rWheel : 1.0e12;
+    if (p.oscModulation) gLine += 1.0 / rOscModLoad;
+    if (p.filterModulation) gLine += 1.0 / rFilterModLoad;
+    const double rLine = 1.0 / gLine;
+    const double lineDivider = rLine / (rModOut + rLine); // line volts per amplifier volt
+    oscModDepth = p.oscModulation ? lineDivider : 0.0;      // octaves per amplifier volt
+    filterModDepth = p.filterModulation ? lineDivider * filterModRatio : 0.0;
+    std::tie (modOsc3, modNoise) = ModulationMix::amplifier (p.modMix, vcos[2].sourceResistance());
     osc3Kbd = p.osc3Control;
     feedback = p.feedbackPatch;
     volume = p.mainOn ? OutputVolume::gain (p.volume) : 0.0; // R20 linear divider, SW19
@@ -264,9 +331,11 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         // Keyboard CV through the glide circuit
         const double kb = glide.process ((targetNote - 69) / 12.0);
 
-        // Contours
+        // Contours: output voltages. The filter contour reaches AMOUNT OF
+        // CONTOUR's full span (contourOctaves) at 5 V; the loudness contour
+        // drives the VCA's V->I converter Q18 directly.
         const double fEg = filterContour.process() / 5.0;
-        const double lEg = loudnessContour.process() / 5.0;
+        const double lContour = loudnessContour.process();
 
         // Noise. The WHITE / PINK switch is double-pole: WHITE gives white noise
         // to the mixer and pink noise to the modulation bus; PINK gives pink
@@ -278,7 +347,7 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         const double noiseMod = NoiseSource::modulationGain * (pink ? redN : pinkN);
 
         // Modulation bus: MODULATION MIX between osc 3 and noise (R3 network)
-        const double mod = modOsc3 * (osc3Last / oscPeak) + modNoise * (noiseMod / oscPeak);
+        const double mod = -(modOsc3 * osc3Last + modNoise * noiseMod); // the amplifier's output (V): it inverts
 
         // Oscillators (osc 3 first: it is the modulation source)
         const double cv3 = oscStaticCv[2] + (osc3Kbd ? kb : 0.0);
@@ -292,13 +361,13 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         const double ext = extPreamp.process ((extIn ? extIn[s] : 0.0) + (feedback ? feedbackSample : 0.0));
         const double mixed = mixer.process ({ o1, ext, o2, noiseToMixer * noiseOut, o3 });
 
-        const double fcv = filterStaticCv + contourOct * fEg + kbTrack * (kb + 9.0 / 12.0)
+        const double fcv = filterStaticCv + contourOct * fEg + kbTrack * (kb - keyboardZero)
                          + filterModDepth * mod;
         ladder.setCutoffCurrent (filterExpo.current (fcv));
         const double filtered = ladder.process (mixed);
 
         // VCA and output
-        const double y = vca.process (filtered, lEg) * volume;
+        const double y = vca.process (filtered, lContour) * volume;
         feedbackSample = y;
         lastOut = y;
         out[s] += y;
