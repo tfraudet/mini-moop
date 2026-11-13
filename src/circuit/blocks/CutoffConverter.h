@@ -35,9 +35,14 @@
 // filter's octaves stretch and shrink around that point as the board warms.
 //
 // The current tops out: Q28's collector feeds the bottom pair's emitters (about
-// 1.3 V) through R60 680, so it saturates near 1.75 mA, a cutoff of some
+// 1.37 V) through R60 680, so it saturates near 1.77 mA, a cutoff of some
 // 38 kHz ("Pitch should rise from 440Hz to 35kHz +/- 10kHz" with AMOUNT OF
-// CONTOUR fully clockwise, 5.17).
+// CONTOUR fully clockwise, 5.17). Before that the octaves already stretch:
+// Q28's base current comes out of Q26's emitter current, and the junctions'
+// own resistances add to it, a few ohms in series with the exponential.
+// ngspice on the drawn circuit (tools/spice/cutoff.cir): 17.9 mV an octave
+// at the bottom, 21.7 at 1.1 mA; a series 4.0 ohm and a sharp knee at 1.765
+// mA follow it within 0.04 dB rms (0.16 dB at worst) over the whole sweep.
 //
 // `cv` is in octaves as calibrated at 25 C: 1 for a volt through 100K, which is
 // what KEYBOARD CONTROL 1 and 2 together (R53 300K, R54 150K) present.
@@ -61,16 +66,28 @@ public:
     /** Ladder standing current (A) for a control voltage in octaves. */
     double current (double cv) const noexcept
     {
-        const double i = i0 * std::exp2 (std::fmin (cv * scale * tempRatio, 40.0));
-        const double r = i / iMax, r2 = r * r;
-        return i / std::sqrt (std::sqrt (1.0 + r2 * r2)); // Q28 saturating against R60
+        // The exponential, then the series resistance (i = ie exp (-i R / Vt),
+        // by Newton from a first guess), then Q28 saturating against R60.
+        const double ie = std::fmin (i0 * std::exp2 (std::fmin (cv * scale * tempRatio, 40.0)), 100.0 * iMax);
+        const double k = rSeries * tempRatio / vtNominal; // R / Vt at the board's temperature
+        double i = ie / (1.0 + ie * k);                   // within 4 % up to the limit
+        const double e = ie * std::exp (-i * k);
+        i -= (i - e) / (1.0 + e * k);                     // one Newton step: within 0.02 %
+        const double r = i / iMax;
+        if (r < 0.25)
+            return i; // the knee is a part in ten million away
+        const double r2 = r * r, r4 = r2 * r2;
+        return i / std::pow (1.0 + r4 * r4 * r2 * r * std::sqrt (r), 1.0 / kneeExponent); // r^11.5
     }
 
-    /** Where Q28 saturates: the bottom pair's emitters (1.3 V) less its
-        saturation voltage, over R60 680. */
-    static constexpr double iMax = (1.3 - 0.1) / 680.0;
+    /** Where Q28 saturates (ngspice: the bottom pair's emitters at 1.37 V less
+        Q28's saturation, over R60 680). */
+    static constexpr double iMax = 1.765e-3;
+    static constexpr double kneeExponent = 11.5;       // ngspice; written out as powers in current()
 
 private:
+    static constexpr double rSeries = 4.0;         // ohm, ngspice (see above)
+    static constexpr double vtNominal = 0.02588;   // the junction's n Vt at 25 C: 17.94 mV an octave (ngspice)
     double i0 = 4.0e-5, scale = 1.0, tempRatio = 1.0;
 };
 

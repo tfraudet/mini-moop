@@ -130,6 +130,7 @@ Run with `ngspice -b <file>.cir`.
 | `a440.cir` | circuit 13 as drawn, R68 at its end and the trims at 600 pF: 433 Hz (the trims reach 440 Hz on a unit), 1.63 V peak to peak at Q4's emitter. Writes `a440.dat` | `a440_harmonics.py` |
 | `a440_harmonics.py` | from `a440.dat`, over whole periods: a 0.854 V peak fundamental, harmonics 14.3, 6.1, 2.9, 1.9, 0.8 % (2nd to 6th) | `SynthEngine.h` (`refPeak`, `refHarmonics`) |
 | `a440_level.cir` | that output into the drawn VCA (`board4-vca.lib`, both VCAs closed) and VOLUME at 10, for R40 = 1K, 2.2K, 10K, 22K: 0, -1.3, -9.1, -15.4 dB at the main output (a 0.78 V peak sine; -8.3 dB at 10K with the real output) | `Vca.h` (R40 = 10K, the only value within 5.7's -8 +/- 2 dB); `tests/test_service_manual.cpp` (5.7) |
+| `cutoff.cir` | circuit 6's cutoff converter (`board4-vcf.lib`): the ladder's standing current against the control node from -0.25 to +0.25 V: 17.94 mV an octave at the bottom, 21.7 at 1.1 mA, the limit at 1.772 mA (the bottom pair's emitters at 1.37 V). Writes `cutoff.dat` | `CutoffConverter.h` (4.0 ohm in series, the knee at 1.765 mA, r^11.5); `tests/test_ladder.cpp`: within 0.25 dB |
 
 The libraries `board1-shapers.lib`, `board2-contour.lib`, `board2-keyboard.lib`, `board3-noise.lib`, `board4-vca.lib` and `board4-vcf.lib` hold the circuits as subcircuits, one per figure; `models.lib` holds the devices.
 

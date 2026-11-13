@@ -354,22 +354,50 @@ void Voice::calibrateFilter()
     // beat": two octaves of keyboard for two octaves of pitch. The pitch the
     // filter sings at does not follow its standing current exactly, so the
     // trim is set on what is heard.
+    // A first setting from the ladder alone: how many octaves of pitch an
+    // octave of standing current gives.
     const double f1 = selfOscillationHz (ladder, i440), f2 = selfOscillationHz (ladder, 4.0 * i440);
     const double exponent = f1 > 0.0 && f2 > 0.0 ? std::log2 (f2 / f1) / 2.0 : 1.0; // octaves of pitch per octave of current
-    const double scale = 1.0 / exponent * (1.0 + 1.0 / 2400.0 * rng.normal());
-
-    // Filter Range (Folkman; 5.13): "Turn KEYBOARD CONTROL switches 1 and 2
-    // off. Set CUTOFF FREQUENCY at -1, EMPHASIS at 10. Turn on A-440 and adjust
-    // filter Range Trimpot for zero beats."
-    for (int it = 0; it < 4; ++it)
-    {
-        const double f = selfOscillationHz (ladder, i440);
-        if (f <= 0.0) break;
-        i440 *= std::pow (440.0 / f, 1.0 / exponent);
-    }
-    i440 *= std::exp2 (1.0 / 1200.0 * rng.normal());
+    double scale = 1.0 / exponent;
     const double cvAtMinusOne = cutoffGain * 20.0 * (laws::cutoffKnobAt (laws::cutoffCalMark) - 0.5);
-    filterExpo.setTrims (i440 * std::exp2 (-cvAtMinusOne * scale), scale);
+    double i0 = i440 * std::exp2 (-cvAtMinusOne * scale);
+    filterExpo.setTrims (i0, scale);
+
+    // Then both trims as the technician sets them, through the keys, the
+    // CUTOFF knob and the cutoff converter (whose octaves stretch towards the
+    // top), repeated "until the filter will track three octaves".
+    auto sings = [this] (const PanelState& q, int note) { return selfOscillationHz (ladder, filterExpo.current (filterCv (q, note, 0.0))); };
+    constexpr int thirdA = 69;
+    for (int rep = 0; rep < 3; ++rep)
+    {
+        // Filter Scale: the third A tuned to 1760 Hz with CUTOFF, then low A to
+        // a quarter of that with the trim
+        PanelState q;
+        q.kbd1 = q.kbd2 = true;
+        q.cutoff = 0.5;
+        for (int it = 0; it < 3; ++it)
+        {
+            const double f = sings (q, thirdA);
+            if (f <= 0.0) break;
+            q.cutoff += std::log2 (1760.0 / f) / 10.0;
+        }
+        const double fThird = sings (q, thirdA), fLow = sings (q, lowA);
+        if (fThird > 0.0 && fLow > 0.0)
+            scale *= 2.0 / std::log2 (fThird / fLow);
+        // Filter Range: KEYBOARD CONTROL off, CUTOFF at -1, 440 Hz
+        PanelState r;
+        r.cutoff = laws::cutoffKnobAt (laws::cutoffCalMark);
+        filterExpo.setTrims (i0, scale);
+        for (int it = 0; it < 2; ++it)
+        {
+            const double f = sings (r, lowA);
+            if (f <= 0.0) break;
+            i0 *= std::pow (440.0 / f, 1.0 / exponent);
+            filterExpo.setTrims (i0, scale);
+        }
+    }
+    // Zero beats by ear: the technician stops within a cent or so.
+    filterExpo.setTrims (i0 * std::exp2 (1.0 / 1200.0 * rng.normal()), scale * (1.0 + 1.0 / 2400.0 * rng.normal()));
 }
 
 void Voice::calibrateNoise()

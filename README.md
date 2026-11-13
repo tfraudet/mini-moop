@@ -89,7 +89,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Modulation of the oscillators (5.37) | 13 to 23 semitones with the MOD wheel fully up | 18.9 |
 | Amount of modulation (5.19) | the filter from 440 Hz to at least 2.4 kHz | 5 octaves |
 | Emphasis calibration (5.12; Folkman) | regeneration starts between 7 and 8 | does not at 7, does at 8, on every unit |
-| Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 28 kHz; sings at 220 Hz |
+| Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 24 to 30 kHz, unit by unit; sings at 220 Hz |
 | Filter scale, KEYBOARD 1/3 (5.14, 5.15) | two then three octaves of keys track with switches 1 and 2; 880 +/- 50 Hz three octaves up with switch 1 | within 10 and 40 cents; within the 50 Hz |
 | Amount of contour, filter control (5.17, 5.18) | fully clockwise: "35kHz +/- 10kHz"; two octaves for about two divisions | 38 to 40 kHz (the converter's limit); 1.96 octaves |
 | Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -8.0 and -2.0 dB (read over 48 kHz, as a wideband meter; this unit's two lie 5.9 dB apart, close to the 6 dB the check allows); -8.9 dB (ngspice on the drawn circuits: -8.3); -80 dB |
@@ -107,6 +107,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Ladder small-signal response; self-oscillation | -12 dB at the cutoff; oscillates at the cutoff | `test_ladder.cpp`; `test_voice.cpp`: "Filter self-oscillates with emphasis at 10 and no input" |
 | EMPHASIS: the drawn feedback path and REGEN CAL's range | loop gain 0.17 at 0; 2.3 to 9.2 at 10 over the trimmer; the trimmer can put the threshold at 7.5 | `test_ladder.cpp`: "EMPHASIS: the drawn feedback path, REGEN CAL's range" |
 | Filter output stage (Q5 to Q8) against ngspice; passband gain against the whole of circuit 6 | table within 20 mV; 56.7; clipping at +6.4 / -3.7 V | `test_filter_output.cpp` (four test cases) |
+| Cutoff converter against ngspice | the ladder's standing current against the control node, within 0.25 dB from 4 µA to the limit | `test_ladder.cpp`: "Cutoff converter: the octaves stretch, then Q28 saturates (ngspice)" |
 | VCA (circuit 7) against ngspice: Q18's current, gain against the contour, clipping | within 3 %; within 1 dB (1.97 at a 5 V contour); +/-2.8 V against +3.05 / -2.84 | `test_vca.cpp` (three test cases) |
 | Contour levels against ngspice; times from the drawn networks | rest, peaks (5.22 V loudness, 4.43 V filter) and the levels held at six SUSTAIN settings within 0.04 V of `contour.cir`; 1.4 ms to 11 s | `test_contour.cpp` |
 | Trigger section's delays | 7.9 ms after a key struck after a rest, 10.8 ms after a release (ngspice), under 1.5 ms struck again 20 ms after a release | `test_contour.cpp`: "Trigger section: C7's delays on both edges (ngspice)" |
@@ -129,9 +130,9 @@ Share of one core, real time being 100 %: three oscillators, EMPHASIS 6, DRIFT 1
 
 | Quality | 1 voice | 8 voices |
 |---|---|---|
-| Eco 2x | ~2.5 % | ~21 % |
-| High 4x | ~5 % | ~39 % |
-| Ultra 8x | ~9 % | ~77 % |
+| Eco 2x | ~3 % | ~26 % |
+| High 4x | ~5.5 % | ~48 % |
+| Ultra 8x | ~11.5 % | ~92 % |
 
 ### Outside the test suite
 
@@ -153,8 +154,8 @@ Each voice draws its own component values from the "Unit" seed, then is **calibr
 | Oscillator RANGE (R11) and SCALE (R8), each oscillator | RANGE at 2': 3520 Hz on high A, 440 Hz on low A, repeated. The old board has no high-frequency trimmer: its compensation is the fixed R42 |
 | OCTAVE (R168) | Folkman's procedure: oscillator 1 at 2', the second A tuned to the A-440 with TUNE, then at 8' the same key zero-beaten by the trimmer (the later service manual, 5.34, uses 16'). The other steps and oscillators keep the mismatch of their matched resistors |
 | REGEN CAL (R73) | the filter starts to sing at EMPHASIS 7.5 with CUTOFF at -1 |
-| Filter SCALE (R49) | KEYBOARD CONTROL 1 and 2 on: two octaves of keys for two octaves of the singing filter |
-| Filter RANGE (R39) | KEYBOARD CONTROL off, CUTOFF at -1, EMPHASIS at 10: zero beats with the A-440 |
+| Filter SCALE (R49) | KEYBOARD CONTROL 1 and 2 on, the third A tuned to 1760 Hz with CUTOFF: low A two octaves below, through the keys and the cutoff converter |
+| Filter RANGE (R39) | KEYBOARD CONTROL off, CUTOFF at -1, EMPHASIS at 10: zero beats with the A-440. SCALE and RANGE repeated, as the manual asks, "until the filter will track three octaves" |
 | 1ST VCA BAL (R14) | the contour's feedthrough nulled to the manual's -55 dB |
 | NOISE LEVEL (R26) | white and pink noise centred on -5 dB at the main output, read at the real level; "so that both white and pink fall within specification": a little further where the two lie close to 6 dB apart |
 
@@ -254,7 +255,8 @@ No value comes from another emulation or from a modern recreation of the instrum
 | AMOUNT OF CONTOUR | R17 5 kΩ linear from the filter contour, its wiper through R74 47 kΩ: 2.1 octaves per volt of contour at 10 (the specification's "0 to 4 octaves" is exceeded: the manual's own check, 5.17, drives the filter to its top) | Moog (Fig. 9-16, 9-11; 5.17) |
 | FILTER MODULATION | the modulation line through R52 33 kΩ: 100K / 33K as deep as the oscillators' | Moog (Fig. 9-16) |
 | Cutoff converter | PNP follower Q26 (TIS93) into Q28 (TIS92), no temperature compensation: the scale falls by 0.33 % a kelvin about the CUTOFF knob's centre. RANGE (R39) and SCALE (R49) set on the singing filter | Moog (Fig. 9-11; 2.8) |
-| The converter's limit | Q28 against R60 680 Ω: about 1.75 mA, 38 kHz ("35kHz ± 10kHz", 5.17) | Moog (Fig. 9-11; 5.17) |
+| The converter's limit | Q28 against R60 680 Ω: 1.765 mA, 38 kHz ("35kHz ± 10kHz", 5.17), a sharp knee (r^11.5) | Moog, ngspice (Fig. 9-11; 5.17; `cutoff.cir`) |
+| The converter's octaves | 17.9 mV an octave at the bottom, stretching to 21.7 mV at 1.1 mA: 4.0 Ω in series with the exponential (Q28's base current out of Q26's emitter current, the junctions' own resistances); within 0.04 dB rms of ngspice over the whole sweep | Moog, ngspice (Fig. 9-11; `cutoff.cir`); the device cards: Other |
 | Output stage Q5 to Q8: transfer, gain 68.0, clipping +6.4 / −3.7 V | table; the gain follows the TIS97's current gain (63 to 71 over its bin), drawn per unit | Moog, ngspice (Fig. 9-11); Other (TIS97: hFE 250 to 700) |
 | EMPHASIS path | the output's load tap (R7 180 Ω over R3 1 kΩ + R7), C10, R14 50 kΩ reverse audio as a rheostat, REGEN CAL R73 1 kΩ with its wiper on Q30's base, R76 330 Ω: loop gain 0.2 at 0 (passband 56.7 for a stage gain of 68.0) | Moog, ngspice (Fig. 9-11, 9-16) |
 | Self-oscillation | from EMPHASIS 7.5, by Regeneration Cal | Moog (5.12; Folkman) |

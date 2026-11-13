@@ -21,12 +21,15 @@
 // ladder simulated by ngspice.
 
 #include "SpiceRunner.h"
+#include "circuit/blocks/CutoffConverter.h"
 #include "circuit/blocks/LadderFilter.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <array>
 #include <cmath>
 #include <sstream>
+#include <utility>
 
 using namespace mm;
 using Catch::Approx;
@@ -211,4 +214,26 @@ TEST_CASE ("EMPHASIS: the drawn feedback path, REGEN CAL's range", "[ladder]")
     p.regenCal = 0.73;
     for (int i = 0; i < 100; ++i)
         CHECK (k (0.1 * (i + 1)) > k (0.1 * i));
+}
+
+TEST_CASE ("Cutoff converter: the octaves stretch, then Q28 saturates (ngspice)", "[filter]")
+{
+    // Q26 / Q28 into the bottom pair through R60 680 (Fig. 9-11), against
+    // ngspice on the drawn circuit (tools/spice/cutoff.cir): the ladder's
+    // standing current against the control node, 17.94 mV an octave at the
+    // bottom of the range.
+    CutoffConverter c;
+    c.setTrims (1.9489e-4, 1.0); // the bench's exponential, extended to 0 V
+    c.setTemperature (298.15);
+    constexpr std::array<std::pair<double, double>, 9> bench { { { -0.100, 4.0863e-6 }, { 0.000, 1.8837e-4 },
+                                                               { 0.020, 3.9502e-4 }, { 0.040, 8.0449e-4 },
+                                                               { 0.050, 1.1279e-3 }, { 0.060, 1.5521e-3 },
+                                                               { 0.065, 1.6846e-3 }, { 0.080, 1.7443e-3 },
+                                                               { 0.200, 1.7717e-3 } } };
+    for (const auto& [volts, amps] : bench)
+    {
+        const double i = c.current (volts / 0.01794);
+        INFO (volts << " V: " << i << " A, ngspice " << amps);
+        CHECK (20.0 * std::log10 (i / amps) == Approx (0.0).margin (0.25));
+    }
 }

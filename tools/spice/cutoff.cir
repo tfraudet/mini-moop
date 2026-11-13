@@ -1,0 +1,25 @@
+VCF (circuit 6): the cutoff converter's current up to its limit
+* Q26 / Q28 into the bottom pair through R60 680 (Fig. 9-11): the ladder's standing current
+* against the control node, swept well past the point where Q28 saturates. Writes cutoff.dat:
+* the control node (V) and the current (A).
+.include models.lib
+.include board4-vcf.lib
+.options temp=25 tnom=25
+vp vp 0 10
+vn vn 0 -10
+vin in 0 0
+vctl ctl 0 0
+vcont cont 0 0
+r14 e7 e6 50k
+rvca out vl 82.82k
+cvl vl 0 1
+x1 in ctl cont e7 e6 out vp vn vcf
+.control
+dc vctl -0.25 0.25 0.0005
+let itail = (v(x1.et) - v(x1.c28)) / 680
+wrdata cutoff.dat itail
+meas dc imax max itail
+meas dc et0 find v(x1.et) at=0
+echo "the tail current tops out at $&imax A; the bottom pair's emitters at $&et0 V"
+.endc
+.end
