@@ -95,7 +95,8 @@ struct VcaParams
     double r37 = 6.8e3;           // R37 6.8K: emitter to ground
     double r43 = 270.0e3;         // R43 270K: emitter to -10 V
     double r35 = 1.0e3;           // R35 1K: collector to the pair's emitters
-    double vPairEmitters = 4.10;  // the first pair's emitters: the R22 / R36 bias node (4.72 V) less a Vbe (ngspice)
+    double vPairEmitters = 4.10;  // the first pair's emitters: the R22 / R36 bias node (4.72 V) less a Vbe
+                                  // (ngspice: tools/spice/vca_op.cir prints 4.099 V)
     BjtParams q18 { 1.0e-14, 440.0, 4.0, 100.0, false }; // TIS97 (tools/spice/models.lib)
 
     // Second VCA

@@ -17,7 +17,7 @@ r75 o2 jack 1k
 r20 jack 0 5k
 .control
 op
-print v(out) v(x1.d) v(x1.p1) v(x1.p2) v(x1.p3) v(x1.e3) v(x1.c14) v(x1.c13)
+print v(out) v(x1.e1) v(x1.d) v(x1.p1) v(x1.p2) v(x1.p3) v(x1.e3) v(x1.c14) v(x1.c13)
 print i(vp) v(x1.e18)/6.8k v(x1.e21)/3.3k (10-v(x1.e1s))/62
 foreach vc 0 0.25 0.5 1 2 3 4 4.5 5 5.3 6
   alter vcont dc = $vc

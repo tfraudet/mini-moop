@@ -37,7 +37,10 @@
 // 180), through C10 10 uF and the EMPHASIS pot R14, to REGEN CAL R73, whose
 // wiper is the base of Q30, the bottom pair's other input. The coupling and
 // the clipping therefore sit inside the feedback loop: g() is the output
-// stage's transfer normalised to unit slope, solved with the rest.
+// stage's transfer normalised to unit slope, solved with the rest. C10 adds a
+// second high-pass inside the loop, into the path's whole resistance: about
+// 10 Hz at EMPHASIS 10 (R14 near 0), well under 1 Hz at 0. It only shows
+// when the filter is made to sing at its lowest cutoffs.
 
 #include "FilterOutputStage.h"
 #include "../components/Passives.h"
@@ -78,6 +81,7 @@ struct LadderParams
     double outputTrim = 1.0;          // the output stage's gain against its nominal (part tolerances)
     double rBias      = 47.0e3;       // R31/R38: the followers' base bias, with C5/C1 the coupling high-pass
     double cCoupling  = 0.22e-6;      // C5/C1
+    double cEmphasis  = 10.0e-6;      // C10: the emphasis path's coupling
     bool   feedbackThroughOutputStage = true; // false: ideal linear DC-coupled feedback k*u4 (tests)
     double noiseRms   = 2.0e-6;       // input-referred transistor noise (V rms)
 
@@ -109,6 +113,7 @@ public:
         rng.reseed (noiseSeed);
         reset();
         update();
+        setEmphasis (emphasis); // C10's coefficients follow the rate
     }
 
     void setParams (const LadderParams& params) noexcept { p = params; update(); setEmphasis (emphasis); }
@@ -120,7 +125,16 @@ public:
     void setCutoffCurrent (double amps) noexcept { iTail = std::fmax (amps, 1e-12); update(); }
 
     /** Emphasis pot position 0..1. */
-    void setEmphasis (double pos) noexcept { emphasis = pos; k = p.kOverride >= 0.0 ? p.kOverride : loopGain (p, pos); }
+    void setEmphasis (double pos) noexcept
+    {
+        emphasis = pos;
+        k = p.kOverride >= 0.0 ? p.kOverride : loopGain (p, pos);
+        // C10 into the path: R3 // R7, R14, R73 and R76 to the AC-grounded bias node
+        const double source = p.rLoadTop * p.rLoadBottom / (p.rLoadTop + p.rLoadBottom);
+        const double w = h / (p.cEmphasis * (source + emphasisOhms (p, pos) + p.rRegenCal + p.rRegenFixed));
+        c10B = 1.0 / (1.0 + 0.5 * w);
+        c10C = (1.0 - 0.5 * w) / (1.0 + 0.5 * w);
+    }
 
     /** R14 between its wiper and terminal 3 (ohm) at a position 0..1: a
         reverse audio pot, all of its track at 0 and none at 10. */
@@ -145,7 +159,7 @@ public:
     {
         u.fill (0.0);
         fOld.fill (0.0);
-        hpIn = hpOut = 0.0;
+        hpIn = hpOut = fbIn = fbOut = 0.0;
     }
 
     /** Cutoff (Hz) for a given tail current in the small-signal approximation. */
@@ -177,8 +191,9 @@ public:
             if (! p.feedbackThroughOutputStage) { hp = x3; fb = x3; dfb = 1.0; return; }
             hp = hpB * (x3 - hpIn) + hpC * hpOut;
             double slope = 0.0;
-            fb = FilterOutputStage::transfer (-hp, slope) / stageGain;
-            dfb = -slope / stageGain * hpB; // d(out)/d(x3) = slope * (-hpB), over stageGain: +hpB near 0
+            const double g = FilterOutputStage::transfer (-hp, slope) / stageGain;
+            fb = c10B * (g - fbIn) + c10C * fbOut;    // through C10
+            dfb = -slope / stageGain * hpB * c10B; // d(out)/d(x3) = slope * (-hpB), over stageGain: +hpB near 0
         };
 
         bool converged = false;
@@ -255,7 +270,15 @@ public:
         hpIn = u[3];
         hpOut = hp;
         double slope = 0.0;
-        return p.outputTrim * FilterOutputStage::transfer (-hp, slope);
+        const double out = FilterOutputStage::transfer (-hp, slope);
+        if (p.feedbackThroughOutputStage)
+        {
+            // C10's state, at the accepted solution
+            const double g = out / stageGain;
+            fbOut = c10B * (g - fbIn) + c10C * fbOut;
+            fbIn = g;
+        }
+        return p.outputTrim * out;
     }
 
     double stageVoltage (int n) const noexcept { return u[size_t (n)]; }
@@ -280,6 +303,7 @@ private:
     static constexpr double stageGain = -FilterOutputStage::smallSignalGain; // 68.0: g() has unit slope
     LadderParams p;
     double hpB = 1.0, hpC = 1.0, hpIn = 0.0, hpOut = 0.0;
+    double c10B = 1.0, c10C = 1.0, fbIn = 0.0, fbOut = 0.0; // C10, trapezoidal
     Rng rng;
     double fs = 48000.0, h = 1.0 / 48000.0;
     double vt = phys::thermalVoltage (298.15);

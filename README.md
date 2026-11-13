@@ -108,6 +108,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | EMPHASIS: the drawn feedback path and REGEN CAL's range | loop gain 0.17 at 0; 2.3 to 9.2 at 10 over the trimmer; the trimmer can put the threshold at 7.5 | `test_ladder.cpp`: "EMPHASIS: the drawn feedback path, REGEN CAL's range" |
 | Filter output stage (Q5 to Q8) against ngspice; passband gain against the whole of circuit 6 | table within 20 mV; 56.7; clipping at +6.4 / -3.7 V | `test_filter_output.cpp` (four test cases) |
 | Cutoff converter against ngspice | the ladder's standing current against the control node, within 0.25 dB from 4 µA to the limit | `test_ladder.cpp`: "Cutoff converter: the octaves stretch, then Q28 saturates (ngspice)" |
+| C10 in the emphasis loop | at EMPHASIS 10 the filter sings at a 50 Hz cutoff, not at 30 Hz | `test_ladder.cpp`: "C10 in the emphasis loop ..." |
 | VCA (circuit 7) against ngspice: Q18's current, gain against the contour, clipping | within 3 %; within 1 dB (1.97 at a 5 V contour); +/-2.8 V against +3.05 / -2.84 | `test_vca.cpp` (three test cases) |
 | Contour levels against ngspice; times from the drawn networks | rest, peaks (5.22 V loudness, 4.43 V filter) and the levels held at six SUSTAIN settings within 0.04 V of `contour.cir`; 1.4 ms to 11 s | `test_contour.cpp` |
 | Trigger section's delays | 7.9 ms after a key struck after a rest, 10.8 ms after a release (ngspice), under 1.5 ms struck again 20 ms after a release | `test_contour.cpp`: "Trigger section: C7's delays on both edges (ngspice)" |
@@ -183,7 +184,7 @@ Mini Moop models revision 2 as Fig. 9-3 draws it, that is with the 94-001 kit fi
 | **3** Power supply | 93-115, Fig. 9-8 / 9-9 | circuit 3: noise generator (white, pink, red) | `NoiseSource` | |
 | | | circuit 15: modulation mix | `ModulationMix` (R3 25 kΩ linear pot with grounded wiper between the two 24 kΩ inputs, 43 kΩ summing resistors; the discrete amplifier's gain, offset and one-way output from ngspice) | the amplifier's dynamics |
 | | | circuit 10: ±10 V regulators; circuit 11: headphone amplifier | | rails are ideal, so supply-borne oscillator bleed is absent; no headphone stage |
-| **4** Filter and VCA | 93-116, Fig. 9-10 / 9-11 | circuit 6: ladder filter (C3, C7, C11, C16 = 0.068 µF), output stage Q5 to Q8, emphasis path with REGEN CAL, cutoff converter Q26 / Q28 | `LadderFilter`, `FilterOutputStage`, `CutoffConverter` | C10 and C27's low-frequency corners |
+| **4** Filter and VCA | 93-116, Fig. 9-10 / 9-11 | circuit 6: ladder filter (C3, C7, C11, C16 = 0.068 µF), output stage Q5 to Q8, emphasis path with REGEN CAL, cutoff converter Q26 / Q28 | `LadderFilter`, `FilterOutputStage`, `CutoffConverter` | C27 (the mixer drives it as a current through its 33 kΩ resistors: its corner falls below 1 Hz) |
 | | | circuit 7: first VCA (loudness contour), second VCA (EXT. LOUDNESS), output stage Q12 / Q17 | `Vca` | the EXT. LOUDNESS input (its jack is left unplugged) |
 | | | circuit 12: external input pre-amp and OVERLOAD lamp driver | `ExtPreamp` (the panel lamp shows the brightest lamp among the sounding units) | |
 | | | circuit 13: A-440 reference oscillator | its waveform (level and harmonics from ngspice on the drawn Wien bridge) in `SynthEngine`, into the first unit's VCA through R40 and C8 (`Vca`) | the Wien bridge's own dynamics (start-up, warm-up drift) |
@@ -261,6 +262,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | EMPHASIS path | the output's load tap (R7 180 Ω over R3 1 kΩ + R7), C10, R14 50 kΩ reverse audio as a rheostat, REGEN CAL R73 1 kΩ with its wiper on Q30's base, R76 330 Ω: loop gain 0.2 at 0 (passband 56.7 for a stage gain of 68.0) | Moog, ngspice (Fig. 9-11, 9-16) |
 | Self-oscillation | from EMPHASIS 7.5, by Regeneration Cal | Moog (5.12; Folkman) |
 | Output coupling | C5 / C1 0.22 µF into R31 / R38 47 kΩ | Moog (Fig. 9-11) |
+| Emphasis coupling | C10 10 µF into the emphasis path (R3 // R7, R14, R73, R76): about 10 Hz at EMPHASIS 10, inside the loop. At 10 the filter sings at a 50 Hz cutoff, not at 30 Hz | Moog (Fig. 9-11) |
 
 ### Contour generators (board 2, circuit 8)
 

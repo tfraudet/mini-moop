@@ -115,6 +115,34 @@ TEST_CASE ("Ladder: self-oscillates near cutoff at full emphasis", "[ladder]")
     CHECK (std::abs (fosc / fc - 1.0) < 0.1); // oscillates at the cutoff frequency
 }
 
+TEST_CASE ("C10 in the emphasis loop: the filter stops singing at its lowest cutoffs", "[ladder]")
+{
+    // C10 10 uF into the emphasis path's resistance (about 1.5K at EMPHASIS 10):
+    // a high-pass near 10 Hz inside the loop, with C5 / C1's. At EMPHASIS 10
+    // the filter sings at a 50 Hz cutoff, not at 30 Hz.
+    auto sings = [] (double nominalHz) {
+        LadderFilter f;
+        LadderParams p;
+        p.noiseRms = 0.0;
+        p.regenCal = 0.73;
+        f.setParams (p);
+        constexpr double fs = 96000.0;
+        f.prepare (fs, 1);
+        f.setTemperature (298.15);
+        f.setCutoffCurrent (nominalHz * 2.0 * M_PI * 4.0 * p.c[0] * phys::thermalVoltage (298.15));
+        f.setEmphasis (1.0);
+        double peak = 0.0;
+        for (int i = 0; i < int (fs * 4.0); ++i)
+        {
+            const double y = f.process (i < 48 ? 1.0e-3 : 0.0);
+            if (i > int (fs * 3.0)) peak = std::fmax (peak, std::abs (y));
+        }
+        return peak > 1.0e-3;
+    };
+    CHECK (sings (50.0));
+    CHECK_FALSE (sings (30.0));
+}
+
 TEST_CASE ("Ladder reduced model matches transistor-level ngspice ladder", "[ladder][spice]")
 {
     if (! mmtest::ngspiceAvailable()) SKIP ("ngspice not installed");

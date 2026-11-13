@@ -117,7 +117,7 @@ Run with `ngspice -b <file>.cir`.
 |---|---|---|
 | `vcf_op.cir` | circuit 6: operating point, passband gain 56.7, output stage gain 68.0, the emphasis tap's 0.152 | `LadderFilter.h`, `outstage.cir` |
 | `outstage.cir` | the output stage's transfer, +6.39 / -3.70 V | `gen_tables.py` -> `FilterOutputStage.h` |
-| `vca_op.cir` | circuit 7: operating point, gain against the contour (1.97 at 5 V), -9.0 dB for +2 V on EXT. LOUDNESS (manual: -10 +/- 3 dB) | `Vca.h`, `tests/test_vca.cpp` |
+| `vca_op.cir` | circuit 7: operating point (the first pair's emitters at 4.099 V), gain against the contour (1.97 at 5 V), -9.0 dB for +2 V on EXT. LOUDNESS (manual: -10 +/- 3 dB) | `Vca.h`, `tests/test_vca.cpp` |
 | `vca_large.cir` | Q18's current against the contour, the output's clipping (+3.05 / -2.84 V) | `Vca.h`, `tests/test_vca.cpp` |
 | `sensitivity.cir` | the above against the TIS97's gain and saturation current | the units' tolerance draws |
 | `contour.cir` | circuit 8, both contour generators on the trigger section, for SUSTAIN 0 to 1: rest, peak and held levels at the output and on the timing capacitor (filter contour: peak 4.43 V, cap 4.96 V; loudness: 5.22 V, cap 6.37 V; the capacitor rests at 0.645 V) | `ContourGen.h`: the junction voltages, the sustain follower's Vbe and gain; `tests/test_contour.cpp`: rest, peaks and the six held levels within 0.04 V |
