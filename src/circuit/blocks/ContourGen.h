@@ -26,8 +26,9 @@
 //   Attack : C charges through R42/R7 and the ATTACK pot towards the +9.3 V
 //            rail (attack switch Q16/Q5 saturated). The flip-flop resets when
 //            the output, divided by R24/R33 against R27/R29 16.9K to -10 V,
-//            forward-biases CR6/CR3 into Q15/Q4's base: at 5.75 V (loudness)
-//            or 4.95 V (filter).
+//            forward-biases CR6/CR3 (1N34A, germanium) into Q15/Q4's base:
+//            at about 5.2 V (loudness) or 4.4 V (filter); "approximately 5
+//            volts" (service manual 2.10).
 //   Decay  : C discharges through the DECAY pot into the sustain node, held
 //            by the PNP follower Q19/Q8 a Vbe above the SUSTAIN divider
 //            (R19/R18 5K linear across +10 V, loaded by R57/R13 and R47, or
@@ -41,28 +42,24 @@
 //            loudness contour therefore rests at about -0.5 V, the filter
 //            contour at about +0.15 V.
 //
-// Checked against ngspice (circuit No. 8 at 25 C): peak, sustain and rest
-// levels within about 0.05 V. Each RC segment is integrated exactly
-// (exponential step), so the curve is independent of the sample rate.
-// Not modelled: the trigger section's delay (about 8 ms from the key) and the
-// electrolytic's dielectric absorption (a 0.3 V dip just after the peak).
+// Each RC segment is integrated exactly (exponential step), so the curve is
+// independent of the sample rate. Not modelled: the trigger section's delay
+// and the electrolytic's dielectric absorption.
 
 #include "../components/Passives.h"
 
-#include <array>
 #include <cmath>
-#include <utility>
 
 namespace mm
 {
 
 struct ContourParams
 {
-    // Timing (Fig. 9-7, Table 7-3). Spec ranges: attack 1 ms..10 s, decay
-    // 4 ms..35 s (decay time read as ~3 time constants).
+    // Timing (Fig. 9-7, Table 7-3). Specifications: "RANGE OF ATTACK TIME: 10
+    // milliseconds to 10 seconds", decay the same: 1 Mohm x 10 uF is 10 s.
     double c            = 10.0e-6; // timing capacitor: C5 (filter) / C2 (loudness), 10 uF electrolytic
     double rMin         = 100.0;   // attack series resistor: R7 (filter) / R42 (loudness)
-    double rMinDecay    = 100.0;   // decay path at minimum setting (assumed: from the 4 ms spec)
+    double rMinDecay    = 100.0;   // decay path at minimum setting: the sustain follower's R11 100 (Fig. 9-7)
     double rAttackPot   = 1.0e6;   // attack pot R12/R13: 1 Mohm audio taper (Table 7-3)
     double rDecayPot    = 1.0e6;   // decay pot R15/R16: 1 Mohm audio taper (Table 7-3)
     double rDump        = 1.5e3;   // R1401 1.5K (Fig. 9-12): the dump into V-trig with DECAY off
@@ -75,28 +72,16 @@ struct ContourParams
     double vOutDrop     = 1.16;    // output follower: Darlington Q3/Q2, two Vbe (filter: Q22/Q21, 0.52 V)
     double rPeak        = 6.8e3;   // peak detector divider: R24 6.8K (filter: R33 5.6K) ...
     double rPeakNeg     = 16.9e3;  // ... against R27/R29 16.9K 1 % to -10 V
-    double vPeakJunctions = 1.23;  // CR6/CR3 plus Q15/Q4's base-emitter: where the flip-flop resets
+    // Where the flip-flop resets: Q15/Q4 must draw the 0.85 mA that takes its
+    // partner out of saturation (Vbe 0.65 V), CR6/CR3 then carries the 15 uA of
+    // R14 33K and the base (1N34A: 0.10 V), and that current drops 0.07 V in
+    // the divider's 4.2K.
+    double vPeakJunctions = 0.82;
     double rSustainPot  = 5.0e3;   // SUSTAIN R19/R18: 5K linear across +10 V
     double rSustainSeries = 4.7e3; // R57 (filter: R13 4.7K) into the follower's base
     double rSustainGround = 4.7e3; // the 4.7K to ground labelled R41 (filter: R1 3K)
     double rSustainNeg  = 0.0;     // to -10 V: none (filter: R17 150K); 0 = absent
     double vSustainVbe  = 0.64;    // the sustain follower Q19/Q8's Vbe
-
-    // ATTACK and DECAY pots (1M rheostats): their resistance against the
-    // knob's travel (0..1), as measured on the CA-72 project's hardware
-    // reference (its sessions F and J: 10-90 % of the attack, 90-50 % of the
-    // final decay, at its dial's marks), one law per pot. CA-72 fitted these
-    // with an electrolytic whose dielectric absorption it models, which takes
-    // 0.88 to 0.90 of the resistance an ideal capacitor needs for the same
-    // time: the values here are theirs / 0.89. Below the first point, the
-    // generic audio taper's shape scaled to meet it; between points, straight
-    // in the resistance's logarithm.
-    using PotLaw = std::array<std::pair<double, double>, 8>;
-    PotLaw attackLaw { { { 0.15, 10.45e3 }, { 0.2, 14.13e3 }, { 0.4, 30.97e3 }, { 0.5, 41.85e3 },
-                         { 0.6, 47.29e3 }, { 0.7, 267.0e3 }, { 0.85, 703.8e3 }, { 1.0, 982.6e3 } } };
-    PotLaw decayLaw  { { { 0.15, 10.47e3 }, { 0.2, 13.00e3 }, { 0.4, 27.42e3 }, { 0.5, 37.04e3 },
-                         { 0.6, 44.53e3 }, { 0.7, 206.4e3 }, { 0.85, 558.5e3 }, { 1.0, 755.4e3 } } };
-    double absorptionFactor = 0.89; // the measured laws' resistances over an ideal capacitor's
 
     /** The loudness section: R42, R24, R57, the 4.7K "R41", Darlington Q3/Q2. */
     static ContourParams loudness() noexcept { return {}; }
@@ -106,10 +91,6 @@ struct ContourParams
     static ContourParams filter() noexcept
     {
         ContourParams p;
-        p.attackLaw = { { { 0.15, 10.49e3 }, { 0.2, 13.56e3 }, { 0.4, 27.64e3 }, { 0.5, 36.02e3 },
-                          { 0.6, 46.90e3 }, { 0.7, 225.9e3 }, { 0.85, 669.0e3 }, { 1.0, 946.8e3 } } };
-        p.decayLaw  = { { { 0.15, 10.47e3 }, { 0.2, 15.94e3 }, { 0.4, 33.12e3 }, { 0.5, 43.46e3 },
-                          { 0.6, 52.19e3 }, { 0.7, 236.8e3 }, { 0.85, 581.7e3 }, { 1.0, 768.2e3 } } };
         p.rPeak = 5.6e3;
         p.rSustainGround = 3.0e3;
         p.rSustainNeg = 150.0e3;
@@ -219,31 +200,15 @@ private:
     }
 
 public:
-    /** A measured pot law's resistance (ohm) at a knob position 0..1. */
-    static double potLaw (const ContourParams::PotLaw& law, double pos) noexcept
-    {
-        const double x = pos < 0.0 ? 0.0 : pos > 1.0 ? 1.0 : pos;
-        auto audio = [] (double t) { return (std::pow (81.0, t) - 1.0) / 80.0; }; // generic audio taper
-        if (x <= law[0].first)
-            return law[0].second * audio (x) / audio (law[0].first);
-        for (size_t i = 1; i < law.size(); ++i)
-            if (x <= law[i].first)
-            {
-                const auto& a = law[i - 1];
-                const auto& b = law[i];
-                return a.second * std::pow (b.second / a.second, (x - a.first) / (b.first - a.first));
-            }
-        return law.back().second;
-    }
-
-    /** ATTACK / DECAY pot in circuit (ohm), with this unit's pot tolerance. */
+    /** ATTACK / DECAY pot in circuit (ohm): R12 / R13, R15 / R16, 1 Mohm audio
+        rheostats (Table 7-3), with this unit's pot tolerance. */
     static double attackPot (const ContourParams& p, double pos) noexcept
     {
-        return potLaw (p.attackLaw, pos) / p.absorptionFactor * (p.rAttackPot / 1.0e6);
+        return p.rAttackPot * taper::audio (pos);
     }
     static double decayPot (const ContourParams& p, double pos) noexcept
     {
-        return potLaw (p.decayLaw, pos) / p.absorptionFactor * (p.rDecayPot / 1.0e6);
+        return p.rDecayPot * taper::audio (pos);
     }
 
     /** Ratio of the time from rest to the peak to the attack's time constant. */

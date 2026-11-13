@@ -38,17 +38,20 @@ double piecewise (const std::array<std::pair<double, double>, N>& pts, double x)
     return pts.back().second;
 }
 
-/** CUTOFF FREQUENCY's law, from Moog's service manual. Filter Range (Table
-    5-4): KEYBOARD CONTROL 1 and 2 off, CUTOFF at -1, EMPHASIS at 10, the
-    filter is trimmed to zero beats with the A-440, so it sings at 440 Hz at
-    the -1 mark. Specifications: "Continuously variable from 40Hz to 20kHz
-    (9 octaves)": 9 octaves over the dial's -5..+5, a linear pot into the
-    1 V/octave converter, 0.9 octave a mark (5.18: "approximately 2
-    divisions" for two octaves; 5.13: at least 16 kHz fully clockwise, under
-    300 Hz fully anticlockwise). `pos` is the knob 0..1 (-5..+5). */
+/** CUTOFF FREQUENCY's law. The pot R11 (5K linear) sits between +10 V and
+    -10 V and reaches the filter's control node through R55 200K, where 100K is
+    an octave a volt (Fig. 9-16): 10 octaves over the dial's -5..+5, an octave
+    a mark ("a rotation of approximately 2 divisions" for two octaves, service
+    manual 5.18). Filter Range (Folkman; 5.13): KEYBOARD CONTROL 1 and 2 off,
+    CUTOFF at -1, EMPHASIS at 10, the filter is trimmed to zero beats with the
+    A-440, so it sings at 440 Hz at the -1 mark; "frequency should increase to
+    at least 16kHz" fully clockwise. `pos` is the knob 0..1 (-5..+5). */
 inline constexpr double cutoffCalMark = -1.0;
 inline constexpr double cutoffCalHz = 440.0;
-inline constexpr double cutoffOctavesPerMark = 0.9;
+inline constexpr double cutoffOctavesPerMark = 1.0;
+
+/** Knob position 0..1 of a dial mark -5..+5. */
+inline constexpr double cutoffKnobAt (double mark) { return 0.5 + mark / 10.0; }
 
 /** Octaves above the calibration point (-1 mark). */
 inline double cutoffOctaves (double pos)
@@ -57,7 +60,7 @@ inline double cutoffOctaves (double pos)
 }
 
 /** The frequency the filter sings at for a CUTOFF knob position 0..1
-    (KEYBOARD CONTROL off, no contour, no modulation): 36 Hz to 18.5 kHz. */
+    (KEYBOARD CONTROL off, no contour, no modulation): 27.5 Hz to 28 kHz. */
 inline double cutoffHz (double pos)
 {
     return cutoffCalHz * std::exp2 (cutoffOctaves (pos));

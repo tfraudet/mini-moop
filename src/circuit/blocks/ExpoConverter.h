@@ -17,8 +17,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
-// Exponential (V/oct -> current) converter built around a matched NPN pair,
-// as used for both the oscillators and the filter cutoff.
+// The oscillators' exponential (V/oct -> current) converter, built around a
+// matched NPN pair.
 //
 // Target revision: Oscillator Board No. 1, revision 2 ("old board", serial
 // numbers 1237 to 10174, service manual Fig. 9-3): RCA CA3046 transistor
@@ -38,9 +38,13 @@
 //   * Vt = kT/q at the pair's temperature (the reason the Minimoog drifts)
 //   * +3500 ppm/K tempco resistor at a slightly different temperature
 //   * Is mismatch of the "matched" pair (pitch offset)
-//   * bulk emitter resistance rE (high-note flattening, partly corrected by
-//     the HF trim, which adds a little CV proportional to Iout)
-//   * calibrated scale / offset trimmers, set by calibrate()
+//   * the pair's emitter and base resistance (with R7 100 in the output
+//     transistor's base), which flattens the high notes, and the fixed
+//     compensation the board has for it: R42 160K from the tail transistor's
+//     emitter (R79 1K) back to the summing node, "positive feedback around
+//     IC1" (service manual 2.16), worth R79 R27 / R42 volts per ampere. The
+//     old board has no trimmer for it: only RANGE (R11) and SCALE (R8)
+//   * the RANGE and SCALE trimmers, as offset and scale
 
 #include "../components/Passives.h"
 #include "../components/Physics.h"
@@ -55,11 +59,12 @@ struct ExpoConverterParams
     double iRef       = 4.0 / 39.0e3; // reference current: -4 V across R50 = 39 kohm (~103 uA)
     double isRef      = 6.734e-15; // saturation current of reference transistor
     double isMismatch = 1.0;       // Is_out / Is_ref
-    double rE         = 0.8;       // bulk emitter resistance (ohm)
+    double rE         = 4.7;       // the pair's emitter resistance and base resistance over beta, with R7 (ohm):
+                                   // taken as what R42's compensation, less the reset time's share, cancels
     double rIn        = 51.1e3;    // CV input resistor (R27 keyboard input, 51.1 kohm 1 %)
     double rTc        = 1.0e3;     // tempco resistor R20 at 25 °C
     double tcPpm      = 3500.0;    // tempco coefficient
-    double hfTrim     = 0.0;       // HF compensation (V per A of Iout)
+    double hfTrim     = 1.0e3 * 51.1e3 / 160.0e3; // R42's compensation: R79 R27 / R42, V of CV per A of Iout
 
     /** Draws component tolerances (1 % metal film input resistors, 5 % carbon
         R50, transistor pair matched to about 2 % in Is, emitter resistance spread). */
@@ -67,7 +72,8 @@ struct ExpoConverterParams
     {
         ExpoConverterParams p = nominal;
         p.isMismatch = 1.0 + 0.01 * rng.normal();
-        p.rE   = rng.tolerance (nominal.rE, 0.3);
+        p.rE   = rng.tolerance (nominal.rE, 0.15);
+        p.hfTrim = rng.tolerance (nominal.hfTrim, 0.07); // R79 and R42, 5 % each
         p.rIn  = rng.tolerance (nominal.rIn, 0.01);
         p.rTc  = rng.tolerance (nominal.rTc, 0.05);
         p.iRef = rng.tolerance (nominal.iRef, 0.05);
@@ -136,24 +142,6 @@ public:
     double referenceCurrent() const noexcept { return p.iRef; }
 
     double thermalVoltage() const noexcept { return vt; }
-
-    /** What a technician does with the V/oct, offset and HF trimmers: make
-        `current(v0)` equal `i0` and `current(v0 + 1)` equal `2 * i0`, and
-        cancel a fraction `hfCompensation` of the emitter-resistance error. */
-    void calibrate (double v0, double i0, double hfCompensation = 0.85) noexcept
-    {
-        for (int it = 0; it < 30; ++it)
-        {
-            p.hfTrim = hfCompensation * p.rE / std::fmax (ratio, 1e-9);
-            const double i1 = current (v0);
-            const double i2 = current (v0 + 1.0);
-            const double octaves = std::log2 (i2 / i1);
-            scale *= 1.0 / octaves;
-            update();
-            offset -= std::log2 (current (v0) / i0);
-            update();
-        }
-    }
 
 private:
     void update() noexcept

@@ -22,7 +22,8 @@
 // R75 1k into the top of R20, a 5k LINEAR pot (Table 7-3) whose other end is
 // grounded; the wiper goes through the MAIN OUTPUT ON switch SW19 to the jack.
 // The load on the wiper (the input of whatever is plugged in) is assumed to be
-// 10k. The gain is normalised to 1 with the pot fully clockwise.
+// 10k. The gain is the divider's: volts at the jack for a volt at the
+// output stage (after C2), 0.77 fully clockwise into that load.
 
 namespace mm
 {
@@ -33,7 +34,7 @@ struct OutputVolume
     static constexpr double rPot = 5.0e3;     // R20, linear
     static constexpr double rLoad = 10.0e3;   // assumed input of the next device
 
-    /** Gain for a knob position 0..1, 1 at full volume. */
+    /** Gain for a knob position 0..1: jack volts per volt at R75's input. */
     static double gain (double pos) noexcept
     {
         auto divider = [] (double a) {
@@ -41,7 +42,7 @@ struct OutputVolume
             return bottom / (rSource + (1.0 - a) * rPot + bottom);
         };
         const double a = pos < 0.0 ? 0.0 : pos > 1.0 ? 1.0 : pos;
-        return divider (a) / divider (1.0);
+        return divider (a);
     }
 };
 

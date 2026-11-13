@@ -18,12 +18,13 @@
 
 #pragma once
 // One complete instrument voice: keyboard CV + glide, three oscillators with
-// their expo converters, noise, mixer, ladder filter with its expo converter,
+// their expo converters, noise, mixer, ladder filter with its cutoff converter,
 // two contour generators, VCA and modulation bus. Every voice draws its own
-// component tolerances from its seed, is calibrated like a real unit, and
-// drifts with its own thermal model.
+// component tolerances from its seed, is calibrated as the service manual
+// prescribes (Voice.cpp), and drifts with its own thermal model.
 
 #include "../circuit/blocks/ContourGen.h"
+#include "../circuit/blocks/CutoffConverter.h"
 #include "../circuit/blocks/ExpoConverter.h"
 #include "../circuit/blocks/ExtPreamp.h"
 #include "../circuit/blocks/Glide.h"
@@ -66,20 +67,44 @@ public:
     // Diagnostics / tests
     double oscFrequency (int osc, double cv) noexcept;
     double filterCutoffHz (double cv) noexcept;
+    /** The frequency (Hz) the filter sings at for a control voltage in octaves
+        (EMPHASIS 10, no input), measured on a copy of the filter. */
+    double filterSelfOscillationHz (double cv);
+    /** Whether the filter builds up an oscillation at an EMPHASIS position 0..1. */
+    bool filterRegenerates (double cv, double emphasis);
+    /** An oscillator's frequency (Hz) for a panel state and a key, at 25 C,
+        without modulation. */
+    double oscFrequencyFor (int osc, const PanelState& panel, int note) noexcept;
+    /** The filter's control voltage (octaves) for a panel state, a key and a
+        filter contour voltage. */
+    double filterCv (const PanelState& panel, int note, double contourVolts) const noexcept;
+    /** Octaves above 8' of an oscillator's RANGE position on this unit. */
+    double rangeOctaves (int osc, Range r) const noexcept { return rangeCv[size_t (osc)][size_t (r)]; }
+    /** The keyboard's voltage (V, 0 on the lowest key) for a MIDI note on this unit. */
+    double keyVolts (int note) const noexcept { return keyCv[size_t (note < 0 ? 0 : note > 127 ? 127 : note)]; }
+    const LadderFilter& filter() const noexcept { return ladder; }
+    const Vca& amplifier() const noexcept { return vca; }
+    double noiseLevel() const noexcept { return whiteLevel; }
+    /** Volts at the main output jack for a volt at the output stage, VOLUME at 10. */
+    static double jackGain() noexcept { return OutputVolume::gain (1.0); }
     const VcoCore& vco (int i) const noexcept { return vcos[size_t (i)]; }
     double lastOutput() const noexcept { return lastOut; }
     /** OVERLOAD lamp brightness of this unit, 0..1. */
     double overloadLamp() const noexcept { return extPreamp.lampLevel(); }
 
 private:
+    void drawPanel (Rng& rng);
     void calibrateOscillators();
     void calibrateFilter();
+    void calibrateNoise();
     void controlUpdate (const PanelState& panel) noexcept;
+    double oscPanelCv (int osc, const PanelState& panel) const noexcept;
+    double osc3FreeCvFor (const PanelState& panel) const noexcept;
 
     // Circuits
     std::array<ExpoConverter, 3> vcoExpo;
     std::array<VcoCore, 3> vcos;
-    ExpoConverter filterExpo;
+    CutoffConverter filterExpo;
     LadderFilter ladder;
     NoiseSource noise;
     Mixer mixer;
@@ -89,9 +114,14 @@ private:
     Glide glide;
     DriftModel drift;
 
-    // Calibrated references
-    double filterI0 = 2.8e-5;  // tail current at filter CV 0 (f0)
-    static constexpr double filterF0 = 640.0;
+    // This unit's panel networks (drawn in build, see FrontPanel.h)
+    std::array<std::array<double, 6>, 3> rangeCv {}; // octaves above 8' of each RANGE position, after the OCTAVE trim
+    std::array<double, 128> keyCv {};                // keyboard volts per MIDI note (the 43-resistor string)
+    double tuneSpan = 0.0;                           // TUNE, octaves over the whole travel
+    std::array<double, 3> freqSpan {};               // FREQUENCY (oscillators 2, 3), octaves over the whole travel
+    double kbd1Gain = 1.0 / 3.0, kbd2Gain = 2.0 / 3.0; // KEYBOARD CONTROL 1 / 2, octaves per keyboard volt
+    double cutoffGain = 0.5, contourGain = 2.128, filterModGain = 3.03; // octaves per volt at the control node
+    double whiteLevel = 0.1;                         // NOISE LEVEL trim: the white noise's level (V rms)
 
     uint64_t seed = 1;
     double fs = 192000.0;
@@ -103,7 +133,7 @@ private:
 
     // Control-rate snapshot
     std::array<double, 3> oscStaticCv {};
-    double filterStaticCv = 0.0, kbTrack = 0.0, contourOct = 0.0;
+    double filterStaticCv = 0.0, kbTrack = 0.0, contourOct = 0.0, osc3FreeCv = 0.0;
     double oscModDepth = 0.0, filterModDepth = 0.0, volume = 0.0;
     double modOsc3 = 1.0, modNoise = 0.0; // MODULATION MIX weights
     bool osc3Kbd = true, pink = false, feedback = false;

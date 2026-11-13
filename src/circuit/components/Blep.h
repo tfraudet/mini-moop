@@ -19,10 +19,10 @@
 #pragma once
 // Band-limited steps and corners (BLEP and BLAMP) at sub-sample times, from
 // one windowed sinc: a low-pass at 0.48 of the sample rate, Kaiser-windowed
-// (beta 8) over 32 taps, linear phase, tabulated at 256 points a sample. The
-// same kernel as the CA-72 project's (resample.rs, its decision R-BLEP: the
-// least aliasing of the sawtooth from 20 Hz to 20 kHz among the kernels it
-// swept), in place of a 2-point polyBLEP.
+// (beta 8) over 32 taps, linear phase, tabulated at 256 points a sample. A
+// numerical choice, not a circuit value: tests/test_vco.cpp holds it to the
+// aliasing it must keep out of the audio band (below -100 dB for the sawtooth
+// and the rectangles), which a 2-point polyBLEP does not reach.
 //
 // BlepLine holds a waveform's naive samples for `delay` samples so that a
 // discontinuity can correct the samples on both sides of it: a value jump

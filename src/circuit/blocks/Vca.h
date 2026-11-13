@@ -17,30 +17,45 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
-// Voltage-controlled amplifier (board 4, circuit 7, Fig. 9-11): differential
-// pair whose tail current is set by the loudness contour through the V->I
-// transistor Q18, followed by a differential to single-ended stage.
+// Voltage controlled amplifier (board 4, circuit 7, Fig. 9-11; service manual
+// 2.9): two transconductance multipliers in cascade and a differential to
+// single-ended output stage, all discrete.
 //
-//   Iout_diff = Itail(Vcontour) * tanh((Vin*a + d) / 2Vt)
+//   First VCA   Q16 / Q15. The filter's output reaches Q16's base through R2
+//               82K and C6 .33 uF, across R34 820 (1/101). The pair's tail is
+//               Q18, driven by the loudness contour: Itail(Vcontour). Loads
+//               R19 / R23 100 and 1ST VCA BAL R14 25:
+//                 v2 = RL1 * I1 * tanh (v1 / 2Vt)
+//   Second VCA  Q14 / Q13 on the first pair's collectors. Its tail Q21 is set
+//               by the EXT. LOUDNESS jack, whose shorting contact holds it on
+//               (+10 V through R56 and R51 33K): 1.37 mA. Loads R18 / R21 330
+//               and 2ND VCA BAL R12 100:
+//                 v3 = RL2 * I2 * tanh (v2 / 2Vt)
+//   Output      Q12 / Q17 (2N4058) on the second pair's collectors, emitters
+//               through R8 / R28 8.2 to the current source Q1 (9.7 mA). Q17's
+//               collector on R29 680 is the output, ahead of C2 10 uF, R75 1K
+//               and the VOLUME pot:
+//                 v3 = 2Vt atanh (x) + RE I3 x,   out = Ro (I3 / 2) x
+//               It can only swing by Ro I3 / 2, about 2.8 V each way: the
+//               instrument's output clips softly there.
 //
-// Itail: the contour drives Q18's base through R59 68K; its emitter sits on
+// Q18's law: the contour drives its base through R59 68K; its emitter sits on
 // R37 6.8K to ground and R43 270K to -10 V, its collector reaches the pair's
-// emitters through R35 1K. Q18 is solved with the Ebers-Moll equations (the
-// same BJT model as everywhere else) over the contour's range when the
-// parameters are set, and read from that table per sample. The result is the
-// circuit's law, checked against ngspice (tests/test_vca.cpp):
-//   - Q18 is off below about 0.25 V (the contour rests at -0.5 V, so the VCA
-//     is fully closed between notes, apart from the bleed below);
-//   - above that the tail current is linear in the contour (R37 || R43);
-//   - from about 4.3 V Q18 saturates against R35: the gain stops rising and
-//     falls slightly. The attack's peak (5.75 V) and the top of the decay,
-//     down to about 4.3 V, all play at full gain.
+// emitters through R35 1K. Q18 is solved with the Ebers-Moll equations over
+// the contour's range when the parameters are set. It is off below about
+// 0.25 V (the contour rests at -0.5 V: the VCA is closed between notes), linear
+// in the contour above, and saturates against R35 from about 4.3 V.
 //
-// Also modelled: input pair saturation (soft clipping of hot signals), pair
-// mismatch d and control-voltage feedthrough (the VCA "thump" when the
-// contour opens), and output stage limits.
+// Checked against ngspice on the netlist transcribed from Fig. 9-11
+// (tools/spice/board4-vca.lib, vca_op.cir, vca_large.cir): gain 1.97 from the
+// filter's output at a 5 V contour, the tail current against the contour, the
+// clipping levels; and against the service manual: +2.00 V on EXT. LOUDNESS
+// lowers the output by 10 +/- 3 dB (5.23; the netlist: 9.0 dB).
+//
+// 1ST VCA BAL nulls the first pair's imbalance, which otherwise puts a step
+// proportional to the tail current on the output each time the contour opens
+// (the "thump"); what the technician's null leaves is `balance1`.
 
-#include "../components/OpAmp.h"
 #include "../components/Passives.h"
 #include "../components/Physics.h"
 #include "../components/Semiconductors.h"
@@ -55,32 +70,55 @@ namespace mm
 
 struct VcaParams
 {
-    double inputGain   = 0.010;   // filter output volts -> pair differential volts: R2 82K / R34 820 (Fig. 9-11)
-    double offset      = 0.0;     // pair Vbe mismatch (V)
-    double feedthrough = 0.004;   // common-mode rejection error of the output amp
-    double iMax        = 1.0e-3;  // tail current giving unity gain; the circuit's tail at a 5 V contour is scaled to it
-    double rLoad       = 10.0e3;  // collector load resistors
-    double ampGain     = 0.5;     // differential amp gain (unity small-signal at full contour)
-    double bleed       = 1.0e-4;  // residual gain with the VCA closed, of the full-contour gain (80 dB range)
+    // Input (Fig. 9-11)
+    double r2  = 82.0e3;          // R2: from the filter's output
+    double r34 = 820.0;           // R34: across the first pair's bases
+    double c6  = 0.33e-6;         // C6: input coupling
 
-    // Q18, the contour's V->I converter (Fig. 9-11)
+    // First VCA
+    double rLoad1   = 112.5;      // R19 / R23 100 plus half of R14 25
+    double offset1  = 0.0;        // the pair's Vbe mismatch (V)
+    double balance1 = 0.0;        // load imbalance left after 1ST VCA BAL, ohm (as a difference of the two loads)
+    double bleed    = 1.0e-4;     // residual tail with Q18 off, of the full tail ("dynamic range 80 dB")
+
+    // Q18, the contour's V->I converter
     double r59 = 68.0e3;          // R59 68K: contour -> Q18 base
     double r37 = 6.8e3;           // R37 6.8K: emitter to ground
     double r43 = 270.0e3;         // R43 270K: emitter to -10 V
     double r35 = 1.0e3;           // R35 1K: collector to the pair's emitters
-    double vPairEmitters = 4.10;  // the pair's emitter node: R36's bias node less a Vbe (ngspice operating point)
-    BjtParams q18 { 5.0e-15, 420.0, 4.0, 100.0, false }; // TIS97
+    double vPairEmitters = 4.10;  // the first pair's emitters: the R22 / R36 bias node (4.72 V) less a Vbe (ngspice)
+    BjtParams q18 { 1.0e-14, 440.0, 4.0, 100.0, false }; // TIS97 (tools/spice/models.lib)
+
+    // Second VCA
+    double rLoad2 = 334.0;        // R18 / R21 330 plus half of R12 100, beside the output pair's bases (2.8K)
+    double i2     = 1.374e-3;     // Q21's collector current with the EXT. LOUDNESS jack unplugged (ngspice)
+
+    // Output stage
+    double rEmitter = 9.2;        // R8 / R28 8.2, plus each transistor's own emitter and base resistance
+    double i3       = 9.71e-3;    // current source Q1: (10 V - the R10 / R11 node - Vbe) / R9 62 (ngspice)
+    double rOut     = 583.0;      // R29 680 beside R75 1K + VOLUME 5K and Q17's output resistance
+    double cOut     = 10.0e-6;    // C2
+    double rAfter   = 6.0e3;      // R75 1K + R20 5K: what C2 drives
 
     static VcaParams drawn (Rng& rng, const VcaParams& nominal) noexcept
     {
         VcaParams p = nominal;
-        p.offset = phys::thermalVoltage (298.15) * std::log (1.0 + 0.03 * rng.normal());
-        p.feedthrough = nominal.feedthrough * (0.5 + rng.uniform());
-        p.inputGain = rng.tolerance (nominal.inputGain, 0.05);
+        p.offset1 = phys::thermalVoltage (298.15) * std::log (1.0 + 0.03 * rng.normal());
+        // The technician nulls the feedthrough to "-55dB maximum" (5.25): a few
+        // microvolts on the pair's loads.
+        p.balance1 = 0.007 * rng.normal();
         p.bleed = nominal.bleed * (0.5 + rng.uniform());
+        p.r2 = rng.tolerance (nominal.r2, 0.05);
+        p.r34 = rng.tolerance (nominal.r34, 0.05);
         p.r37 = rng.tolerance (nominal.r37, 0.05);
         p.r43 = rng.tolerance (nominal.r43, 0.05);
         p.r59 = rng.tolerance (nominal.r59, 0.05);
+        p.rLoad1 = rng.tolerance (nominal.rLoad1, 0.04);
+        p.rLoad2 = rng.tolerance (nominal.rLoad2, 0.04);
+        p.i2 = rng.tolerance (nominal.i2, 0.08);     // R42, R51, R56 and Q21's gain
+        p.i3 = rng.tolerance (nominal.i3, 0.10);     // R9, R10 and Q1's Vbe
+        p.rOut = rng.tolerance (nominal.rOut, 0.04);
+        p.q18.bf = rng.tolerance (nominal.q18.bf, 0.4); // the TIS97's gain bin, 250 to 700
         return p;
     }
 };
@@ -90,22 +128,30 @@ class Vca
 public:
     static constexpr double tableMin = -1.0, tableMax = 10.0, tableStep = 0.005;
     static constexpr int tableSize = int ((tableMax - tableMin) / tableStep) + 2;
+    static constexpr double outMax = 0.6, outStep = 0.001; // the output pair's table: v3 from -0.6 to 0.6 V
+    static constexpr int outSize = int (2.0 * outMax / outStep) + 2;
 
     void prepare (double sampleRate) noexcept
     {
-        amp.prepare (OpAmpParams::ua741(), sampleRate, 4.0);
-        amp.reset();
+        h = 1.0 / sampleRate;
+        update();
+        reset();
     }
+
+    void reset() noexcept { inPrev = inHp = outPrev = outHp = 0.0; }
 
     void setParams (const VcaParams& params) noexcept
     {
         p = params;
         buildTailTable();
+        buildOutputTable();
+        update();
     }
+    const VcaParams& params() const noexcept { return p; }
     void setTemperature (double kelvin) noexcept { inv2vt = 1.0 / (2.0 * phys::thermalVoltage (kelvin)); }
 
     /** Q18's collector current (A) for a loudness contour voltage (V), as solved
-        from the circuit (no bleed, no scaling). */
+        from the circuit. */
     double tailCurrent (double contourVolts) const noexcept
     {
         const double x = (std::fmin (std::fmax (contourVolts, tableMin), tableMax) - tableMin) / tableStep;
@@ -114,17 +160,81 @@ public:
         return tail[size_t (i)] + f * (tail[size_t (i + 1)] - tail[size_t (i)]);
     }
 
-    /** `vin` = filter output (V), `contourVolts` = loudness contour output (V). */
+    /** Small-signal gain from the filter's output to Q17's collector for a
+        contour voltage (25 C). */
+    double smallSignalGain (double contourVolts) const noexcept
+    {
+        const double vt2 = 2.0 * phys::thermalVoltage (298.15);
+        return inputRatio() * (p.rLoad1 * tailCurrent (contourVolts) / vt2) * (p.rLoad2 * p.i2 / vt2)
+             * (p.rOut * 0.5 * p.i3 / (vt2 + p.rEmitter * p.i3));
+    }
+
+    /** The output's swing each way (V): the output pair fully switched. */
+    double swing() const noexcept { return p.rOut * 0.5 * p.i3; }
+
+    /** `vin`: the filter's output (V); `contourVolts`: the loudness contour.
+        Returns the AC voltage of Q17's collector after C2, as R75 and the
+        VOLUME pot see it. */
     double process (double vin, double contourVolts) noexcept
     {
-        const double iTail = p.iMax * (p.bleed + tailCurrent (contourVolts) * tailScale);
-        const double diff = iTail * std::tanh ((vin * p.inputGain + p.offset) * inv2vt);
-        // Differential output plus common-mode leak of the tail current.
-        const double v = p.rLoad * (diff + p.feedthrough * iTail);
-        return amp.process (p.ampGain * v);
+        // C6 into R2 + R34
+        inHp = kIn * (inHp + vin - inPrev);
+        inPrev = vin;
+        const double v1 = inHp * inputRatio();
+        const double i1 = std::fmax (tailCurrent (contourVolts), p.bleed * tailFull);
+        const double v2 = i1 * (p.rLoad1 * std::tanh ((v1 + p.offset1) * inv2vt) + p.balance1
+                                - p.rLoad1 * tanhOffset1);
+        const double v3 = p.rLoad2 * p.i2 * std::tanh (v2 * inv2vt);
+        const double out = swing() * outputPair (v3);
+        // C2 into R75 + VOLUME
+        outHp = kOut * (outHp + out - outPrev);
+        outPrev = out;
+        return outHp;
     }
 
 private:
+    double inputRatio() const noexcept { return p.r34 / (p.r2 + p.r34); }
+
+    /** x = (I17 - I12) / I3 for the voltage between the output pair's bases. */
+    double outputPair (double v3) const noexcept
+    {
+        const double x = (std::fmin (std::fmax (v3, -outMax), outMax) + outMax) / outStep;
+        const int i = std::min (int (x), outSize - 2);
+        const double f = x - double (i);
+        return pair[size_t (i)] + f * (pair[size_t (i + 1)] - pair[size_t (i)]);
+    }
+
+    void update() noexcept
+    {
+        auto highPass = [this] (double rc) { return rc / (rc + h); };
+        kIn = highPass (p.c6 * (p.r2 + p.r34));
+        kOut = highPass (p.cOut * p.rAfter);
+        tanhOffset1 = std::tanh (p.offset1 / (2.0 * phys::thermalVoltage (298.15))); // what 1ST VCA BAL cancels, set at 25 C
+    }
+
+    /** Solves the emitter-degenerated pair v3 = 2Vt atanh (x) + RE I3 x. */
+    void buildOutputTable() noexcept
+    {
+        const double vt2 = 2.0 * phys::thermalVoltage (298.15);
+        const double k = p.rEmitter * p.i3;
+        double u = 0.0;
+        for (int n = 0; n < outSize; ++n)
+        {
+            const double v3 = -outMax + n * outStep;
+            if (n == 0) u = v3 / (vt2 + k);
+            for (int it = 0; it < 60; ++it)
+            {
+                const double th = std::tanh (u);
+                const double g = vt2 * u + k * th - v3;
+                const double step = g / (vt2 + k * (1.0 - th * th));
+                u -= step;
+                if (std::abs (step) < 1.0e-12)
+                    break;
+            }
+            pair[size_t (n)] = std::tanh (u);
+        }
+    }
+
     /** Solves Q18 (base, emitter and collector nodes) by Newton's method at each
         contour voltage of the table, each from the previous solution. */
     void buildTailTable() noexcept
@@ -161,15 +271,15 @@ private:
             }
             tail[size_t (n)] = std::fmax (0.0, evalBjt (p.q18, vb - ve, vb - vc, vt).ic);
         }
-        // Scale so that a 5 V contour (the sustained top of the loudness contour)
-        // gives iMax, i.e. the same full-contour gain as before.
-        tailScale = 1.0 / std::fmax (tailCurrent (5.0), 1.0e-9);
+        tailFull = tailCurrent (5.0);
     }
 
     VcaParams p;
-    OpAmpStage amp;
     std::array<double, size_t (tableSize)> tail {};
-    double tailScale = 1.0;
+    std::array<double, size_t (outSize)> pair {};
+    double tailFull = 5.5e-4, tanhOffset1 = 0.0;
+    double h = 1.0 / 48000.0, kIn = 1.0, kOut = 1.0;
+    double inPrev = 0.0, inHp = 0.0, outPrev = 0.0, outHp = 0.0;
     double inv2vt = 1.0 / (2.0 * phys::thermalVoltage (298.15));
 };
 

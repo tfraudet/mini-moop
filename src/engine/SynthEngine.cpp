@@ -26,8 +26,17 @@ namespace mm
 
 void SynthEngine::build (uint64_t unitSeed)
 {
+    // Drawing and calibrating eight units takes a moment (the bench renders of
+    // Voice::build): nothing to do when the units asked for are already there.
+    if (built && unitSeed == builtSeed)
+        return;
+    built = true;
+    builtSeed = unitSeed;
     for (int i = 0; i < maxVoices; ++i)
         voices[size_t (i)].build (unitSeed * 1000003ull + uint64_t (i) * 7919ull + 1ull);
+    // A-440 Adjustment (service manual 5.7): the trim is set "for 440 +/- 1Hz".
+    Rng rng (unitSeed ^ 0xA440ull);
+    refHz = 440.0 + 0.3 * rng.normal();
 }
 
 void SynthEngine::prepare (double hostSampleRate, int maxBlockSize, int oversampling)
@@ -36,6 +45,7 @@ void SynthEngine::prepare (double hostSampleRate, int maxBlockSize, int oversamp
     maxBlock = std::max (1, maxBlockSize);
     osFactor = oversampling >= 8 ? 8 : oversampling >= 4 ? 4 : oversampling >= 2 ? 2 : 1;
     decimator.prepare (osFactor);
+    interpolator.prepare (osFactor);
     osBuffer.assign (size_t (maxBlock * osFactor), 0.0);
     extBuffer.assign (size_t (maxBlock * osFactor), 0.0);
     for (auto& v : voices)
@@ -101,14 +111,10 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
         const double* ext = nullptr;
         if (in != nullptr)
         {
-            // External input: volts = sample * 4 V, linear interpolation to the oversampled rate.
+            // External input: volts = sample * 4 V, brought to the oversampled
+            // rate by the half-band interpolator.
             for (int i = 0; i < chunk; ++i)
-            {
-                const float cur = in[done + i];
-                for (int k = 0; k < osFactor; ++k)
-                    extBuffer[size_t (i * osFactor + k)] = (lastIn + (cur - lastIn) * (k + 1) / double (osFactor)) / inputScale;
-                lastIn = cur;
-            }
+                interpolator.process (double (in[done + i]) / inputScale, extBuffer.data() + size_t (i * osFactor));
             ext = extBuffer.data();
         }
 
@@ -123,7 +129,7 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
         // No unit sounding: the lamp filament simply cools down.
         lamp = brightest >= 0.0 ? brightest : lamp * std::exp (-double (chunk) / (hostRate * 0.06));
 
-        const double refInc = 440.0 / hostRate;
+        const double refInc = refHz / hostRate;
         for (int i = 0; i < chunk; ++i)
         {
             double y = decimator.process (osBuffer.data() + size_t (i * osFactor));
@@ -134,12 +140,23 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
             y = hp * outputScale * polyGain;
             if (panel.a440)
             {
-                // A-440 reference: injected into the output VCA, so it follows the
-                // VOLUME pot and the OUTPUT ON switch like the voices do.
+                // A-440 reference (board 4, circuit 13): a Wien bridge oscillator
+                // whose output goes through R40 and C8 into the second VCA's
+                // load, ahead of the output stage: after both VCAs, so it sounds
+                // with no key down and follows the VOLUME pot and the OUTPUT
+                // switch. "Check to see that output is -8 +/- 2dB" at the HIGH
+                // MAIN OUTPUT (5.7; 0 dB = 0.775 V): 0.436 V peak with VOLUME at
+                // 10. "It produces a somewhat imperfect sinewave which increases
+                // its harmonic content. These harmonics or overtones assist in
+                // tuning" an octave or two away (Folkman): the diode limiter
+                // CR3 / CR4; the harmonics' levels are estimates.
                 refPhase += refInc;
                 if (refPhase >= 1.0) refPhase -= 1.0;
-                const double outGain = panel.mainOn ? OutputVolume::gain (panel.volume) : 0.0;
-                y += 0.5 * outputScale * outGain * std::sin (2.0 * M_PI * refPhase); // 0.5 V peak, scaled as the voices
+                const double th = 2.0 * M_PI * refPhase;
+                const double wave = std::sin (th) + 0.03 * std::sin (2.0 * th) + 0.015 * std::sin (3.0 * th)
+                                  + 0.007 * std::sin (4.0 * th);
+                const double atFull = panel.mainOn ? OutputVolume::gain (panel.volume) / OutputVolume::gain (1.0) : 0.0;
+                y += a440Peak * atFull * outputScale * wave;
             }
             out[done + i] = float (y);
         }

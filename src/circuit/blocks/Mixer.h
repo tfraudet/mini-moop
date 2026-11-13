@@ -30,7 +30,9 @@
 // Values from the front panel assembly (service manual Fig. 9-16, Tables 7-2
 // and 7-3): 25 kohm linear volume pots (R6 osc 1, R7 osc 2, R8 osc 3, R10
 // noise) and summing resistors on the ON/OFF switches (R45, R46, R47, R49 =
-// 33 kohm, R48 = 11 kohm for noise). The external input volume R9 (1 Mohm
+// 33 kohm, R48 = 11 kohm for noise). Each switch takes its resistor to the
+// bus when ON and to ground when OFF: a channel that is off does not load the
+// bus. The external input volume R9 (1 Mohm
 // audio) sits ahead of the board 4 pre-amplifier (ExtPreamp), so the ext
 // channel is driven by the pre-amp output: set its pot to 1, only its ON
 // switch applies here.
@@ -110,7 +112,8 @@ private:
             const double rWiper = p.rPot[i] > 0.0 ? lower * upper / (lower + upper) : 0.0;
             attenuation[i] = p.rPot[i] > 0.0 ? p.rPot[i] / (p.rPot[i] + rSource[i]) : 1.0;
             rSrc[i] = p.rSum[i] + rWiper;
-            gTotal += 1.0 / rSrc[i];
+            if (switches[i])
+                gTotal += 1.0 / rSrc[i];
         }
         for (size_t i = 0; i < rSrc.size(); ++i)
         {

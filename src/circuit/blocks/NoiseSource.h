@@ -17,25 +17,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #pragma once
-// Noise source: shot/avalanche noise of a reverse-biased transistor junction,
-// amplified by a transistor stage (white), plus the passive RC network that
-// tilts it towards -3 dB/octave (pink).
+// Noise generator (board 3, circuit 3, Fig. 9-8; service manual 2.5): the
+// avalanche noise of Q15's reverse-biased base-emitter junction, amplified by
+// Q12 (NOISE LEVEL R26 in its emitter) and buffered by Q4: the white noise.
 //
 // The junction noise is Gaussian white with a weak 1/f excess (flicker) and
 // occasional "popcorn" steps, filtered by the amplifier's own bandwidth.
-// The pink network is board 3's (Fig. 9-8, circuit 3): R16 10K from the white
-// noise follower Q4 into two series RC branches to -10 V (C3 .12 uF with R8
-// 3.3K, C2 with R13) and, through C1 2.5 uF, the base of the amplifier Q3
-// (its input resistance, about 92K with R7/R6's bootstrap, and its gain,
-// 14.6, fitted to ngspice: within 0.2 dB from 30 Hz to 20 kHz). C2 and R13 are
-// the CA-72 project's hardware reference's .022 uF and 510 (drawn .033 uF and
-// 220): its pink against its white then matches within 0.45 dB from 125 Hz to
-// 12.7 kHz. The third-order network is integrated with the bilinear transform.
+// Pink: R16 10K from Q4 into two series RC branches (C3 .12 uF with R8 3.3K,
+// C2 .033 uF with R13 220) and, through C1 2.5 uF, the base of the amplifier
+// Q3. Q3's input resistance (its beta of about 210 times R1 120 and its own
+// emitter resistance, beside R7 560K: 29K) and its gain (R3 3.3K beside R12
+// 10K and the outputs' loads, over R1: 15) follow from the drawn values. The
+// third-order network is integrated with the bilinear transform.
 //
-// Red noise (board 3, circuit 3, pin 2): the pink noise through R12 10k into
-// C7 0.15 uF (one pole at 106 Hz), buffered by the emitter follower Q6. It
-// only feeds the modulation bus (see Voice: the WHITE / PINK switch selects
-// white or pink for the mixer, and pink or red for the MODULATION MIX).
+// Red noise: the pink noise through R12 10k into C7 0.15 uF (one pole at
+// 106 Hz), buffered by the follower Q6. It only feeds the modulation bus: the
+// WHITE / PINK switch selects white or pink for the mixer, and pink or red for
+// MODULATION MIX.
+//
+// The outputs are volts at the board's pins. The white noise's level is the
+// NOISE LEVEL trim: Voice sets it as the service manual does, for -5 dB at the
+// main output.
 
 #include "../components/Passives.h"
 
@@ -45,42 +47,35 @@
 namespace mm
 {
 
-/** The modulation path keeps the level its calibration gave the pink noise
-    before board 3's network replaced the generic one (whose pink was 19 dB
-    quieter): the noise reaching MODULATION MIX is unchanged in RMS. */
-inline constexpr double pinkToModulationScale = 0.0943 / 0.7778; // pink RMS before / after (192 kHz)
-
 class NoiseSource
 {
 public:
-    /** Gain from the pink / red noise outputs to the MODULATION MIX input.
-        Oscillator 3 and the noise enter MODULATION MIX through equal 24k
-        resistors (Fig. 9-8, circuit 15), so the noise is meant to be of the
-        same order as oscillator 3. The noise outputs' levels are not
-        documented: this gain puts the pink noise at about 0.4 times
-        oscillator 3's peak there (0.68 V rms against 1.7 V); the red noise
-        keeps its physical level relative to the pink (about half). */
-    static constexpr double modulationGain = 11.0 * (1.7 / 2.5) * pinkToModulationScale;
-
     void prepare (double sampleRate, uint64_t seed) noexcept
     {
         fs = sampleRate;
         rng.reseed (seed);
-        // Amplifier bandwidth ~ 40 kHz (one pole)
-        ampCoeff = 1.0 - std::exp (-2.0 * M_PI * std::fmin (40000.0, 0.45 * fs) / fs);
+        // Amplifier bandwidth ~ 40 kHz (one pole). The generator's samples are
+        // scaled so that the white noise has the same density, hence the same
+        // level in that bandwidth, at every sample rate.
+        const double fc = std::fmin (40000.0, 0.45 * fs);
+        ampCoeff = 1.0 - std::exp (-2.0 * M_PI * fc / fs);
+        density = std::sqrt (0.5 * fs / (0.5 * M_PI * fc));
         // Flicker component: leaky integrator corner ~ 20 Hz
         flickerCoeff = std::exp (-2.0 * M_PI * 20.0 / fs);
         makePinkNetwork();
         pinkState.fill (0.0);
         // Red noise: R12 10k / C7 0.15 uF low-pass (one pole)
         redCoeff = 1.0 - std::exp (-2.0 * M_PI * (1.0 / (2.0 * M_PI * 10.0e3 * 0.15e-6)) / fs);
-        // Output coupling capacitors (e.g. C28 10 uF into R59 100k: 0.16 Hz):
-        // no DC reaches the mixer or the modulation bus, so the rare popcorn
-        // steps and the slowest flicker die away instead of offsetting pitch.
-        const double rc = 10.0e-6 * 100.0e3;
-        dcCoeff = rc / (rc + 1.0 / fs);
+        // Output coupling capacitors: no DC reaches the mixer or the modulation
+        // bus, so the rare popcorn steps and the slowest flicker die away
+        // instead of offsetting pitch. Pink C20 and red C8 2.5 uF into about
+        // 25K (2.5 Hz); white C18 .15 uF into the NOISE VOLUME pot's 25K (42 Hz).
+        auto coupling = [this] (double c, double r) { const double rc = c * r; return rc / (rc + 1.0 / fs); };
+        dcCoeff = coupling (2.5e-6, 25.0e3);
+        dcWhiteCoeff = coupling (0.15e-6, 25.0e3);
     }
 
+    /** The white noise's level (V rms in the amplifier's bandwidth): the NOISE LEVEL trim. */
     void setWhiteLevel (double voltsRms) noexcept { level = voltsRms; }
 
     /** Produces one sample of white, pink and red noise (volts). */
@@ -91,7 +86,7 @@ public:
         if (rng.uniform() < 2.0e-6) popcorn = popcorn == 0.0 ? 0.03 : 0.0; // rare burst noise (small: it would dominate the pink / red outputs)
         const double raw = g + 0.15 * flicker + popcorn;
         amp += ampCoeff * (raw - amp);
-        white = level * amp;
+        white = level * density * amp;
 
         // Pink network, direct form II transposed
         const double pinkRaw = pinkB[0] * white + pinkState[0];
@@ -99,18 +94,18 @@ public:
         pinkState[1] = pinkB[2] * white - pinkA[2] * pinkRaw + pinkState[2];
         pinkState[2] = pinkB[3] * white - pinkA[3] * pinkRaw;
         redState += redCoeff * (pinkRaw - redState);
-        white = couple (dcWhite, white);
-        pink = couple (dcPink, pinkRaw);
-        red = couple (dcRed, redState);
+        white = couple (dcWhite, white, dcWhiteCoeff);
+        pink = couple (dcPink, pinkRaw, dcCoeff);
+        red = couple (dcRed, redState, dcCoeff);
     }
 
 private:
     struct Coupling { double x1 = 0.0, y1 = 0.0; };
 
     /** One-pole high-pass of an output coupling capacitor. */
-    double couple (Coupling& c, double x) const noexcept
+    static double couple (Coupling& c, double x, double coeff) noexcept
     {
-        const double y = dcCoeff * (c.y1 + x - c.x1);
+        const double y = coeff * (c.y1 + x - c.x1);
         c.x1 = x;
         c.y1 = y;
         return y;
@@ -121,8 +116,8 @@ private:
         transform. */
     void makePinkNetwork() noexcept
     {
-        constexpr double r16 = 10.0e3, r8 = 3.3e3, c3 = 0.12e-6, r13 = 510.0, c2 = 0.022e-6;
-        constexpr double c1 = 2.5e-6, rIn = 92.0e3, gain = 14.6;
+        constexpr double r16 = 10.0e3, r8 = 3.3e3, c3 = 0.12e-6, r13 = 220.0, c2 = 0.033e-6;
+        constexpr double c1 = 2.5e-6, rIn = 29.0e3, gain = 15.0;
         using P = std::array<double, 4>; // ascending powers of s
         auto mul1 = [] (const P& p, double t) { P r {}; for (int i = 0; i < 4; ++i) { r[size_t (i)] += p[size_t (i)]; if (i < 3) r[size_t (i + 1)] += t * p[size_t (i)]; } return r; };
         const double t1 = r8 * c3, t2 = r13 * c2, tb = rIn * c1;
@@ -163,9 +158,9 @@ private:
     Rng rng;
     std::array<double, 4> pinkB {}, pinkA {};
     std::array<double, 3> pinkState {};
-    double fs = 48000.0, ampCoeff = 1.0, flickerCoeff = 0.99;
+    double fs = 48000.0, ampCoeff = 1.0, flickerCoeff = 0.99, density = 1.0;
     double amp = 0.0, flicker = 0.0, popcorn = 0.0, level = 1.0;
-    double redCoeff = 0.0, redState = 0.0, dcCoeff = 1.0;
+    double redCoeff = 0.0, redState = 0.0, dcCoeff = 1.0, dcWhiteCoeff = 1.0;
     Coupling dcWhite, dcPink, dcRed;
 };
 

@@ -17,6 +17,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "Parameters.h"
+#include "circuit/blocks/FrontPanel.h"
 
 #include "circuit/blocks/ContourGen.h"
 #include "engine/PanelLaws.h"
@@ -62,7 +63,8 @@ std::unique_ptr<APF> cutoffPot (const char* pid, const juce::String& name, float
                                       .withValueFromStringFunction ([] (const juce::String& t) { return t.getFloatValue() + 5.0f; }));
 }
 
-/** Centre-detented pots (TUNE, osc 2/3 FREQUENCY), labelled -1..+1 / semitones. */
+/** Centre-detented pots: TUNE in semitones, oscillator 2 / 3 FREQUENCY in the
+    dial's marks (-7..+7 over the travel, about 8.4 semitones each way). */
 std::unique_ptr<APF> bipolar (const char* pid, const juce::String& name, float span, const juce::String& unit)
 {
     return std::make_unique<APF> (juce::ParameterID { pid, 1 }, name,
@@ -129,7 +131,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
     juce::AudioProcessorValueTreeState::ParameterLayout l;
 
     // Controllers
-    l.add (bipolar (id::tune, "Tune", 1.5f, "st"));
+    l.add (bipolar (id::tune, "Tune", 2.5f, "st"));
     l.add (pot (id::glide, "Glide", 0.0f));
     l.add (pot (id::modMix, "Modulation Mix", 0.0f));
     l.add (sw (id::oscMod, "Oscillator Modulation", false));
@@ -144,7 +146,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
         l.add (std::make_unique<APC> (juce::ParameterID { id::oscWave[i], 1 }, "Osc " + n + " Waveform",
                                       i == 2 ? waveNames3 : waveNames12, i == 2 ? 0 : 2));
         if (i > 0)
-            l.add (bipolar (id::oscFreq[i], "Osc " + n + " Frequency", 7.0f, "st"));
+            l.add (bipolar (id::oscFreq[i], "Osc " + n + " Frequency", 7.0f, ""));
         l.add (pot (id::oscVol[i], "Osc " + n + " Volume", i == 0 ? 10.0f : 6.0f));
         l.add (sw (id::oscOn[i], "Osc " + n + " On", i == 0));
     }
@@ -189,7 +191,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
                                   juce::AudioParameterFloatAttributes()
                                       .withStringFromValueFunction ([] (float v, int) { return juce::String (v, 1); })));
     l.add (std::make_unique<API> (juce::ParameterID { id::unitSeed, 1 }, "Unit", 1, 999, 1));
-    l.add (std::make_unique<API> (juce::ParameterID { id::bendRange, 1 }, "Bend Range", 1, 12, 5));
+    l.add (std::make_unique<API> (juce::ParameterID { id::bendRange, 1 }, "Bend Range", 1, 12, 7));
     // Modulation depth kept with the sound (the MOD. wheel is a performance
     // control and is not stored): the deeper of the two is used.
     l.add (pot (id::modAmount, "Modulation Amount", 0.0f));
@@ -240,7 +242,8 @@ void ParameterCache::read (PanelState& p) const noexcept
     auto pot01 = [] (const std::atomic<float>* a) { return double (a->load()) / 10.0; };
     auto on = [] (const std::atomic<float>* a) { return a->load() > 0.5f; };
 
-    p.tune = 0.5 + double (tune->load()) / 3.0;            // +/-1.5 st -> 0..1
+    // TUNE in semitones: the knob's whole travel is 5.4 on a nominal unit (FrontPanel.h)
+    p.tune = 0.5 + double (tune->load()) / (12.0 * (mm::FrontPanel::tuneOctaves (1.0) - mm::FrontPanel::tuneOctaves (0.0)));
     p.glide = pot01 (glide);
     p.modMix = pot01 (modMix);
     p.oscModulation = on (oscMod);
@@ -251,7 +254,7 @@ void ParameterCache::read (PanelState& p) const noexcept
         auto& o = p.osc[size_t (i)];
         o.range = Range (int (oscRange[i]->load()));
         o.wave = Waveform (int (oscWave[i]->load()));
-        o.frequency = i > 0 ? 0.5 + double (oscFreq[i]->load()) / 14.0 : 0.5; // +/-7 st -> 0..1
+        o.frequency = i > 0 ? 0.5 + double (oscFreq[i]->load()) / 14.0 : 0.5; // the dial's -7..+7 marks: the knob's travel
         o.volume = pot01 (oscVol[i]);
         o.on = on (oscOn[i]);
     }

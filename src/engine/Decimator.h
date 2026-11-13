@@ -19,7 +19,8 @@
 #pragma once
 // Cascaded half-band FIR decimators (factor 1, 2, 4 or 8). The circuit
 // simulation runs at the oversampled rate; this brings it back to the host
-// rate with > 90 dB rejection of the folded band.
+// rate with > 90 dB rejection of the folded band. The interpolator is the same
+// cascade the other way, for the external input.
 
 #include <array>
 #include <cmath>
@@ -58,6 +59,7 @@ public:
     }
 
     void reset() { std::fill (buffer.begin(), buffer.end(), 0.0); pos = 0; }
+    const std::vector<double>& coefficients() const noexcept { return coeffs; }
 
     /** Push two input samples, get one output sample. */
     double process (double a, double b) noexcept
@@ -123,6 +125,81 @@ public:
 private:
     std::array<HalfbandDecimator, 3> hb;
     std::vector<double> work;
+    int stages = 0;
+};
+
+/** Doubles the sample rate with a half-band FIR: one sample in, two out. Every
+    other output is the delayed input itself; the others are interpolated. */
+class HalfbandInterpolator
+{
+public:
+    /** `numTaps` must be of the form 4k+3. Kaiser-windowed sinc. */
+    void design (int numTaps, double kaiserBeta)
+    {
+        HalfbandDecimator prototype;
+        prototype.design (numTaps, kaiserBeta);
+        const auto& c = prototype.coefficients();
+        // The taps at odd distances from the centre, doubled (zero-stuffing
+        // halves the level): they interpolate the in-between samples.
+        half = (numTaps + 1) / 4;
+        odd.assign (size_t (2 * half), 0.0);
+        const int centre = numTaps / 2;
+        for (int i = 0; i < 2 * half; ++i)
+            odd[size_t (i)] = 2.0 * c[size_t (centre - (2 * half - 1) + 2 * i)];
+        history.assign (size_t (4 * half), 0.0);
+        pos = 0;
+    }
+    void reset() { std::fill (history.begin(), history.end(), 0.0); pos = 0; }
+
+    void process (double x, double& first, double& second) noexcept
+    {
+        const int n = 2 * half;
+        pos = (pos == 0 ? n : pos) - 1;
+        history[size_t (pos)] = x;
+        history[size_t (pos + n)] = x;
+        const double* h = history.data() + pos; // h[0] is the newest sample
+        first = h[half];                        // the input, delayed
+        double acc = 0.0;
+        for (int i = 0; i < n; ++i)
+            acc += odd[size_t (i)] * h[i];
+        second = acc;                           // half a sample later
+    }
+
+private:
+    std::vector<double> odd, history;
+    int half = 0, pos = 0;
+};
+
+class Interpolator
+{
+public:
+    /** factor = 1, 2, 4 or 8 */
+    void prepare (int factor)
+    {
+        stages = factor >= 8 ? 3 : factor >= 4 ? 2 : factor >= 2 ? 1 : 0;
+        // The first stage (closest to the host rate) does the steep work.
+        for (int s = 0; s < stages; ++s)
+            hb[size_t (s)].design (s == 0 ? 47 : 15, s == 0 ? 9.0 : 8.0);
+    }
+    void reset() { for (auto& h : hb) h.reset(); }
+
+    /** One input sample; writes factor() output samples. */
+    void process (double x, double* out) noexcept
+    {
+        out[0] = x;
+        int n = 1;
+        for (int s = 0; s < stages; ++s)
+        {
+            for (int i = 0; i < n; ++i)
+                hb[size_t (s)].process (out[i], work[size_t (2 * i)], work[size_t (2 * i + 1)]);
+            n *= 2;
+            for (int i = 0; i < n; ++i) out[i] = work[size_t (i)];
+        }
+    }
+
+private:
+    std::array<HalfbandInterpolator, 3> hb;
+    std::array<double, 8> work {};
     int stages = 0;
 };
 

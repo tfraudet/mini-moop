@@ -33,8 +33,10 @@
 // The top capacitor's voltage reaches the output through C5/C1 (a 15 Hz
 // high-pass into R31/R38) and the discrete gain recovery amplifier Q5-Q8
 // (FilterOutputStage, tabulated from ngspice): gain 68, asymmetric clipping.
-// The emphasis is taken from that output (R3/R7, C10, EMPHASIS, R73), so the
-// coupling and the clipping sit inside the feedback loop: g() is the output
+// The emphasis is taken from that output's load (the junction of R3 1K and R7
+// 180), through C10 10 uF and the EMPHASIS pot R14, to REGEN CAL R73, whose
+// wiper is the base of Q30, the bottom pair's other input. The coupling and
+// the clipping therefore sit inside the feedback loop: g() is the output
 // stage's transfer normalised to unit slope, solved with the rest.
 
 #include "FilterOutputStage.h"
@@ -55,17 +57,24 @@ struct LadderParams
     std::array<double, 5> offset {};  // Vbe mismatch of input pair + 4 ladder pairs (V)
     double beta       = 200.0;        // transistor current gain
     double inputGain  = 1.0;          // mixer node volts -> input pair: direct (base of Q29 over R54)
-    double kMax       = 14.2;         // emphasis feedback at full rotation: oscillation (k = 4.0) from 7.5/10
 
-    // EMPHASIS feedback path (board 4 pins 7 -> 6, front panel Fig. 9-16): the
-    // filter output, through C10 10 uF, feeds the wiper of R14 (50k reverse
-    // audio taper, wired as a rheostat: wiper and terminal 3, terminal 1 open);
-    // terminal 3 returns through R76 330 and the REGEN CAL trimmer R73 to the
-    // bottom pair. The feedback is the divider of R14's track (plus the output
-    // node's source resistance) against the bottom pair side (shunt, assumed).
-    double rEmphasisPot    = 50.0e3;  // R14
-    double rEmphasisSource = 180.0;   // output node (R7)
-    double rEmphasisShunt  = 800.0;   // R76 + part of R73 || pair input (assumed)
+    // EMPHASIS feedback path (Fig. 9-11, front panel Fig. 9-16). The output's
+    // load is R3 1K then R7 180 to the decoupled supply: their junction carries
+    // R7 / (R3 + R7) of the output and goes through C10 10 uF to pin 7, the
+    // wiper of R14 (50K reverse audio, used as a rheostat: wiper and terminal
+    // 3). Terminal 3 comes back on pin 6 to one end of REGEN CAL R73 (1K); the
+    // other end goes through R76 330 to the ladder's AC-grounded bias node, and
+    // R73's wiper is Q30's base. The loop gain is the output stage's gain times
+    //   R7 / (R3 + R7) * (R76 + t R73) / (R76 + R73 + R3 || R7 + R14)
+    // 0.20 at EMPHASIS 0 (ngspice on the whole board, tools/spice/vcf_op.cir:
+    // passband 56.7 for a stage gain of 68.0), 2.3 to 9.2 at 10 over the trim.
+    double rEmphasisPot  = 50.0e3;    // R14
+    double rLoadTop      = 180.0;     // R7
+    double rLoadBottom   = 1.0e3;     // R3
+    double rRegenFixed   = 330.0;     // R76
+    double rRegenCal     = 1.0e3;     // R73
+    double regenCal      = 0.73;      // R73's position: Voice's Regeneration Cal sets it (oscillation from EMPHASIS 7.5)
+    double kOverride     = -1.0;      // >= 0: this loop gain whatever the EMPHASIS position (tests)
     double outputTrim = 1.0;          // the output stage's gain against its nominal (part tolerances)
     double rBias      = 47.0e3;       // R31/R38: the followers' base bias, with C5/C1 the coupling high-pass
     double cCoupling  = 0.22e-6;      // C5/C1
@@ -77,11 +86,15 @@ struct LadderParams
         LadderParams p = nominal;
         for (auto& c : p.c)
             c = rng.tolerance (c, 0.10);          // 10 % film capacitors
-        for (auto& d : p.offset)                  // unmatched small-signal pairs: Is spread ~4 %
+        for (auto& d : p.offset)                  // "TIS97, Matched Pair" (Table 7-8): about 1 mV
             d = phys::thermalVoltage (298.15) * std::log (1.0 + 0.04 * rng.normal());
         p.beta = rng.tolerance (nominal.beta, 0.5);
         p.inputGain = rng.tolerance (nominal.inputGain, 0.02);
-        p.outputTrim = rng.tolerance (nominal.outputTrim, 0.03);
+        p.outputTrim = rng.tolerance (nominal.outputTrim, 0.07);  // the TIS97's gain bin (sensitivity.cir)
+        p.rEmphasisPot = rng.tolerance (nominal.rEmphasisPot, 0.20);
+        p.rLoadTop = rng.tolerance (nominal.rLoadTop, 0.05);
+        p.rLoadBottom = rng.tolerance (nominal.rLoadBottom, 0.05);
+        p.rRegenFixed = rng.tolerance (nominal.rRegenFixed, 0.05);
         return p;
     }
 };
@@ -98,7 +111,7 @@ public:
         update();
     }
 
-    void setParams (const LadderParams& params) noexcept { p = params; update(); }
+    void setParams (const LadderParams& params) noexcept { p = params; update(); setEmphasis (emphasis); }
     const LadderParams& params() const noexcept { return p; }
 
     void setTemperature (double kelvin) noexcept { vt = phys::thermalVoltage (kelvin); update(); }
@@ -107,50 +120,25 @@ public:
     void setCutoffCurrent (double amps) noexcept { iTail = std::fmax (amps, 1e-12); update(); }
 
     /** Emphasis pot position 0..1. */
-    void setEmphasis (double pos) noexcept { k = p.kMax * emphasisLaw (p, pos); }
+    void setEmphasis (double pos) noexcept { emphasis = pos; k = p.kOverride >= 0.0 ? p.kOverride : loopGain (p, pos); }
 
-    /** Feedback through the drawn EMPHASIS pot, relative to full rotation
-        (0..1): R14 track between wiper and terminal 3 = Rpot * audio(1 - pos)
-        for a reverse-audio pot, in a divider against the shunt resistance. */
-    static double emphasisLawDrawn (const LadderParams& p, double pos) noexcept
+    /** R14 between its wiper and terminal 3 (ohm) at a position 0..1: a
+        reverse audio pot, all of its track at 0 and none at 10. */
+    static double emphasisOhms (const LadderParams& p, double pos) noexcept
     {
-        auto feedback = [&p] (double a) {
-            const double series = p.rEmphasisPot * taper::audio (1.0 - a) + p.rEmphasisSource;
-            return p.rEmphasisShunt / (p.rEmphasisShunt + series);
-        };
-        const double a = std::fmin (std::fmax (pos, 0.0), 1.0);
-        return feedback (a) / feedback (1.0);
+        return p.rEmphasisPot * taper::audio (1.0 - std::fmin (std::fmax (pos, 0.0), 1.0));
     }
 
-    /** Feedback for an EMPHASIS position, relative to full rotation (0..1).
-        Up to 8.5, the loop gain at which the passband falls as the CA-72
-        project's hardware reference's does (its sessions E and J: -2.25, -9.53,
-        -10.43, -11.92, -12.50 and -14.67 dB at 2.5, 5, 6, 7, 7.5 and 8.5,
-        against EMPHASIS 0): k = (1 + k0) 10^(-drop/20) - 1, k0 the residual
-        feedback at 0; straight in k's logarithm between them. From 8.5 to 10
-        the drawn law's shape, scaled to meet it. */
-    static double emphasisLaw (const LadderParams& p, double pos) noexcept
+    /** The emphasis loop's gain for an EMPHASIS position 0..1: the feedback
+        path's ratio times the output stage's small-signal gain. The ladder
+        self-oscillates from about 4. */
+    static double loopGain (const LadderParams& p, double pos) noexcept
     {
-        static constexpr std::array<std::pair<double, double>, 6> drop { {
-            { 0.25, -2.25 }, { 0.5, -9.53 }, { 0.6, -10.43 }, { 0.7, -11.92 }, { 0.75, -12.50 }, { 0.85, -14.67 } } };
-        const double a = std::fmin (std::fmax (pos, 0.0), 1.0);
-        if (p.kMax <= 0.0)
-            return emphasisLawDrawn (p, a); // no feedback at all (tests)
-        const double k0 = p.kMax * emphasisLawDrawn (p, 0.0);
-        auto kAt = [k0] (double dB) { return (1.0 + k0) * std::pow (10.0, -dB / 20.0) - 1.0; };
-        double prevPos = 0.0, prevK = k0;
-        for (const auto& [x, dB] : drop)
-        {
-            const double kx = kAt (dB);
-            if (a <= x)
-                return prevK * std::pow (kx / prevK, (a - prevPos) / (x - prevPos)) / p.kMax;
-            prevPos = x;
-            prevK = kx;
-        }
-        // 8.5 .. 10: the drawn law's shape from k(8.5) to kMax
-        const double l0 = emphasisLawDrawn (p, prevPos);
-        const double f = (emphasisLawDrawn (p, a) - l0) / (1.0 - l0);
-        return (prevK + (p.kMax - prevK) * f) / p.kMax;
+        const double tap = p.rLoadTop / (p.rLoadTop + p.rLoadBottom);
+        const double source = p.rLoadTop * p.rLoadBottom / (p.rLoadTop + p.rLoadBottom);
+        const double lower = p.rRegenFixed + p.regenCal * p.rRegenCal;
+        const double divider = lower / (p.rRegenFixed + p.rRegenCal + source + emphasisOhms (p, pos));
+        return stageGain * p.outputTrim * tap * divider;
     }
 
     void reset() noexcept
@@ -295,7 +283,7 @@ private:
     Rng rng;
     double fs = 48000.0, h = 1.0 / 48000.0;
     double vt = phys::thermalVoltage (298.15);
-    double iTail = 1.0e-5, k = 0.0;
+    double iTail = 1.0e-5, k = 0.0, emphasis = 0.0;
     int maxIter = 8;
     std::array<double, 4> s {}, u {}, fOld {};
 };

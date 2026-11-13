@@ -19,23 +19,29 @@
 #pragma once
 // Oscillator core and waveshapers (CA3046-era oscillator board).
 //
-// Core: the expo converter sinks current I from a 0.01 uF polystyrene timing
-// capacitor; the ramp runs over ~5 V until a comparator with a little
-// positive feedback fires and a FET discharges the capacitor back to its
-// start level. The reset is not instantaneous: comparator delay + FET
+// Core (service manual 2.16): the expo converter sinks current I from the
+// 0.01 uF polystyrene timing capacitor C1; the ramp runs from 0 to -4 V, where
+// the Schmitt trigger Q5 / Q6 fires and Q10 discharges the capacitor. A x2 FET
+// amplifier turns it into the +4 to -4 V sawtooth on Q3's collector. The reset is not instantaneous: comparator delay + FET
 // discharge give a dead time t_reset during which the ramp is held, which
 // makes the high octaves go flat (compensated by the HF trimmer).
 //
 //   period = C * dV / I + t_reset
 //
-// Waveshapers (from the buffered sawtooth):
-//   triangle    : transistor fold of the sawtooth (rounded fold point)
+// Waveshapers (from the buffered sawtooth), each with the level Fig. 9-3 gives:
+//   sawtooth    : Q3's collector through R34 4300 / R33 4700: +/-2.09 V
+//   triangle    : transistor fold of the sawtooth by Q2 (rounded fold point),
+//                 follower Q1 and R28 / R23: "+1.7 TO -1.7V"
 //   sharktooth  : sawtooth and triangle mixed through the front panel's R030
 //                 47K and R031 10K (drawing 1448, Table 7-2), against the
 //                 board's output dividers (osc 1, 2): 18 % sawtooth
-//   reverse saw : inverted sawtooth (osc 3 instead of sharktooth)
-//   rectangles  : comparator against the sawtooth at three thresholds
-//                 (~50 %, ~30 %, ~15 %), slew-limited output stage
+//   reverse saw : sawtooth inverted by Q37 (osc 3 instead of sharktooth):
+//                 "+1.7 TO -1.7V LOADED"
+//   rectangles  : Schmitt trigger Q11 / Q12 on the sawtooth (R1 43K) summed with
+//                 a bias (R40 43K) that the WAVEFORM switch takes from -10 V,
+//                 R32 7.5K, R33 1K, R34 1.5K, ground (Fig. 9-16): 0, -1.5 and
+//                 -2.5 V, widths of 50, 31 and 19 % ("from a 50 percent to a 15
+//                 percent duty cycle", 2.16); "(3.5V)" peak to peak
 //
 // Discontinuities are located with sub-sample precision and band-limited
 // with a windowed-sinc kernel (BlepLine): value jumps (the ramp's reset, the
@@ -66,15 +72,18 @@ struct VcoParams
     double c          = 0.01e-6;   // timing capacitor, polystyrene 2 %
     double swing      = 4.0;       // ramp amplitude across the capacitor: 0 to -4 V (Fig. 9-3)
     double tReset     = 1.6e-6;    // reset dead time (s)
-    double outPeak    = 1.7;       // waveshaper output peak: triangle +1.7 to -1.7 V, rectangle 3.5 Vpp (Fig. 9-3)
+    double sawPeak    = 4.0 * 4.7e3 / 9.0e3; // sawtooth: +/-4 V through R34 4300 / R33 4700 (Fig. 9-3), unloaded
+    double triPeak    = 1.7;       // triangle: "+1.7 TO -1.7V" (Fig. 9-3)
+    double rectPeak   = 1.75;      // rectangle: "(3.5V)" peak to peak (Fig. 9-3)
+    double revSawPeak = 1.7;       // oscillator 3's reverse sawtooth: "+1.7 TO -1.7V LOADED" (Fig. 9-3)
     double foldRound  = 0.03;      // triangle fold rounding (fraction of swing)
     double rSawOut    = 4.3e3 * 4.7e3 / 9.0e3; // sawtooth output divider R34 / R33 (Fig. 9-3): its source resistance
     double rTriOut    = 750.0 * 8.2e3 / 8.95e3; // triangle output, R28 / R23 behind Q1 (Fig. 9-3)
     double rSharkSaw  = 47.0e3;    // R030: sawtooth into the shark tooth (drawing 1448, Table 7-2, 5 %)
     double rSharkTri  = 10.0e3;    // R031: triangle into the shark tooth
     double thrSquare  = 0.0;       // comparator thresholds, normalised ramp
-    double thrWide    = -0.4;
-    double thrNarrow  = -0.7;
+    double thrWide    = -0.375;    // -1.5 V of bias against the +/-4 V sawtooth: 31 %
+    double thrNarrow  = -0.625;    // -2.5 V: 19 %
     double pulseSlew  = 2.0e6;     // V/s of the rectangle output stage
     double thrJitter  = 4.0e-5;    // comparator noise (normalised), per cycle
 
@@ -253,17 +262,16 @@ public:
     /** Waveshaper output for a normalised ramp position (volts). */
     double shape (double r) const noexcept
     {
-        const double a = p.outPeak;
         switch (wave)
         {
-            case Waveform::Triangle:    return a * triangle (r);
+            case Waveform::Triangle:    return p.triPeak * triangle (r);
             case Waveform::SharkTooth:
-                if (osc3) return -a * r; // reverse sawtooth
-                return a * ((1.0 - p.sharkMix()) * triangle (r) + p.sharkMix() * r);
-            case Waveform::Sawtooth:    return a * r;
+                if (osc3) return -p.revSawPeak * r; // reverse sawtooth
+                return (1.0 - p.sharkMix()) * p.triPeak * triangle (r) + p.sharkMix() * p.sawPeak * r;
+            case Waveform::Sawtooth:    return p.sawPeak * r;
             case Waveform::Square:
             case Waveform::WideRect:
-            case Waveform::NarrowRect:  return r >= pulseThreshold() ? a : -a;
+            case Waveform::NarrowRect:  return r >= pulseThreshold() ? p.rectPeak : -p.rectPeak;
         }
         return 0.0;
     }
@@ -272,14 +280,13 @@ private:
     /** d(shape)/d(ramp) at `r`, volts per ramp unit. */
     double slope (double r) const noexcept
     {
-        const double a = p.outPeak;
         switch (wave)
         {
-            case Waveform::Triangle:    return a * triangleSlope (r);
+            case Waveform::Triangle:    return p.triPeak * triangleSlope (r);
             case Waveform::SharkTooth:
-                if (osc3) return -a;
-                return a * ((1.0 - p.sharkMix()) * triangleSlope (r) + p.sharkMix());
-            case Waveform::Sawtooth:    return a;
+                if (osc3) return -p.revSawPeak;
+                return (1.0 - p.sharkMix()) * p.triPeak * triangleSlope (r) + p.sharkMix() * p.sawPeak;
+            case Waveform::Sawtooth:    return p.sawPeak;
             case Waveform::Square:
             case Waveform::WideRect:
             case Waveform::NarrowRect:  return 0.0;
@@ -293,8 +300,8 @@ private:
         const double e = p.foldRound;
         const double peak = std::sqrt (1.0 + e * e) - e;
         const double tri = 2.0 * side / peak;
-        const double a = p.outPeak;
-        return wave == Waveform::Triangle ? a * tri : a * (1.0 - p.sharkMix()) * tri + a * p.sharkMix();
+        return wave == Waveform::Triangle ? p.triPeak * tri
+                                          : (1.0 - p.sharkMix()) * p.triPeak * tri + p.sharkMix() * p.sawPeak;
     }
 
     bool hasFold() const noexcept { return wave == Waveform::Triangle || (wave == Waveform::SharkTooth && ! osc3); }

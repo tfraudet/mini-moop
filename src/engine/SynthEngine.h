@@ -75,17 +75,19 @@ private:
     std::array<Voice, maxVoices> voices;
     VoiceAllocator alloc;
     Decimator decimator;
+    Interpolator interpolator;
     PanelState panel, target;
-    bool panelInitialised = false;
+    bool panelInitialised = false, built = false;
+    uint64_t builtSeed = 0;
     double smoothCoeff = 0.1;
     static constexpr int smoothChunk = 16; // host samples per smoothing step
     std::vector<double> osBuffer, extBuffer;
     double hostRate = 48000.0;
     int osFactor = 4, maxBlock = 512;
     double dcState = 0.0, dcPrevIn = 0.0, dcCoeff = 0.9995;
-    double refPhase = 0.0;
+    double refPhase = 0.0, refHz = 440.0;
+    static constexpr double a440Peak = 0.775 * 0.3981 * 1.41421356; // -8 dB re 0.775 V rms, as a sine's peak (V at the jack)
     double polyGain = 1.0; // 1/sqrt(voices) in poly mode: a full chord stays below full scale
-    float lastIn = 0.0f;
     double lamp = 0.0;
 };
 

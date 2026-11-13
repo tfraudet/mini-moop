@@ -94,12 +94,19 @@ namespace taper
 {
 inline double linear (double p) noexcept { return p; }
 
-/** "Audio" (log) taper as built by carbon-track manufacturers: two linear
-    segments, 10 % of resistance at half rotation (type A, 10 %). */
+/** "Audio" (logarithmic) taper: resistance from the counter-clockwise end,
+    (b^p - 1) / (b - 1), with `midFraction` of the track at half rotation
+    (b = ((1 - m) / m)^2; 10 % gives b = 81). The drawings only name the
+    tapers ("AUDIO", "REV. AUDIO", "No. 1 TAPER"); 10 % at half rotation is the
+    usual figure for the period's carbon pots, and it puts EMPHASIS's
+    oscillation threshold within REGEN CAL's range (LadderFilter.h). A reverse
+    audio pot is 1 - audio (1 - p) from the same end. */
 inline double audio (double p, double midFraction = 0.10) noexcept
 {
-    return p < 0.5 ? p * 2.0 * midFraction
-                   : midFraction + (p - 0.5) * 2.0 * (1.0 - midFraction);
+    const double x = p < 0.0 ? 0.0 : p > 1.0 ? 1.0 : p;
+    const double r = (1.0 - midFraction) / midFraction;
+    const double b = r * r;
+    return (std::pow (b, x) - 1.0) / (b - 1.0);
 }
 
 /** Smooth exponential approximation of a log taper (for time constants). */
