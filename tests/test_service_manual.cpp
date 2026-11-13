@@ -154,7 +154,7 @@ TEST_CASE ("5.31-5.33 Oscillator range and scale: 3520 Hz on high A, 440 Hz on l
     }
 }
 
-TEST_CASE ("5.34 Octave adjust: oscillator 1 at 16' is three octaves below 2'; LO is 4.75 octaves below 32'", "[manual][vco]")
+TEST_CASE ("Octave adjust (Folkman; 5.34): oscillator 1 at 8' is two octaves below 2'; LO is 4.75 octaves below 32'", "[manual][vco]")
 {
     CHECK (FrontPanel::rangeOctaves[0] == Approx (-6.75));
     for (uint64_t unit : { 1ull, 2ull, 3ull, 4ull })
@@ -162,14 +162,18 @@ TEST_CASE ("5.34 Octave adjust: oscillator 1 at 16' is three octaves below 2'; L
         Voice v;
         v.build (unit);
         INFO ("unit " << unit);
-        // "Set OSCILLATOR-1 RANGE switch to the 16' position ... zero beats"
-        CHECK ((v.rangeOctaves (0, Range::Ft2) - v.rangeOctaves (0, Range::Ft16)) * 1200.0 == Approx (3600.0).margin (1.0));
-        // The other steps and oscillators: the matched resistors' mismatch
+        // Folkman: "Switch RANGE to 8 ft. Depress same key and adjust Octave
+        // Range trimpot ... for zero beats" (the service manual's 5.34 uses 16')
+        CHECK ((v.rangeOctaves (0, Range::Ft2) - v.rangeOctaves (0, Range::Ft8)) * 1200.0 == Approx (2400.0).margin (1.0));
+        // The other steps and oscillators: the matched resistors' mismatch (the
+        // RNG inputs to 0.1 %: up to about 2.5 cents an octave away from 2')
         for (int osc = 0; osc < 3; ++osc)
         {
-            INFO ("oscillator " << osc + 1 << ": 8' " << v.rangeOctaves (osc, Range::Ft8) * 1200.0 << " cents, 32' "
+            INFO ("oscillator " << osc + 1 << ": 8' " << v.rangeOctaves (osc, Range::Ft8) * 1200.0 << " cents, 16' "
+                  << v.rangeOctaves (osc, Range::Ft16) * 1200.0 + 1200.0 << ", 32' "
                   << v.rangeOctaves (osc, Range::Ft32) * 1200.0 + 2400.0);
             CHECK (v.rangeOctaves (osc, Range::Ft8) * 1200.0 == Approx (0.0).margin (5.0));
+            CHECK (v.rangeOctaves (osc, Range::Ft16) * 1200.0 == Approx (-1200.0).margin (7.5));
             CHECK (v.rangeOctaves (osc, Range::Ft32) * 1200.0 == Approx (-2400.0).margin (10.0));
             // R29 4.75K 1 % against the 1K steps
             CHECK (v.rangeOctaves (osc, Range::Ft32) - v.rangeOctaves (osc, Range::Lo) == Approx (4.75).epsilon (0.012));

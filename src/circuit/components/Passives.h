@@ -82,6 +82,17 @@ public:
         return nominal * (1.0 + d);
     }
 
+    /** The same for an asymmetric rating, -`below` to +`above` (aluminium
+        electrolytics: "+50/-10%"): normal about the middle of the range, its
+        ends at 2 sigma, clipped to them. */
+    double tolerance (double nominal, double below, double above) noexcept
+    {
+        const double mid = 0.5 * (above - below), half = 0.5 * (above + below);
+        double d = mid + 0.5 * half * normal();
+        d = std::fmax (-below, std::fmin (above, d));
+        return nominal * (1.0 + d);
+    }
+
 private:
     static uint64_t rotl (uint64_t x, int k) noexcept { return (x << k) | (x >> (64 - k)); }
     uint64_t s[4] {};

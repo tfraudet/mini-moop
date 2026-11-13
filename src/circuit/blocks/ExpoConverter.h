@@ -25,10 +25,12 @@
 // array (IC2) at ambient temperature, compensated by a 1 kohm +3500 ppm/K
 // tempco resistor (R20) in the feedback of the 741 CV summer IC1, keyboard
 // input R27 = 51.1 kohm 1 %. The reference transistor's collector current is
-// set by R50 = 39 kohm from ground, with its collector held at -4 V by IC3.
-// Not modelled: revision 1 (discrete 2N4058 PNP pairs, no tempco) and
-// revision 3 (heated uA726 at 80 degC, serial 10175 and above), nor the
-// 94-001 modification kit.
+// set by R50 = 39 kohm from ground, with its collector held by IC3 on the
+// "-4 V" line: the divider R166 6.2K / R174 3.9K from -10 V, -3.86 V. The
+// board is modelled as Fig. 9-3 draws it, with the 94-001 kit fitted (R69
+// 15K, R78's RC network, R181 51K, R170 15K 1 %). Not modelled: revision 1
+// (discrete 2N4058 PNP pairs, no tempco) and revision 3 (heated uA726 at
+// 80 degC, serial 10175 and above).
 //
 //   Iout = Is_out * exp((Vbe_ref + dVbe - Iout*rE) / Vt)
 //   Vbe_ref = Vt * ln(Iref / Is_ref) + Iref*rE
@@ -56,7 +58,7 @@ namespace mm
 
 struct ExpoConverterParams
 {
-    double iRef       = 4.0 / 39.0e3; // reference current: -4 V across R50 = 39 kohm (~103 uA)
+    double iRef       = 10.0 * 3.9e3 / (6.2e3 + 3.9e3) / 39.0e3; // the "-4 V" line (R166 / R174: -3.86 V) across R50 39K: 99 uA
     double isRef      = 6.734e-15; // saturation current of reference transistor
     double isMismatch = 1.0;       // Is_out / Is_ref
     double rE         = 4.7;       // the pair's emitter resistance and base resistance over beta, with R7 (ohm):
@@ -64,10 +66,13 @@ struct ExpoConverterParams
     double rIn        = 51.1e3;    // CV input resistor (R27 keyboard input, 51.1 kohm 1 %)
     double rTc        = 1.0e3;     // tempco resistor R20 at 25 °C
     double tcPpm      = 3500.0;    // tempco coefficient
+                                   // (R20 / R71 / R119: "1K Ohm, +/-3%, 1W, Temperature Compensating", Table 7-5)
     double hfTrim     = 1.0e3 * 51.1e3 / 160.0e3; // R42's compensation: R79 R27 / R42, V of CV per A of Iout
 
-    /** Draws component tolerances (1 % metal film input resistors, 5 % carbon
-        R50, transistor pair matched to about 2 % in Is, emitter resistance spread). */
+    /** Draws component tolerances (Table 7-5: 1 % metal film input resistors,
+        R20 3 %, R50 and the -4 V divider 5 %; the CA3046's two transistors,
+        on one die, 1 % rms in Is, a quarter of a millivolt; the emitter
+        resistance's spread). */
     static ExpoConverterParams drawn (Rng& rng, const ExpoConverterParams& nominal) noexcept
     {
         ExpoConverterParams p = nominal;
@@ -75,8 +80,8 @@ struct ExpoConverterParams
         p.rE   = rng.tolerance (nominal.rE, 0.15);
         p.hfTrim = rng.tolerance (nominal.hfTrim, 0.07); // R79 and R42, 5 % each
         p.rIn  = rng.tolerance (nominal.rIn, 0.01);
-        p.rTc  = rng.tolerance (nominal.rTc, 0.05);
-        p.iRef = rng.tolerance (nominal.iRef, 0.05);
+        p.rTc  = rng.tolerance (nominal.rTc, 0.03);
+        p.iRef = rng.tolerance (nominal.iRef, 0.07); // R50, and R166 / R174 for the -4 V line
         return p;
     }
 };

@@ -57,7 +57,7 @@ If the link step fails with "linking with album file" after a Command Line Tools
 
 ```
 src/circuit/components   Component models: diode, BJT (Ebers-Moll/Gummel-Poon, as in SPICE),
-                         741/301 op-amp (GBW, slew, ±10 V rails), potentiometers (tapers), tolerances,
+                         741/301 op-amp (GBW, slew, ±10 V rails; not used by the blocks yet), potentiometers (tapers), tolerances,
                          band-limited steps and ramps (BLEP / BLAMP)
 src/circuit/solver       MnaCircuit<N>: modified nodal analysis + Newton-Raphson + pnjlim limiting
                          (used by the tests to check the device models against ngspice)
@@ -83,7 +83,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Check | Manual | Simulated units |
 |---|---|---|
 | Oscillator range and scale (5.31 to 5.33; Folkman) | 3520 Hz on high A and 440 Hz on low A with RANGE at 2' | within 2 cents on both; a few cents in between and up to about 10 cents in the low octaves, unit by unit |
-| Octave adjust (5.34) | oscillator 1 at 16' zero-beats three octaves below 2' | within 1 cent; the other steps and oscillators within 5 to 10 cents; LO 4.75 octaves below 32' |
+| Octave adjust (Folkman; 5.34) | oscillator 1 at 8' zero-beats two octaves below 2' (the later 5.34 uses 16') | within 1 cent; the other steps and oscillators within 5 to 10 cents; LO 4.75 octaves below 32' |
 | Range of TUNE and FREQUENCY (5.35) | 4 to 6 and 14 to 17 semitones | 5.4 and 16.8 with nominal pots (15 to 18 with 20 % pots) |
 | Oscillator 3 wide range (5.36) | OSC. 3 CONTROL off, LO, FREQUENCY at minimum: a click every 2 to 5 s; the keyboard has no effect; LO overlaps 32' | a click every 3 to 3.5 s; FREQUENCY spans 6 octaves |
 | Modulation of the oscillators (5.37) | 13 to 23 semitones with the MOD wheel fully up | 18.9 |
@@ -149,7 +149,7 @@ Each voice draws its own component values from the "Unit" seed, then is **calibr
 | Trimmer | Procedure (service manual section 5; R. J. Folkman's field service manual) |
 |---|---|
 | Oscillator RANGE (R11) and SCALE (R8), each oscillator | RANGE at 2': 3520 Hz on high A, 440 Hz on low A, repeated. The old board has no high-frequency trimmer: its compensation is the fixed R42 |
-| OCTAVE (R168) | oscillator 1 at 16', high A against the A-440. The other steps and oscillators keep the mismatch of their matched resistors |
+| OCTAVE (R168) | Folkman's procedure: oscillator 1 at 2', the second A tuned to the A-440 with TUNE, then at 8' the same key zero-beaten by the trimmer (the later service manual, 5.34, uses 16'). The other steps and oscillators keep the mismatch of their matched resistors |
 | REGEN CAL (R73) | the filter starts to sing at EMPHASIS 7.5 with CUTOFF at -1 |
 | Filter SCALE (R49) | KEYBOARD CONTROL 1 and 2 on: two octaves of keys for two octaves of the singing filter |
 | Filter RANGE (R39) | KEYBOARD CONTROL off, CUTOFF at -1, EMPHASIS at 10: zero beats with the A-440 |
@@ -168,7 +168,7 @@ The oscillator board (board 1) exists in three revisions, and they do not drift 
 | **2, "old board"** | **1237 to 10174** | **RCA CA3046 transistor array at ambient temperature, 1 kΩ +3500 ppm/K tempco resistor (Fig. 9-3, 9-4)** | **yes** |
 | 3, "new board" | 10175 and above | Fairchild µA726 heated pair held at about 80 °C, no tempco (Fig. 9-1, 9-2) | no |
 
-Mini Moop models revision 2 as Fig. 9-3 draws it, that is with the 94-001 kit fitted (R69 / R105 / R141 15 kΩ, the RC networks at R78 / R106 / R128, R181 51 kΩ, R170 15 kΩ 1 %). Each oscillator has a 741 CV summer (IC1, IC4, …) working around the −5 V reference, with a 1 kΩ tempco resistor in its feedback (R20, R71, …) and 51.1 kΩ 1 % inputs (R27, …). It drives the CA3046 expo pair (IC2), whose reference transistor current is set by R50 = 39 kΩ with its collector held at −4 V by a 741 (IC3), about 103 µA. The pair sits at the temperature of the board, and the drift that results is what `DriftModel` reproduces. The front panel is Fig. 9-16's, with the octave buffer board.
+Mini Moop models revision 2 as Fig. 9-3 draws it, that is with the 94-001 kit fitted (R69 / R105 / R141 15 kΩ, the RC networks at R78 / R106 / R128, R181 51 kΩ, R170 15 kΩ 1 %). Each oscillator has a 741 CV summer (IC1, IC4, …) working around the −5 V reference, with a 1 kΩ tempco resistor in its feedback (R20, R71, …) and 51.1 kΩ 1 % inputs (R27, …). It drives the CA3046 expo pair (IC2), whose reference transistor current is set by R50 = 39 kΩ with its collector held by a 741 (IC3) on the "−4 V" line, the divider R166 6.2 kΩ / R174 3.9 kΩ from −10 V (−3.86 V): about 99 µA. The pair sits at the temperature of the board, and the drift that results is what `DriftModel` reproduces. The front panel is Fig. 9-16's, with the octave buffer board.
 
 ### The six boards and the blocks that simulate them
 
@@ -208,7 +208,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Parameter | Value | Source |
 |---|---|---|
 | Summer inputs | keyboard, modulation, external 51.1 kΩ 1 %; BEND 150 kΩ; TUNE 560 kΩ; RNG 15 kΩ 1 %; feedback R20 1 kΩ +3500 ppm/K | Moog (Fig. 9-3) |
-| Reference current | −4 V across R50 39 kΩ (≈103 µA) | Moog (Fig. 9-3) |
+| Reference current | the "−4 V" line (R166 / R174 from −10 V: −3.86 V) across R50 39 kΩ (≈99 µA) | Moog (Fig. 9-3) |
 | High-frequency compensation | R42 160 kΩ from the tail's R79 1 kΩ to the summing node: 319 V of control voltage per ampere, not adjustable | Moog (Fig. 9-3; 2.16) |
 | The pair's emitter and base resistance | 4.7 Ω ± 15 %: what that compensation, less the reset time's share, cancels on a nominal unit | Assumed |
 | CA3046 transistors: saturation current | 6.734 fA (generic; the trims absorb it) | Other |
@@ -244,7 +244,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Parameter | Value | Source |
 |---|---|---|
 | Ladder capacitors | 4 × 68 nF ±10 % (C3, C7, C11, C16) | Moog (Fig. 9-11) |
-| Ladder transistors | TIS97 matched pairs: about 1 mV of offset; current gain 200 ± 50 %; input noise 2 µV rms | Moog (Table 7-8) / Other / Assumed (noise) |
+| Ladder transistors | TIS97 matched pairs: about 1 mV of offset; current gain 440 (bin 250 to 700); input noise 2 µV rms | Moog (Table 7-8) / Other / Assumed (noise) |
 | CUTOFF | R11 5 kΩ linear between +10 V and −10 V through R55 200 kΩ to the control node, where 100 kΩ is an octave a volt: 10 octaves over the dial, an octave a mark ("approximately 2 divisions" for two octaves, 5.18). 440 Hz at −1 by Filter Range: 27.5 Hz to 28 kHz | Moog (Fig. 9-16, 9-11; 5.13, 5.18; Folkman) |
 | KEYBOARD CONTROL | R53 300 kΩ and R54 150 kΩ (5 %): 1/3 and 2/3, together the octave a volt that Filter Scale trims | Moog (Fig. 9-16; 5.14, 5.15) |
 | Keyboard voltage zero | the lowest key, F (MIDI 41) | Moog (Fig. 9-7: the key string's grounded end) |
@@ -321,7 +321,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Supply rails | ±10 V (ideal) | Moog |
 | Potentiometer tapers | linear as named; "audio" and "reverse audio": logarithmic law with 10 % of the track at half rotation | Moog (the names, Table 7-3); Assumed (the law) |
 | BJT and diode models | Ebers-Moll / Gummel-Poon as in SPICE; `tools/spice/models.lib`: only the type and the gain bin are from data sheets | Other |
-| Tolerances | rated values where the drawing gives them (1 %, 10 %, matched sets); otherwise 5 % resistors, 20 % pots and electrolytics | Moog / Other |
+| Tolerances | rated values where the drawing or the parts lists give them (1 %, 10 %, matched sets, R20's 3 %, the contours' electrolytics "+50/−10 %", Tables 7-5 to 7-8); otherwise 5 % resistors, 20 % pots and electrolytics | Moog / Other |
 | Board temperatures and drift (`DriftModel`) | time constants, amplitudes; within the specification's "short term oscillator stability: better than 0.25 %" at Drift 1 | Assumed |
 | Pitch wheel | its range is the Bend setting (default 7 semitones each way). The manual asks for 13 to 17 semitones over the travel (5.35); the drawn network (R1403 25 kΩ, "90° rotation used", R12 150 kΩ) comes to 11 to 12 | Moog (5.35) / Assumed |
 

@@ -55,7 +55,7 @@ struct LadderParams
 {
     std::array<double, 4> c { 0.068e-6, 0.068e-6, 0.068e-6, 0.068e-6 }; // ladder capacitors (F)
     std::array<double, 5> offset {};  // Vbe mismatch of input pair + 4 ladder pairs (V)
-    double beta       = 200.0;        // transistor current gain
+    double beta       = 440.0;        // the TIS97's current gain (tools/spice/models.lib; its bin is 250 to 700)
     double inputGain  = 1.0;          // mixer node volts -> input pair: direct (base of Q29 over R54)
 
     // EMPHASIS feedback path (Fig. 9-11, front panel Fig. 9-16). The output's
@@ -88,7 +88,7 @@ struct LadderParams
             c = rng.tolerance (c, 0.10);          // 10 % film capacitors
         for (auto& d : p.offset)                  // "TIS97, Matched Pair" (Table 7-8): about 1 mV
             d = phys::thermalVoltage (298.15) * std::log (1.0 + 0.04 * rng.normal());
-        p.beta = rng.tolerance (nominal.beta, 0.5);
+        p.beta = rng.tolerance (nominal.beta, 0.43, 0.59); // the gain bin, 250 to 700
         p.inputGain = rng.tolerance (nominal.inputGain, 0.02);
         p.outputTrim = rng.tolerance (nominal.outputTrim, 0.07);  // the TIS97's gain bin (sensitivity.cir)
         p.rEmphasisPot = rng.tolerance (nominal.rEmphasisPot, 0.20);
@@ -277,7 +277,7 @@ private:
         }
     }
 
-    static constexpr double stageGain = -FilterOutputStage::smallSignalGain; // 68.3: g() has unit slope
+    static constexpr double stageGain = -FilterOutputStage::smallSignalGain; // 68.0: g() has unit slope
     LadderParams p;
     double hpB = 1.0, hpC = 1.0, hpIn = 0.0, hpOut = 0.0;
     Rng rng;

@@ -101,7 +101,7 @@ struct ContourParams
     static ContourParams drawn (Rng& rng, const ContourParams& nominal) noexcept
     {
         ContourParams p = nominal;
-        p.c          = rng.tolerance (nominal.c, 0.20);   // aluminium electrolytic: 20 %
+        p.c          = rng.tolerance (nominal.c, 0.10, 0.50); // C2 / C5: "10uf, +50/-10%" (Table 7-6)
         p.rAttackPot = rng.tolerance (nominal.rAttackPot, 0.20); // carbon pots: 20 %
         p.rDecayPot  = rng.tolerance (nominal.rDecayPot, 0.20);
         p.rMin       = rng.tolerance (nominal.rMin, 0.05);

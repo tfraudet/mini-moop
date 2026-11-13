@@ -83,7 +83,7 @@ struct PanelState
 
     // Non-original
     bool feedbackPatch = false;     // output patched into EXTERNAL INPUT
-    double bendRange = 5.0;         // semitones
+    double bendRange = 7.0;         // semitones each way: Fig. 9-2's "+/-5TH", as the plug-in's default
     double drift = 1.0;             // 0..3
     double modAmount = 0.0;         // 0..1, stored modulation depth (acts as a minimum MOD. wheel position)
 

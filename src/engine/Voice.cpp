@@ -170,10 +170,13 @@ void Voice::drawPanel (Rng& rng)
 {
     // RANGE: the octave string and each oscillator's 15K RNG input (R43, R52,
     // R179: a matched set, like R25..R28). The OCTAVE trimmer scales the whole
-    // string: "Set OSCILLATOR-1 RANGE switch to the 16' position. Depress and
-    // hold high A while adjusting OCTAVE SCALE ... for zero beats" (5.34), the
-    // oscillators having been tuned at 2'. What the other steps and the other
-    // two oscillators then show is the parts' mismatch.
+    // string. Folkman's procedure (7/73, the revision 2 board's time):
+    // "Turn OSCILLATOR 1 Mixer switch on and set RANGE to 2 ft. Turn on A-440.
+    // Depress and hold second "A" key from the bottom. Adjust TUNE control for
+    // zero beats. Switch RANGE to 8 ft. Depress same key and adjust Octave
+    // Range trimpot ... for zero beats": 2' and 8' two octaves apart. (The
+    // later service manual, 5.34, sets 16' against 2' instead.) What the other
+    // steps and the other two oscillators then show is the parts' mismatch.
     std::array<double, 6> tap {};
     tap[1] = rng.tolerance (FrontPanel::rLo, 0.01) / FrontPanel::rOctave; // LO to 32': R29, 1 %
     for (size_t r = 2; r < 6; ++r)
@@ -181,7 +184,7 @@ void Voice::drawPanel (Rng& rng)
     std::array<double, 3> input {};
     for (auto& g : input)
         g = rng.tolerance (1.0, 0.001);
-    const double octaveTrim = 3.0 / (input[0] * (tap[5] - tap[2])) * (1.0 + 0.3 / 3600.0 * rng.normal());
+    const double octaveTrim = 2.0 / (input[0] * (tap[5] - tap[3])) * (1.0 + 0.3 / 2400.0 * rng.normal());
     for (size_t i = 0; i < 3; ++i)
         for (size_t r = 0; r < 6; ++r)
             rangeCv[i][r] = FrontPanel::rangeOctaves[5] + input[i] * octaveTrim * (tap[r] - tap[5]);
