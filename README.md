@@ -117,7 +117,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
 | KEYBOARD CONTROL, modulation line and its polarity through the whole instrument | 1/3, 2/3 and 1 octave an octave; +-0.74 octave at full wheel, half way 54 %; filter 3 times as deep; a rising oscillator 3 lowers the pitch | `test_service_manual.cpp` |
 | Pink noise against white; red against pink | the drawn network's transfer within 1 dB from 200 Hz to 10 kHz; ngspice's within 1 dB from 20 to 500 Hz | `test_service_manual.cpp`: "Pink and red noise follow board 3's drawn networks" |
-| External input pre-amp and OVERLOAD lamp; its interpolation to the oversampled rate | gain 201, rails +9.8 / -7.7 V, lamp from about 2.1 V; images below -80 dB | `test_extpreamp.cpp`; `test_service_manual.cpp` |
+| External input pre-amp and OVERLOAD lamp; its interpolation to the oversampled rate | gain 201, rails +9.8 / -7.7 V, lamp from about 1.5 V (ngspice); images below -80 dB | `test_extpreamp.cpp`; `test_service_manual.cpp` |
 | MODULATION MIX, main VOLUME, A-440, noise levels independent of the sample rate | as wired on the original | `test_noise_a440.cpp` |
 | Voice behaviour: level, extreme settings stay finite, poly, MOD. AMOUNT | | `test_voice.cpp` |
 | No memory allocated during audio rendering, note events and panel changes | | `test_voice.cpp`: "Rendering, note events and panel changes do not allocate" |
@@ -240,7 +240,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Summing node into the ladder's input pair | C27 10 µF, R54 470 Ω | Moog (Fig. 9-11) |
 | EXTERNAL INPUT volume, pre-amp gain, couplings | R9 1 MΩ audio, R66 100 kΩ, gain 201 (1 + R61/R62), C23, C26, C20 | Moog (Fig. 9-11, 9-16) |
 | Pre-amp saturation | +9.8 / −7.7 V | Moog (derived from the rails, R57 and the mixer load) |
-| OVERLOAD lamp driver: C14 peak detector, R56 / R48, threshold | ≈2.1 V peak (the manual's 2.12 says "approximately 1.2 volts": not reconciled) | Moog (Fig. 9-11) |
+| OVERLOAD lamp driver: C14 peak detector, R56 / R48, Q31, Q34, threshold | the lamp from a 1.5 V peak at the pre-amp's output: Q31's base current lifts its base by some 0.7 V (the manual's 2.12: "approximately 1.2 volts"); C14 relaxes towards −4.5 V | Moog, ngspice (Fig. 9-11; drawing 1442; `overload.cir`); the transistor cards: Other |
 | Lamp filament heating / cooling | 25 / 60 ms | Assumed |
 
 ### Filter (board 4, circuit 6)

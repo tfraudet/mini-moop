@@ -1,0 +1,32 @@
+OVERLOAD lamp driver (board 4, circuit 12): the lamp's current against the pre-amp's output
+* Fig. 9-11 and R. A. Moog drawing 1442, as drawn: the pre-amp's output through R53 10K into
+* the follower Q25 (collector on +15 V), which charges C14 .47; R56 100K and R48 680K (to -10 V)
+* bias the PNP Q31, whose emitter holds Q34's base against R69 10K from +15 V; Q34 sinks the
+* lamp (16ESB, from +15 V) through R72 47. The lamp as a resistor: about 15 V / 14 mA hot.
+* A DC sweep stands for the held peak: C14 sits at the peak less Q25's Vbe.
+.include models.lib
+.options temp=25 tnom=25
+vp15 p15 0 15
+vn vn 0 -10
+vin pk 0 0
+r53 pk b25 10k
+q25 p15 b25 c14 Q2N3392
+c14 c14 0 0.47u
+r56 c14 b31 100k
+r48 b31 vn 680k
+q31 vn b31 e31 TIS93
+r69 p15 e31 10k
+q34 lc e31 0 TIS92
+r72 lc lamp 47
+rlamp p15 lamp 1.07k
+.control
+dc vin 0 4 0.01
+let ilamp = (v(p15) - v(lamp)) / 1.07k
+wrdata overload.dat ilamp v(c14)
+meas dc on10 when ilamp=1.4m rise=1
+meas dc on50 when ilamp=7m rise=1
+meas dc on90 when ilamp=12.6m rise=1
+meas dc imax max ilamp
+echo "lamp: 10 % at $&on10 V, half at $&on50 V, 90 % at $&on90 V of pre-amp output peak; full $&imax A"
+.endc
+.end

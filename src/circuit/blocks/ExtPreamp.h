@@ -31,15 +31,18 @@
 // C20 1 uF couples it to the mixer switch S10 and its 33k summing resistor.
 //
 // Lamp driver. Q25 (emitter follower from the pre-amp output through R53 10k)
-// charges C14 0.47 uF to the positive peaks; C14 discharges towards -10 V
-// through R56 100k + R48 680k (0.37 s). R56/R48 bias the PNP Q31, which holds
-// the lamp switch Q34 off until C14 reaches about 1.5 V, i.e. a pre-amp output
-// peak of about 2.1 V, comparable to an oscillator at full volume in the mixer.
-// Q34 then sinks the 16ESB lamp current (10 V, 14 mA) through R72 47 ohm.
+// charges C14 0.47 uF to the positive peaks. R56 100k and R48 680k to -10 V
+// bias the PNP Q31, whose emitter holds the lamp switch Q34's base against
+// R69 10k from +15 V; Q34 sinks the 16ESB lamp through R72 47 ohm. Q31's base
+// current (R69's 1.5 mA over its gain) comes back up the divider and lifts
+// its base by some 0.7 V: the lamp comes on at a pre-amp output peak of 1.5 V
+// (the service manual, 2.12: "approximately 1.2 volts"), not the 2.1 V the
+// divider alone gives, and C14 relaxes towards -4.5 V, not -10 V. ngspice on
+// the drawn circuit (tools/spice/overload.cir): the lamp's current against
+// C14's voltage, half at 0.974 V, from a tenth to nine tenths over 0.1 V.
 // The filament's heating and cooling times are estimates.
 
 #include "../components/Passives.h"
-#include "../components/Physics.h"
 
 #include <cmath>
 
@@ -57,11 +60,12 @@ struct ExtPreampParams
     double fFb    = 0.72;    // C26 220 uF with R62 1k (Hz)
     double fOut   = 4.8;     // C20 1 uF into the 33k mixer resistor (Hz)
 
-    double vbe        = 0.6;     // Q25 / Q31 base-emitter drops
+    double vbe        = 0.53;    // Q25's drop at C14's holding current (ngspice)
     double tauCharge  = 50.0e-6; // C14 charging through Q25 (fast)
     double tauHold    = 0.367;   // C14 * (R56 + R48)
-    double divider    = 680.0 / 780.0; // R48 / (R56 + R48)
-    double vLampOn    = 0.68;    // Q34 base voltage at full lamp current
+    double vHold      = -4.48;   // where C14 relaxes to: Q31's base current through R48 (ngspice)
+    double lampHalf   = 0.974;   // C14's voltage for half the lamp's current (ngspice)
+    double lampWidth  = 0.0235;  // the logistic's width (ngspice: 0.012 of full current rms)
     double tauHeat    = 0.025;   // filament heating (estimated)
     double tauCool    = 0.06;    // filament cooling (estimated)
 
@@ -70,7 +74,7 @@ struct ExtPreampParams
         ExtPreampParams p = nominal;
         p.rPot = rng.tolerance (nominal.rPot, 0.20);                       // carbon pot
         p.gain = 1.0 + rng.tolerance (nominal.gain - 1.0, 0.07);           // two 5 % resistors
-        p.divider = rng.tolerance (nominal.divider, 0.03);
+        p.lampHalf = rng.tolerance (nominal.lampHalf, 0.10); // R56, R48 and Q31's gain
         return p;
     }
 };
@@ -136,18 +140,15 @@ private:
 
     void lamp (double v) noexcept
     {
-        // C14 peak detector: charged quickly by Q25, held by R56 + R48
+        // C14 peak detector: charged quickly by Q25, relaxing through R56 + R48
         const double target = v - p.vbe;
         if (target > vc14)
             vc14 += (target - vc14) * kCharge;
         else
-            vc14 = -10.0 + (vc14 + 10.0) * kHold;
+            vc14 = p.vHold + (vc14 - p.vHold) * kHold;
         vc14 = std::fmax (vc14, target);
-        // Q31 base (R56 / R48 divider from C14 to -10 V), then Q34 base one Veb higher
-        const double vb31 = p.divider * vc14 - (1.0 - p.divider) * 10.0;
-        const double vbe34 = vb31 + p.vbe;
-        // Q34 collector current, exponential in Vbe, limited by the lamp circuit
-        const double i = std::fmin (1.0, std::exp ((vbe34 - p.vLampOn) / phys::thermalVoltage (298.15)));
+        // Q31, Q34 and the lamp: the lamp's current against C14 (ngspice)
+        const double i = 1.0 / (1.0 + std::exp (-(vc14 - p.lampHalf) / p.lampWidth));
         const double power = i * i;
         heat += (power - heat) * (power > heat ? kHeat : kCool);
     }

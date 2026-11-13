@@ -66,18 +66,21 @@ TEST_CASE ("Ext pre-amp: gain of 201 at full volume, rails at +9.8 / -7.7 V", "[
     CHECK_THAT (lo, Catch::Matchers::WithinAbs (-7.7, 0.3));
 }
 
-TEST_CASE ("OVERLOAD lamp lights above about 2.1 V at the pre-amp output", "[extpreamp]")
+TEST_CASE ("OVERLOAD lamp lights above about 1.5 V at the pre-amp output (ngspice)", "[extpreamp]")
 {
+    // ngspice on the drawn lamp driver (tools/spice/overload.cir): a tenth of
+    // the lamp's current at a 1.44 V peak, nine tenths at 1.55 V (the service
+    // manual, 2.12: "approximately 1.2 volts").
     ExtPreamp pre;
     pre.setParams ({});
     pre.prepare (fs);
     pre.setVolume (1.0);
 
-    runSine (pre, 1.8 / 201.0, 0.5); // 1.8 V peak: below the threshold
+    runSine (pre, 1.3 / 201.0, 0.5); // 1.3 V peak: below the threshold
     CHECK (pre.lampLevel() < 0.05);
 
     pre.reset();
-    runSine (pre, 2.6 / 201.0, 0.5); // 2.6 V peak: lamp fully lit
+    runSine (pre, 1.8 / 201.0, 0.5); // 1.8 V peak: lamp fully lit
     CHECK (pre.lampLevel() > 0.9);
 
     // Silence: C14 holds for a while, then the lamp goes out.
