@@ -4,3 +4,4 @@ spikes/
 .DS_Store
 *.wav
 doc/
+tools/spice/*.dat

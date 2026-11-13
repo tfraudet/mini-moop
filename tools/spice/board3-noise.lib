@@ -1,0 +1,20 @@
+* Board 3, circuit 3: noise generator's filters (Fig. 9-8), as drawn, from the white noise
+* follower Q4's emitter on. white: Q4's emitter; pink: Q3's collector (ahead of C20);
+* red: R12 / C7 (ahead of the follower Q6). vp: the +10 V rail (probable: the drawing does
+* not name the rail R3 hangs on).
+.subckt noisefilters white pink red vp
+r16 white p 10k
+c3 p p3 0.12u
+r8 p3 0 3.3k
+c2 p p2 0.033u
+r13 p2 0 220
+c1 p b3 2.5u
+q3 pink b3 e3 Q2N3392
+r1 e3 0 120
+r3 vp pink 3.3k
+r6 pink m 560k
+r7 m b3 560k
+c4 m 0 2.5u
+r12 pink red 10k
+c7 red 0 0.15u
+.ends

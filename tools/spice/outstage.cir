@@ -1,0 +1,40 @@
+filter output stage Q5-Q8 (Fig. 9-11): transfer from the top capacitor's AC voltage to the output
+* vd = v(n4l) - v(n4r), the voltage across C3 as C5 / C1 pick it up. The bases sit at the
+* offsets their base currents put on R31 / R38 and C9 holds nt (vcf_op.cir's operating point);
+* the VCA's input (R2 82K + R34 820) and the emphasis path at EMPHASIS 0 (R14 50K, R73, R76)
+* load the output as resistors to their operating points.
+.include models.lib
+.options temp=25 tnom=25 abstol=1e-12 vntol=1e-7
+vp vp 0 10
+vn vn 0 -10
+vd d 0 0
+eb8 b8 s8 d 0 0.5
+vb8 s8 0 -0.00574568
+eb6 b6 s6 d 0 -0.5
+vb6 s6 0 -0.00978441
+q8 out b8 e8 TIS97
+r24 e8 vn 220k
+q7 out e8 e57 TIS97
+q6 vp b6 e6f TIS97
+r20 e6f vn 100k
+q5 vp e6f e57 TIS97
+r26 e57 vn 1k
+r3 out nu 1k
+r7 nu nt 180
+vnt nt 0 9.739830
+rvca out vo 82.82k
+vvo vo 0 3.207904
+remph nu vu 51.33k
+vvu vu 0 8.743435
+.control
+op
+let o = v(out)
+echo "OUT0 $&o"
+dc vd -0.3 0.3 0.002
+wrdata outstage.dat v(out)
+dc vd -0.002 0.002 0.0001
+let g = deriv(v(out))
+meas dc g0 find g at=0
+echo "G0 $&g0"
+.endc
+.end

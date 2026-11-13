@@ -1,0 +1,43 @@
+sensitivity of the benches' results to the transistor models
+* The TIS97's data sheet only gives its gain bin (hFE 250 to 700). This bench runs circuit 6
+* and circuit 7 with the gain at both ends of the bin and with the saturation current a
+* third and three times the generic value: what moves is what depends on the model.
+.include models.lib
+.include board4-vcf.lib
+.include board4-vca.lib
+.options temp=25 tnom=25
+vp vp 0 10
+vn vn 0 -10
+* circuit 6, EMPHASIS at 0, the VCA's input as load
+vin in 0 dc 0 ac 1
+vctl ctl 0 0.06
+vcont cont 0 0
+r14 e7 e6 50k
+rvca fout vl 82.82k
+cvl vl 0 1
+x1 in ctl cont e7 e6 fout vp vn vcf
+* circuit 7 at a 5 V contour, driven on its own
+vin2 in2 0 dc 0 ac 1
+vc2 cont2 0 5
+vl2 lsrc 0 10
+r56 lsrc loud 33k
+va a440 0 0
+x2 in2 cont2 loud a440 vout vp vn vca
+c2 vout o2 10u
+r75 o2 jack 1k
+r20 jack 0 5k
+.control
+define stage() mag(v(fout)/(v(x1.n4l)-v(x1.n4r)))
+foreach bf 250 440 700
+  foreach sat 3.3e-15 1e-14 3e-14
+    altermod TIS97 bf=$bf
+    altermod TIS97 is=$sat
+    ac lin 1 1k 1k
+    let s = mag(v(fout)/(v(x1.n4l)-v(x1.n4r)))
+    let pb = mag(v(fout))
+    let g = mag(v(vout))
+    echo "TIS97 BF=$bf IS=$sat : output stage $&s , passband $&pb , VCA $&g"
+  end
+end
+.endc
+.end

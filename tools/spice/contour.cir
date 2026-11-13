@@ -1,0 +1,59 @@
+contour generators (circuit 8): rest, peak, sustain levels, follower drops
+.include models.lib
+.include board2-contour.lib
+.options temp=25 tnom=25 reltol=1e-4
+.param sus=1.0 ratt=1k rdec=1k
+vx vx 0 9.3
+vp vp 0 10
+vn vn 0 -10
+* trigger section, reduced to its two transistors: key down = Q20 on, Q12 off
+vkey key 0 pwl(0 0 10m 0 10.01m 5 400m 5 400.01m 0)
+ekn nkey 0 vol='5-v(key)'
+rb20 key b20 10k
+q20 n20 b20 0 Q2N3392
+rb12 nkey b12 10k
+q12 vtrig b12 0 Q2N3392
+r32 vx vtrig 10k
+r37 vx n20 10k
+* panel: ATTACK and DECAY rheostats, SUSTAIN pots (5K, +10 V to ground), DECAY switch on
+* (the dump path open), the sustain nodes to the V-trigger through the left hand controller
+xf vx vtrig n20 fatt fcap fdec fdump vtrig fsus fout vn contourf
+ratf fatt fcap {ratt}
+rdef fdec fcap {rdec}
+rsf1 vp fsus {5k*(1-sus)+1}
+rsf2 fsus 0 {5k*sus+1}
+rfdump fdump 0 1g
+* the filter contour's load: AMOUNT OF CONTOUR R17 5K to ground
+rlf fout 0 5k
+xl vx vtrig n20 latt lcap ldec ldump vtrig lsus lout vn contourl
+ratl latt lcap {ratt}
+rdel ldec lcap {rdec}
+rsl1 vp lsus {5k*(1-sus)+1}
+rsl2 lsus 0 {5k*sus+1}
+rldump ldump 0 1g
+* the loudness contour's load: the VCA's R59 68K into Q18 (about 0.6 V above ground)
+rll lout 0 68k
+.control
+foreach s 0 0.2 0.4 0.6 0.8 1.0
+  alterparam sus = $s
+  reset
+  tran 20u 700m
+  meas tran frest find v(fout) at=9m
+  meas tran lrest find v(lout) at=9m
+  meas tran fcrest find v(fcap) at=9m
+  meas tran lcrest find v(lcap) at=9m
+  meas tran fpeak max v(fout)
+  meas tran lpeak max v(lout)
+  meas tran fcpeak max v(fcap)
+  meas tran lcpeak max v(lcap)
+  meas tran fsus find v(fout) at=390m
+  meas tran lsus find v(lout) at=390m
+  meas tran fcsus find v(fcap) at=390m
+  meas tran lcsus find v(lcap) at=390m
+  meas tran fend find v(fcap) at=690m
+  meas tran lend find v(lcap) at=690m
+  echo "SUSTAIN $s : filter rest $&frest (cap $&fcrest ) peak $&fpeak (cap $&fcpeak ) held $&fsus (cap $&fcsus ) after release cap $&fend"
+  echo "SUSTAIN $s : loudness rest $&lrest (cap $&lcrest ) peak $&lpeak (cap $&lcpeak ) held $&lsus (cap $&lcsus ) after release cap $&lend"
+end
+.endc
+.end

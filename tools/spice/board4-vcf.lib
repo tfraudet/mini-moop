@@ -1,0 +1,64 @@
+* Board 4, circuit 6: voltage controlled filter (Fig. 9-11), as drawn.
+* in: pin 4 (mixer bus); ctl: pin 5, the control node; cont: pin 16 (AMOUNT OF CONTOUR's
+* wiper); e7: pin 7 (to EMPHASIS R14); e6: pin 6 (back from R14); out: Q7 / Q8's collectors.
+* tr, ts, tg: RANGE (R39), SCALE (R49) and REGEN CAL (R73) positions, 0..1.
+.subckt vcf in ctl cont e7 e6 out vp vn params: tr=0.5 ts=0.4 tg=0.5
+* bias string
+r4 vp s1 220
+r16 s1 s2 150
+r32 s2 s3 150
+r41 s3 s4 150
+r52 s4 nb 150
+r67 nb 0 200
+c24 nb 0 220u
+* ladder
+q2 vp s1 n4l TIS97
+q3 vp s1 n4r TIS97
+c3 n4l n4r 0.068u
+q10 n4l s2 n3l TIS97
+q11 n4r s2 n3r TIS97
+c7 n3l n3r 0.068u
+q19 n3l s3 n2l TIS97
+q20 n3r s3 n2r TIS97
+c11 n2l n2r 0.068u
+q23 n2l s4 n1l TIS97
+q24 n2r s4 n1r TIS97
+c16 n1l n1r 0.068u
+q29 n1l b29 et TIS97
+q30 n1r b30 et TIS97
+c27 in b29 10u
+r54 b29 nb 470
+* tail and cutoff converter
+r60 et c28 680
+q28 c28 b28 0 TIS92
+q26 c26 ctl b28 TIS93
+r45 c26 vn 330
+r46 rw b28 68k
+r39a vp rw {10k*(1-tr)+1}
+r39b rw 0 {10k*tr+1}
+r49 ctl sc {500*ts+1m}
+r70 sc 0 1.8k
+c18 ctl 0 100p
+r74 cont ctl 47k
+* output stage ("gain recovery amplifier")
+c5 n4l b8 0.22u
+r31 b8 0 47k
+c1 n4r b6 0.22u
+r38 b6 0 47k
+q8 out b8 e8 TIS97
+r24 e8 vn 220k
+q7 out e8 e57 TIS97
+q6 vp b6 e6f TIS97
+r20 e6f vn 100k
+q5 vp e6f e57 TIS97
+r26 e57 vn 1k
+r3 out nu 1k
+r7 nu nt 180
+r6 vp nt 47
+c9 nt 0 100u
+* emphasis path
+c10 nu e7 10u
+r73a e6 b30 {1k*(1-tg)+1m}
+r73b b30 n76 {1k*tg+1m}
+r76 n76 nb 330
+.ends

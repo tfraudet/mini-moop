@@ -1,0 +1,33 @@
+VCA (circuit 7): operating point, gain against the contour, large-signal transfer
+.include models.lib
+.include board4-vca.lib
+.options temp=25 tnom=25
+vp vp 0 10
+vn vn 0 -10
+vin in 0 dc 0 ac 1 sin(0 1 1k)
+vcont cont 0 5
+* EXT. LOUDNESS: the shorting jack's +10 V through R56 33K (front panel)
+vl lsrc 0 10
+r56 lsrc loud 33k
+va a440 0 0
+x1 in cont loud a440 out vp vn vca
+* the load: C2, R75 1K, VOLUME R20 5K at full
+c2 out o2 10u
+r75 o2 jack 1k
+r20 jack 0 5k
+.control
+op
+print v(out) v(x1.d) v(x1.p1) v(x1.p2) v(x1.p3) v(x1.e3) v(x1.c14) v(x1.c13)
+print i(vp) v(x1.e18)/6.8k v(x1.e21)/3.3k (10-v(x1.e1s))/62
+foreach vc 0 0.25 0.5 1 2 3 4 4.5 5 5.3 6
+  alter vcont dc = $vc
+  ac lin 1 1k 1k
+  print mag(v(out)) mag(v(jack))
+end
+alter vcont dc = 5
+alter vl dc = 2
+alter r56 = 1
+ac lin 1 1k 1k
+print mag(v(out))
+.endc
+.end

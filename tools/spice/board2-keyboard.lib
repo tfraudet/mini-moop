@@ -1,0 +1,33 @@
+* Board 2, circuit 1: keyboard track and hold with glide (Fig. 9-7; service manual 2.19).
+* pitch: the key's voltage (pin 9); trig: the trigger bus (+10 V while a key is down, pin
+* 6); g8 / g7: to and from the GLIDE pot and switch (pins 8 and 7); out: to the oscillators
+* and the filter (pins 4, 5).
+.subckt keyboard pitch trig g8 g7 out vp vn
+* differential amplifier Q23 / Q14 / Q24
+c9 pitch 0 0.33u
+r53 vp pitch 4.7meg
+q23 c23 pitch et Q2N3392
+q14 c14 b14 et Q2N3392
+r52 et vn 43k
+r58 vp c23 6.2k
+r51 vp c14 560
+q24 ko c23 vp Q2N4058
+r59 vp ko 3.9k
+r54 ko vn 1.5k
+r61 ko g8 330
+r30 out b14 10k
+* sampling switch Q13 and its gate drive
+j13 hold gq g7 J2N4303
+r64 gq gl 100k
+r31 g7 gl 22meg
+dcr5 gl t D1N4004
+r65 trig t 5.1k
+c13 t vn 0.01u
+r34 t vn 100k
+* storage capacitor and output follower Q10
+c6 hold 0 1u
+r21 hold g10 10k
+j10 d10 g10 out J2N4303
+r2 vp d10 330
+r18 out vn 3.9k
+.ends

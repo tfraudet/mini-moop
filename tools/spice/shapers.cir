@@ -1,0 +1,50 @@
+oscillator waveshapers (board 1): triangle transfer, rectangle widths, output levels
+.include models.lib
+.include board1-shapers.lib
+.options temp=25 tnom=25
+.param vw=0 rw=1
+vp vp 0 10
+vn vn 0 -10
+* one cycle every 8 ms: +4 V falling to -4 V, then the reset
+vsaw saw 0 pulse(4 -4 0 8m 1u 0 8.001m)
+* the width bias: -10 V, R32 7.5K, R33 1K, R34 1.5K, ground (Fig. 9-16), as its Thevenin
+vwid wsrc 0 {vw}
+rwid wsrc width {rw}
+x1 saw width sawo tri rect vp vn shapers
+.control
+* triangle against the sawtooth, unloaded
+dc vsaw 4 -4 -0.02
+wrdata triangle.dat v(tri) v(x1.n)
+meas dc tstart find v(tri) at=4
+meas dc tend find v(tri) at=-4
+meas dc tmin min v(tri)
+meas dc smin min_at v(tri)
+meas dc nstart find v(x1.n) at=4
+meas dc nend find v(x1.n) at=-4
+meas dc nmin min v(x1.n)
+echo "triangle output: $&tstart V at the start, $&tmin V at sawtooth $&smin V, $&tend V at the end; Q2's collector $&nstart / $&nmin / $&nend"
+meas dc sawhi find v(sawo) at=4
+echo "sawtooth output: +/-$&sawhi V"
+* rectangle widths: the part of the cycle the output is high
+foreach w 0 -1.5 -2.5
+  alterparam vw = $w
+  if $w = 0
+    alterparam rw = 1
+  end
+  if $w = -1.5
+    alterparam rw = 1275
+  end
+  if $w = -2.5
+    alterparam rw = 1875
+  end
+  reset
+  tran 2u 24m 8.1m
+  meas tran hi max v(rect)
+  meas tran lo min v(rect)
+  meas tran tfall when v(rect)=-1 fall=1
+  * the cycle measured starts at 8.001 ms; the output is high until it falls through -1 V
+  let width = (tfall-8.001m)/8.001m
+  echo "width bias $w V: output $&hi to $&lo V, high for $&width of the cycle"
+end
+.endc
+.end

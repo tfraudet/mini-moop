@@ -1,0 +1,55 @@
+* Board 4, circuit 7: voltage controlled amplifier (Fig. 9-11), as drawn.
+* in: filter output; cont: loudness contour (pin 9); loud: EXT. LOUDNESS (pin 10);
+* a440: the A-440 oscillator's output (Q4's emitter); out: Q17's collector, ahead of C2.
+* t1, t2: 1ST and 2ND VCA BAL positions (0..1).
+.subckt vca in cont loud a440 out vp vn params: t1=0.5 t2=0.5
+* supply ladder and the pairs' base bias (node d)
+r10 vp p1 120
+r11 p1 p2 150
+r13 p2 p3 120
+r22 p3 d 120
+r36 d 0 510
+c15 d 0 220u
+c4 vp p1 220u
+* first VCA: Q16 / Q15, tail Q18
+r2 in ci 82k
+c6 ci b16 0.33u
+r34 b16 d 820
+q16 c16 b16 e1 TIS97
+q15 c15 d e1 TIS97
+r19 c16 l1a 100
+r23 c15 l1b 100
+r14a l1a p3 {25*t1+1m}
+r14b l1b p3 {25*(1-t1)+1m}
+r35 e1 c18 1k
+q18 c18 b18 e18 TIS97
+r59 cont b18 68k
+r37 e18 0 6.8k
+r43 e18 vn 270k
+* second VCA: Q14 / Q13 on the first pair's collectors, tail Q21
+q14 c14 c16 e2 TIS97
+q13 c13 c15 e2 TIS97
+r18 c14 l2a 330
+r21 c13 l2b 330
+r12a l2a p2 {100*t2+1m}
+r12b l2b p2 {100*(1-t2)+1m}
+r33 e2 c21 470
+q21 c21 b21 e21 TIS97
+r51 loud b21 33k
+r42 e21 0 3.3k
+r44 e21 vn 150k
+* output: Q12 / Q17 on the second pair's collectors, current source Q1
+q1 e3 p1 e1s Q2N4058
+r9 vp e1s 62
+r8 e12 e3 8.2
+r28 e17 e3 8.2
+q12 c12 c14 e12 Q2N4058
+q17 out c13 e17 Q2N4058
+r30 c12 0 680
+r29 out 0 680
+d2 0 out D1N458A
+d1 out vp D1N458A
+* A-440 into Q14's collector (Q12's base)
+r40 a440 a4 22k
+c8 a4 c14 0.1u
+.ends

@@ -1,0 +1,29 @@
+* Board 1: oscillator 1's waveshapers (Fig. 9-3; service manual 2.16), as drawn, from the
+* sawtooth on Q3's collector on (+4 V at the start of the cycle, falling to -4 V, then the
+* reset). saw: Q3's collector; width: the RECTANGULAR WIDTH bias from the WAVEFORM switch
+* (pin 22B); sawo, tri, rect: the SAWTOOTH, TRIANGLE and RECTANGULAR outputs.
+.subckt shapers saw width sawo tri rect vp vn
+* sawtooth output divider
+r34 saw sawo 4.3k
+r33 sawo 0 4.7k
+* triangle: Q2 saturates while the sawtooth is positive (its collector follows it) and
+* inverts once it is negative; follower Q1
+q2 n saw e2 Q2N3392
+r29 e2 vn 10k
+r3 vp n 10.7k
+r14 n vn 150k
+q1 vp n e1 Q2N3392
+r28 e1 tri 750
+r23 tri vn 8.2k
+* rectangle: Schmitt trigger Q11 / Q12 on the sawtooth and the width bias
+r40 saw b 43k
+r1 width b 43k
+r44 b vn 390k
+r2 b rc 910k
+q11 c11 b 0 Q2N4058
+r39 c11 b12 100k
+r35 b12 vn 100k
+q12 rc b12 vn Q2N3392
+r13 rc rect 6.2k
+r22 rect 0 4.7k
+.ends

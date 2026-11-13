@@ -1,0 +1,26 @@
+VCF (circuit 6): operating point, passband gain, loop gain at EMPHASIS 10
+.include models.lib
+.include board4-vcf.lib
+.options temp=25 tnom=25
+vp vp 0 10
+vn vn 0 -10
+vin in 0 dc 0 ac 1
+vctl ctl 0 0.06
+vcont cont 0 0
+* EMPHASIS R14 between pins 7 and 6
+r14 e7 e6 50k
+* the VCA's input as load
+rvca out vl 82.82k
+cvl vl 0 1
+x1 in ctl cont e7 e6 out vp vn vcf
+.control
+op
+print v(out) v(x1.nt) v(x1.nu) v(x1.b8) v(x1.b6) v(x1.nb) v(x1.b29) v(x1.b30) v(x1.et) i(vctl)
+print v(x1.et)/680-v(x1.c28)/680 v(x1.n4l)-v(x1.n4r) v(x1.e57)
+ac dec 5 20 2k
+print vdb(out) vp(out)
+let stage = v(out)/(v(x1.n4l)-v(x1.n4r))
+let ladder = (v(x1.n4l)-v(x1.n4r))/(v(x1.b29)-v(x1.b30))
+print mag(stage) mag(ladder) mag(v(out)) mag(v(x1.nu))/mag(v(out))
+.endc
+.end

@@ -1,0 +1,81 @@
+* Board 2, circuit 8: the two contour generators (Fig. 9-7), as drawn.
+* vx: the +9.3 V rail (Q26's emitter); vtrig: Q12's collector, the V-trigger (high while a
+* key is down); n20: Q20's collector (low while a key is down), which feeds the reset of
+* both flip-flops through R37. Pins of each section: att (to the ATTACK pot), cap (the
+* timing capacitor: both pots' wipers), dec (to the DECAY pot), dump (to the DECAY switch
+* and R1401), sdn (to the V-trigger through the left hand controller), sus (the SUSTAIN
+* pot's wiper), out.
+*
+* Filter contour section
+.subckt contourf vx vtrig n20 att cap dec dump sdn sus out vn
+r26 vtrig a1 10k
+c1 a1 b1 0.01u
+q1 c1 b1 0 Q2N3392
+r5 c1 m1 3.3k
+r6 m1 vx 560
+q5 att5 m1 vx TIS93
+r7 att5 att 100
+q4 c4 b4 0 Q2N3392
+r4 c4 vx 10k
+r3 c4 b1 10k
+r14 c1 b4 33k
+dcr3 p b4 D1N34A
+r29 p vn 16.9k
+r33 out p 5.6k
+r35 n20 x1 10k
+dcr1 x1 b4 D1N34A
+q6 vx c1 e6 Q2N3392
+r8 e6 vn 10k
+r9 e6 b7 4.7k
+q7 dec b7 s Q2N3392
+r10 s vx 27k
+q8 c8 b8 s TIS93
+r11 c8 0 100
+dcr2 s sdn D1N4004
+r13 sus b8 4.7k
+r1 b8 0 3k
+r17 b8 vn 150k
+c5 cap 0 10u
+dcr7 cap dump D1N4004
+r48 cap b22 10k
+q22 c22 b22 out Q2N3392
+q21 out c22 e21 TIS93
+r50 e21 vx 560
+c11 c22 out 47p
+.ends
+*
+* Loudness contour section
+.subckt contourl vx vtrig n20 att cap dec dump sdn sus out vn
+r28 vtrig a2 10k
+c4 a2 b25 0.01u
+q25 c25 b25 0 Q2N3392
+r40 c25 m2 3.3k
+r41 m2 vx 560
+q16 att16 m2 vx TIS93
+r42 att16 att 100
+q15 c15 b15 0 Q2N3392
+r39 c15 vx 10k
+r38 c15 b25 10k
+r56 c25 b15 33k
+dcr6 p b15 D1N34A
+r27 p vn 16.9k
+r24 out p 6.8k
+r36 n20 x2 10k
+dcr8 x2 b15 D1N34A
+q17 vx c25 e17 Q2N3392
+r43 e17 vn 10k
+r44 e17 b18 4.7k
+q18 dec b18 s Q2N3392
+r45 s vx 27k
+q19 c19 b19 s TIS93
+r46 c19 0 100
+dcr9 s sdn D1N4004
+r57 sus b19 4.7k
+r41b b19 0 4.7k
+c2 cap 0 10u
+dcr4 cap dump D1N4004
+r16 cap b3 10k
+q3 cc3 b3 e3 Q2N3392
+q2 cc3 e3 out Q2N3392
+r15 cc3 vx 560
+.ends

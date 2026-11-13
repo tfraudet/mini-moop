@@ -1,0 +1,34 @@
+* Device models for the benches. The type and the current-gain bin come from the parts'
+* data sheets; the remaining parameters are those of a generic small-signal silicon planar
+* transistor of the period (no manufacturer model exists for the TIS and 2N33xx parts).
+* sensitivity.cir shows which results depend on them.
+*
+* TIS97: NPN, hFE 250 to 700 at 100 uA (typical 440).
+.model TIS97 NPN (IS=1e-14 BF=440 VAF=100 IKF=80m BR=4 RB=100 RE=0.5 RC=1
++ CJE=4.5p CJC=3.5p TF=0.35n TR=50n EG=1.11 XTI=3 XTB=1.5)
+* 2N3392: NPN, hFE 150 to 300.
+.model Q2N3392 NPN (IS=1e-14 BF=210 VAF=100 IKF=80m BR=4 RB=100 RE=0.5 RC=1
++ CJE=4.5p CJC=3.5p TF=0.35n TR=50n EG=1.11 XTI=3 XTB=1.5)
+* 2N4058: PNP, hFE 100 to 400.
+.model Q2N4058 PNP (IS=1e-14 BF=200 VAF=60 IKF=60m BR=4 RB=100 RE=0.5 RC=1
++ CJE=5p CJC=4p TF=0.5n TR=60n EG=1.11 XTI=3 XTB=1.5)
+* TIS92 / TIS93: the parts list gives 2N3904 / 2N3906 as alternates; their usual cards.
+.model TIS92 NPN (IS=6.734f XTI=3 EG=1.11 VAF=74.03 BF=416.4 NE=1.259 ISE=6.734f IKF=66.78m
++ XTB=1.5 BR=.7371 NC=2 ISC=0 IKR=0 RC=1 CJC=3.638p MJC=.3085 VJC=.75 FC=.5 CJE=4.493p
++ MJE=.2593 VJE=.75 TR=239.5n TF=301.2p ITF=.4 VTF=4 XTF=2 RB=10)
+.model TIS93 PNP (IS=1.41f XTI=3 EG=1.11 VAF=18.7 BF=180.7 NE=1.5 ISE=0 IKF=80m XTB=1.5
++ BR=4.977 NC=2 ISC=0 IKR=0 RC=2.5 CJC=9.728p MJC=.5776 VJC=.75 FC=.5 CJE=8.063p MJE=.3677
++ VJE=.75 TR=33.42n TF=179.3p ITF=.4 VTF=4 XTF=6 RB=10)
+* CA3046 array transistor: Intersil application note MM9701.
+.model CA3046 NPN (IS=10.0E-15 XTI=3 EG=1.11 VAF=100 VAR=100 BF=145.7 ISE=114.286E-15
++ NE=1.48 IKF=46.7E-3 XTB=0 BR=0.1 ISC=10.005E-15 NC=2 IKR=10E-3 RC=10 CJC=991.71E-15
++ MJC=0.333 VJC=0.75 FC=0.5 CJE=1.02E-12 MJE=0.336 VJE=0.75 TR=10E-9 TF=277.01E-12
++ ITF=1.75 XTF=309.38 VTF=16.37 PTF=0 RE=0 RB=0)
+* Diodes: 1N914 (silicon), 1N458A (silicon, low leakage), 1N34A (germanium point contact).
+.model D1N914 D (IS=2.52n RS=.568 N=1.752 CJO=4p M=.4 TT=20n BV=100)
+.model D1N458A D (IS=1n RS=1 N=1.8 CJO=6p BV=150)
+.model D1N34A D (IS=2.6u RS=6.5 N=1.6 CJO=0.8p EG=0.67 BV=75)
+* 1N4004 rectifier (usual card).
+.model D1N4004 D (IS=14.11n N=1.984 RS=33.89m CJO=25.89p M=.44 VJ=.3245 BV=600 TT=5.7u)
+* 2N4303 N-channel JFET: IDSS 4 to 10 mA, VGS(off) under 6 V; gate leakage tens of pA.
+.model J2N4303 NJF (VTO=-2.5 BETA=1.1m LAMBDA=5m RD=20 RS=20 CGS=4p CGD=2p IS=3e-11)
