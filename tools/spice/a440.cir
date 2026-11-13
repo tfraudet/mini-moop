@@ -1,0 +1,54 @@
+A-440 reference oscillator (board 4, circuit 13): amplitude, frequency and harmonics
+* Fig. 9-11 circuit 13 and R. A. Moog drawing 1443, as drawn. A Wien bridge: the series arm
+* R71 4.75K, R68 1K (A-440 ADJ.) and C13 .030 (with its selected trim C17) from Q9's
+* collector, which R17 4.75K loads; the parallel arm R55 16.9K and C19 .030 (with C25) at Q22's
+* base, biased by R50 82K. Q22 (R25 75K, R47 33.2K) and Q9 (R15 3.32K, R17) give the loop its
+* gain; CR3 / CR4 through C12 and R27 470K load Q22's collector as the swing grows: the limiter.
+* Q4's base is on Q9's emitter and its collector on R1, "680K / 22M SELECTED" (Table 7-8: 2.2M,
+* selected): Q4 runs saturated, its base-emitter junction loading Q9's emitter with R5 22K. Its
+* emitter drives the VCA through R40 2.2K and C8 .1.
+.include models.lib
+.options temp=25 tnom=25 reltol=1e-5 abstol=1e-12 vntol=1e-7
+.param radj=1 ctrim=0.6n
+vrail rail 0 10
+* Wien bridge
+r50 rail b22 82k
+r55 b22 0 16.9k
+c19 b22 0 0.030u
+c25 b22 0 {ctrim}
+r71 b22 w1 4.75k
+r68 w1 w2 {radj}
+c13 w2 c9 0.030u
+c17 w2 c9 {ctrim}
+* Q22
+q22 c22 b22 e22 TIS97
+r47 e22 0 33.2k
+r25 rail c22 75k
+* the limiter: C12 into the antiparallel CR3 / CR4, R27 470K to the rail
+c12 c22 dl 0.1u
+dcr3 dl dr DSG3246
+dcr4 dr dl DSG3246
+r27 rail dr 470k
+* Q9
+q9 c9 c22 e9 Q2N4058
+r15 rail e9 3.32k
+r17 c9 0 4.75k
+* Q4, the output follower
+r1 rail c4 2.2meg
+q4 c4 e9 out Q2N3392
+r5 out 0 22k
+.model DSG3246 D (IS=2.52n RS=0.568 N=1.752 CJO=4p M=0.4 TT=20n)
+* start it: a kick on the parallel arm
+ik 0 b22 pulse(0 10u 1m 1u 1u 20u 1)
+.control
+tran 2u 600m 400m 2u
+meas tran vmax max v(out)
+meas tran vmin min v(out)
+meas tran tA when v(out)=7.6 rise=5
+meas tran tB when v(out)=7.6 rise=45
+let freq = 40 / (tB - tA)
+let pp = vmax - vmin
+echo "A-440: $&freq Hz, $&pp V peak to peak at Q4's emitter ($&vmin to $&vmax)"
+wrdata a440.dat v(out)
+.endc
+.end

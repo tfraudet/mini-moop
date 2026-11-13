@@ -1,0 +1,29 @@
+A-440 at the main output: R40 against the service manual's -8 +/- 2 dB (5.7)
+* The oscillator's output (a440.cir: 1.56 V peak to peak at Q4's emitter) into the VCA's second
+* load through R40 and C8, both VCAs closed (no key down), the output stage, C2, R75 1K and
+* VOLUME R20 5K at full (Fig. 9-11, 9-16).
+.include models.lib
+.include board4-vca.lib
+.options temp=25 tnom=25
+.param r40v=2.2k
+vp vp 0 10
+vn vn 0 -10
+vin in 0 0
+vcont cont 0 -0.5
+vl lsrc 0 10
+r56 lsrc loud 33k
+va a440 0 dc 0 ac 1
+x1 in cont loud a440 out vp vn vca r40={r40v}
+c2 out o2 10u
+r75 o2 jack 1k
+r20 jack 0 5k
+.control
+foreach r 1k 2.2k 10k 22k
+  alterparam r40v = $r
+  reset
+  ac lin 1 440 440
+  let db = 20*log10(mag(v(jack)) * 0.78 / sqrt(2) / 0.775)
+  echo "R40 $r: $&db dB at the main output"
+end
+.endc
+.end

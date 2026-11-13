@@ -2,7 +2,7 @@
 * in: filter output; cont: loudness contour (pin 9); loud: EXT. LOUDNESS (pin 10);
 * a440: the A-440 oscillator's output (Q4's emitter); out: Q17's collector, ahead of C2.
 * t1, t2: 1ST and 2ND VCA BAL positions (0..1).
-.subckt vca in cont loud a440 out vp vn params: t1=0.5 t2=0.5
+.subckt vca in cont loud a440 out vp vn params: t1=0.5 t2=0.5 r40=2.2k
 * supply ladder and the pairs' base bias (node d)
 r10 vp p1 120
 r11 p1 p2 150
@@ -49,7 +49,8 @@ r30 c12 0 680
 r29 out 0 680
 d2 0 out D1N458A
 d1 out vp D1N458A
-* A-440 into Q14's collector (Q12's base)
-r40 a440 a4 22k
+* A-440 into Q14's collector (Q12's base): R40 reads 2.2K on Fig. 9-11 and in Table 7-8 (1K, then
+* 10K with the 94-002 kit, in Folkman's modifications)
+r40 a440 a4 {r40}
 c8 a4 c14 0.1u
 .ends

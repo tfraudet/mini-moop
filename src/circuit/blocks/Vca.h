@@ -52,6 +52,15 @@
 // clipping levels; and against the service manual: +2.00 V on EXT. LOUDNESS
 // lowers the output by 10 +/- 3 dB (5.23; the netlist: 9.0 dB).
 //
+// The A-440 (circuit 13) comes in through R40 and C8 on Q14's collector, the
+// output pair's base: after both VCAs, so it sounds with no key down, goes
+// through the output stage and its clipping, and reaches the VOLUME pot, the
+// OUTPUT switch and the feedback patch like the instrument's own signal.
+// R40 is 1K on the original board, 10K with Folkman's 94-002 kit, 2.2K on Fig.
+// 9-11 and in Table 7-8; ngspice (tools/spice/a440_level.cir) puts the A-440
+// at the main output at 0, -9 and -1.3 dB for them: only the kit's 10K meets
+// the service manual's "-8 +/- 2dB" (5.7), and is the value used.
+//
 // 1ST VCA BAL nulls the first pair's imbalance, which otherwise puts a step
 // proportional to the tail current on the output each time the contour opens
 // (the "thump"); what the technician's null leaves is `balance1`.
@@ -100,6 +109,11 @@ struct VcaParams
     double cOut     = 10.0e-6;    // C2
     double rAfter   = 6.0e3;      // R75 1K + R20 5K: what C2 drives
 
+    // The A-440's way in: R40 and C8 into the R18 330 side of the second load
+    double r40      = 10.0e3;     // see above: the 94-002 kit's value
+    double c8       = 0.1e-6;
+    double rA440Node = 330.0;     // R18
+
     static VcaParams drawn (Rng& rng, const VcaParams& nominal) noexcept
     {
         VcaParams p = nominal;
@@ -138,7 +152,7 @@ public:
         reset();
     }
 
-    void reset() noexcept { inPrev = inHp = outPrev = outHp = 0.0; }
+    void reset() noexcept { inPrev = inHp = outPrev = outHp = refPrev = refHp = 0.0; }
 
     void setParams (const VcaParams& params) noexcept
     {
@@ -172,11 +186,16 @@ public:
     /** The output's swing each way (V): the output pair fully switched. */
     double swing() const noexcept { return p.rOut * 0.5 * p.i3; }
 
-    /** `vin`: the filter's output (V); `contourVolts`: the loudness contour.
+    /** `vin`: the filter's output (V); `contourVolts`: the loudness contour;
+        `a440`: the A-440 oscillator's output (V, Q4's emitter), 0 when off.
         Returns the AC voltage of Q17's collector after C2, as R75 and the
         VOLUME pot see it. */
-    double process (double vin, double contourVolts) noexcept
+    double process (double vin, double contourVolts, double a440 = 0.0) noexcept
     {
+        // the A-440 through C8 into R40 and the load: a voltage on one of the
+        // output pair's bases
+        refHp = kRef * (refHp + a440 - refPrev);
+        refPrev = a440;
         // C6 into R2 + R34
         inHp = kIn * (inHp + vin - inPrev);
         inPrev = vin;
@@ -184,7 +203,7 @@ public:
         const double i1 = std::fmax (tailCurrent (contourVolts), p.bleed * tailFull);
         const double v2 = i1 * (p.rLoad1 * std::tanh ((v1 + p.offset1) * inv2vt) + p.balance1
                                 - p.rLoad1 * tanhOffset1);
-        const double v3 = p.rLoad2 * p.i2 * std::tanh (v2 * inv2vt);
+        const double v3 = p.rLoad2 * p.i2 * std::tanh (v2 * inv2vt) + refHp * p.rA440Node / (p.r40 + p.rA440Node);
         const double out = swing() * outputPair (v3);
         // C2 into R75 + VOLUME
         outHp = kOut * (outHp + out - outPrev);
@@ -209,6 +228,7 @@ private:
         auto highPass = [this] (double rc) { return rc / (rc + h); };
         kIn = highPass (p.c6 * (p.r2 + p.r34));
         kOut = highPass (p.cOut * p.rAfter);
+        kRef = highPass (p.c8 * (p.r40 + p.rA440Node));
         tanhOffset1 = std::tanh (p.offset1 / (2.0 * phys::thermalVoltage (298.15))); // what 1ST VCA BAL cancels, set at 25 C
     }
 
@@ -278,8 +298,8 @@ private:
     std::array<double, size_t (tableSize)> tail {};
     std::array<double, size_t (outSize)> pair {};
     double tailFull = 5.5e-4, tanhOffset1 = 0.0;
-    double h = 1.0 / 48000.0, kIn = 1.0, kOut = 1.0;
-    double inPrev = 0.0, inHp = 0.0, outPrev = 0.0, outHp = 0.0;
+    double h = 1.0 / 48000.0, kIn = 1.0, kOut = 1.0, kRef = 1.0;
+    double inPrev = 0.0, inHp = 0.0, outPrev = 0.0, outHp = 0.0, refPrev = 0.0, refHp = 0.0;
     double inv2vt = 1.0 / (2.0 * phys::thermalVoltage (298.15));
 };
 

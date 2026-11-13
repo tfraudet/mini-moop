@@ -86,7 +86,13 @@ private:
     int osFactor = 4, maxBlock = 512;
     double dcState = 0.0, dcPrevIn = 0.0, dcCoeff = 0.9995;
     double refPhase = 0.0, refHz = 440.0;
-    static constexpr double a440Peak = 0.775 * 0.3981 * 1.41421356; // -8 dB re 0.775 V rms, as a sine's peak (V at the jack)
+    std::vector<double> refBuffer;
+    // The A-440 oscillator's output at Q4's emitter (board 4, circuit 13): ngspice
+    // on the drawn Wien bridge (tools/spice/a440.cir, a440_harmonics.py): a
+    // 0.854 V peak fundamental, and the harmonics its limiter and its
+    // saturated follower leave, "a somewhat imperfect sinewave" (Folkman).
+    static constexpr double refPeak = 0.854;
+    static constexpr std::array<double, 5> refHarmonics { 0.143, 0.061, 0.029, 0.019, 0.008 }; // 2nd to 6th
     double polyGain = 1.0; // 1/sqrt(voices) in poly mode: a full chord stays below full scale
     double lamp = 0.0;
 };

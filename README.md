@@ -92,7 +92,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 28 kHz; sings at 220 Hz |
 | Filter scale, KEYBOARD 1/3 (5.14, 5.15) | two then three octaves of keys track with switches 1 and 2; 880 +/- 50 Hz three octaves up with switch 1 | within 10 and 40 cents; within the 50 Hz |
 | Amount of contour, filter control (5.17, 5.18) | fully clockwise: "35kHz +/- 10kHz"; two octaves for about two divisions | 38 to 40 kHz (the converter's limit); 1.96 octaves |
-| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -8.0 and -2.0 dB (read over 48 kHz, as a wideband meter; this unit's two lie 5.9 dB apart, close to the 6 dB the check allows); -8.0 dB; -80 dB |
+| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -8.0 and -2.0 dB (read over 48 kHz, as a wideband meter; this unit's two lie 5.9 dB apart, close to the 6 dB the check allows); -8.9 dB (ngspice on the drawn circuits: -8.3); -80 dB |
 | Contour generator balance (5.25) | -55 dB maximum | -63 dB |
 | Keyboard and glide (2.19, specifications) | 1 V an octave; 1 ms to 1 s an octave; the pitch is held when the key is released | GLIDE 10: 0.59 s an octave up, 1.06 down (ngspice on the drawn circuit: 0.58 and 1.07); held, drifting by a few cents a minute |
 | Short term oscillator stability (specifications) | better than 0.25 % | 3.6 cents over a minute at Drift 1 |
@@ -110,6 +110,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | VCA (circuit 7) against ngspice: Q18's current, gain against the contour, clipping | within 3 %; within 1 dB (1.97 at a 5 V contour); +/-2.8 V against +3.05 / -2.84 | `test_vca.cpp` (three test cases) |
 | Contour levels against ngspice; times from the drawn networks | rest, peaks (5.22 V loudness, 4.43 V filter) and the levels held at six SUSTAIN settings within 0.04 V of `contour.cir`; 1.4 ms to 11 s | `test_contour.cpp` |
 | Trigger section's delays | 7.9 ms after a key struck after a rest, 10.8 ms after a release (ngspice), under 1.5 ms struck again 20 ms after a release | `test_contour.cpp`: "Trigger section: C7's delays on both edges (ngspice)" |
+| Folkman's Visualign: the main output, A-440 included, patched into the external input, the OVERLOAD lamp just lit on the A-440 alone | the lamp blinks at the beat (2 Hz) when oscillator 1 joins | `test_service_manual.cpp`: "Folkman's Visualign ..." |
 | Oscillator aliasing in the audio band, against the fundamental | sawtooth and rectangles below -100 dB at 3.5 and 7 kHz (2x and 4x); triangle below -75 dB | `test_vco.cpp`: "Band-limited steps and corners keep aliasing low at high pitch" |
 | Waveform levels, the triangle's shape and the rectangle widths | +/-2.09 V sawtooth, +/-1.75 V triangle, 3.5 V rectangle; the triangle within 40 mV of ngspice's transfer; 50.1, 31.7 and 19.9 % (ngspice) | `test_vco.cpp` |
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
@@ -184,7 +185,7 @@ Mini Moop models revision 2 as Fig. 9-3 draws it, that is with the 94-001 kit fi
 | **4** Filter and VCA | 93-116, Fig. 9-10 / 9-11 | circuit 6: ladder filter (C3, C7, C11, C16 = 0.068 µF), output stage Q5 to Q8, emphasis path with REGEN CAL, cutoff converter Q26 / Q28 | `LadderFilter`, `FilterOutputStage`, `CutoffConverter` | C10 and C27's low-frequency corners |
 | | | circuit 7: first VCA (loudness contour), second VCA (EXT. LOUDNESS), output stage Q12 / Q17 | `Vca` | the EXT. LOUDNESS input (its jack is left unplugged) |
 | | | circuit 12: external input pre-amp and OVERLOAD lamp driver | `ExtPreamp` (the panel lamp shows the brightest lamp among the sounding units) | |
-| | | circuit 13: A-440 reference oscillator | its level, pitch and place in the signal path (after both VCAs) in `SynthEngine` | the Wien bridge as a circuit: a sine with a few estimated harmonics |
+| | | circuit 13: A-440 reference oscillator | its waveform (level and harmonics from ngspice on the drawn Wien bridge) in `SynthEngine`, into the first unit's VCA through R40 and C8 (`Vca`) | the Wien bridge's own dynamics (start-up, warm-up drift) |
 | **5** Rectifier | 93-118, Fig. 9-13 | bridge rectifier, filter capacitors, fuses | | not simulated (no audible effect) |
 | **6** Octave buffer | 93-119, Fig. 9-14 | three 741 followers buffering the range switches | ideal followers: the string's taps are not loaded | their offsets (the RANGE trims absorb them) |
 | Front panel | Fig. 9-16, Tables 7-2 / 7-3 | passive mixer (pots, on/off switches, summing resistors), RANGE string, TUNE, FREQUENCY, the filter's control resistors | `Mixer`, `FrontPanel`, pot tapers in each block | |
@@ -284,8 +285,9 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Q18 and the pairs (TIS97) | hFE 440 (bin 250 to 700), saturation current 10 fA (generic) | Other |
 | Balance left after 1ST VCA BAL; closed VCA | −55 dB or better (5.25); 80 dB (specifications) | Moog (5.25, specifications) |
 | Main VOLUME | C2 10 µF, R75 1 kΩ into R20, 5 kΩ linear | Moog (Fig. 9-11, 9-16) |
-| A-440 | into the second VCA's load through R40 and C8: after both VCAs; −8 dB at the main output, 440 ± 1 Hz | Moog (Fig. 9-11; 5.7) |
-| A-440's harmonics | 3 %, 1.5 %, 0.7 % (2nd, 3rd, 4th): "a somewhat imperfect sinewave" (Folkman) | Assumed |
+| A-440 | a Wien bridge (Q22, Q9, the limiter CR3 / CR4 and R27, Q4 saturated on R1): 0.854 V peak at Q4's emitter, into the output pair's base through R40 and C8: after both VCAs, through the output stage, VOLUME, the OUTPUT switch and the feedback patch; 440 ± 1 Hz (5.7) | Moog, ngspice (Fig. 9-11; drawing 1443; `a440.cir`) |
+| R40 | 10 kΩ, the 94-002 kit's value (Folkman). Fig. 9-11 and Table 7-8 read 2.2 kΩ, the original board 1 kΩ: ngspice puts the A-440 at −1.3 and 0 dB at the main output with them, against the manual's −8 ± 2 dB (5.7); 10 kΩ gives −8.3 dB | Moog, ngspice (Folkman XII; 5.7; `a440_level.cir`) |
+| A-440's harmonics | 14.3, 6.1, 2.9, 1.9, 0.8 % (2nd to 6th): "a somewhat imperfect sinewave which increases its harmonic content" (Folkman) | Moog, ngspice (`a440.cir`, `a440_harmonics.py`); the diode and transistor cards: Other |
 | The manual's 0 dB | 0.775 V: with it the circuit gives the manual's A-440 and triangle levels | Assumed |
 | Load on the output | 10 kΩ | Assumed |
 | Digital full scale | ±2.85 V | Assumed (a level choice, not part of the circuit) |

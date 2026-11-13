@@ -48,6 +48,7 @@ void SynthEngine::prepare (double hostSampleRate, int maxBlockSize, int oversamp
     interpolator.prepare (osFactor);
     osBuffer.assign (size_t (maxBlock * osFactor), 0.0);
     extBuffer.assign (size_t (maxBlock * osFactor), 0.0);
+    refBuffer.assign (size_t (maxBlock * osFactor), 0.0);
     for (auto& v : voices)
         v.prepare (hostRate * osFactor);
     // Output coupling capacitor: ~3 Hz high-pass
@@ -118,18 +119,38 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
             ext = extBuffer.data();
         }
 
+        // A-440 reference (board 4, circuit 13): a Wien bridge oscillator whose
+        // output goes through R40 and C8 into the VCA's output stage (see Vca):
+        // after both VCAs, so it sounds with no key down. One per instrument:
+        // into the first unit.
+        const double* ref = nullptr;
+        if (panel.a440)
+        {
+            const double inc = refHz / (hostRate * osFactor);
+            for (int i = 0; i < m; ++i)
+            {
+                refPhase += inc;
+                if (refPhase >= 1.0) refPhase -= 1.0;
+                const double th = 2.0 * M_PI * refPhase;
+                double wave = std::sin (th);
+                for (size_t k = 0; k < refHarmonics.size(); ++k)
+                    wave += refHarmonics[k] * std::sin (double (k + 2) * th);
+                refBuffer[size_t (i)] = refPeak * wave;
+            }
+            ref = refBuffer.data();
+        }
+
         const int active = alloc.activeVoiceCount();
         double brightest = -1.0;
         for (int v = 0; v < active; ++v)
-            if (voices[size_t (v)].isActive())
+            if (voices[size_t (v)].isActive() || (v == 0 && ref != nullptr))
             {
-                voices[size_t (v)].render (panel, osBuffer.data(), ext, m);
+                voices[size_t (v)].render (panel, osBuffer.data(), ext, m, v == 0 ? ref : nullptr);
                 brightest = std::max (brightest, voices[size_t (v)].overloadLamp());
             }
         // No unit sounding: the lamp filament simply cools down.
         lamp = brightest >= 0.0 ? brightest : lamp * std::exp (-double (chunk) / (hostRate * 0.06));
 
-        const double refInc = refHz / hostRate;
         for (int i = 0; i < chunk; ++i)
         {
             double y = decimator.process (osBuffer.data() + size_t (i * osFactor));
@@ -138,26 +159,6 @@ void SynthEngine::process (float* out, const float* in, int n) noexcept
             dcPrevIn = y;
             dcState = hp;
             y = hp * outputScale * polyGain;
-            if (panel.a440)
-            {
-                // A-440 reference (board 4, circuit 13): a Wien bridge oscillator
-                // whose output goes through R40 and C8 into the second VCA's
-                // load, ahead of the output stage: after both VCAs, so it sounds
-                // with no key down and follows the VOLUME pot and the OUTPUT
-                // switch. "Check to see that output is -8 +/- 2dB" at the HIGH
-                // MAIN OUTPUT (5.7; 0 dB = 0.775 V): 0.436 V peak with VOLUME at
-                // 10. "It produces a somewhat imperfect sinewave which increases
-                // its harmonic content. These harmonics or overtones assist in
-                // tuning" an octave or two away (Folkman): the diode limiter
-                // CR3 / CR4; the harmonics' levels are estimates.
-                refPhase += refInc;
-                if (refPhase >= 1.0) refPhase -= 1.0;
-                const double th = 2.0 * M_PI * refPhase;
-                const double wave = std::sin (th) + 0.03 * std::sin (2.0 * th) + 0.015 * std::sin (3.0 * th)
-                                  + 0.007 * std::sin (4.0 * th);
-                const double atFull = panel.mainOn ? OutputVolume::gain (panel.volume) / OutputVolume::gain (1.0) : 0.0;
-                y += a440Peak * atFull * outputScale * wave;
-            }
             out[done + i] = float (y);
         }
         done += chunk;

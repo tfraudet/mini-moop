@@ -594,7 +594,7 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     volume = p.mainOn ? OutputVolume::gain (p.volume) : 0.0; // R75 and R20, SW19
 }
 
-void Voice::render (const PanelState& p, double* out, const double* extIn, int n) noexcept
+void Voice::render (const PanelState& p, double* out, const double* extIn, int n, const double* a440) noexcept
 {
     for (int s = 0; s < n; ++s)
     {
@@ -662,7 +662,7 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         const double filtered = ladder.process (mixed);
 
         // VCA, output stage and VOLUME: volts at the main output jack
-        const double y = vca.process (filtered, lContour) * volume;
+        const double y = vca.process (filtered, lContour, a440 ? a440[s] : 0.0) * volume;
         feedbackSample = y;
         lastOut = y;
         out[s] += y;

@@ -63,7 +63,9 @@ public:
 
     /** Render `n` samples at the oversampled rate, adding into `out` (volts).
         `extIn` is the external input signal (volts) or nullptr. */
-    void render (const PanelState& panel, double* out, const double* extIn, int n) noexcept;
+    /** `a440`: the A-440 oscillator's output (V) at the oversampled rate, into
+        this unit's VCA; null when off or for the other units of a poly set. */
+    void render (const PanelState& panel, double* out, const double* extIn, int n, const double* a440 = nullptr) noexcept;
 
     // Diagnostics / tests
     double oscFrequency (int osc, double cv) noexcept;
@@ -86,6 +88,8 @@ public:
     const LadderFilter& filter() const noexcept { return ladder; }
     const Vca& amplifier() const noexcept { return vca; }
     double noiseLevel() const noexcept { return whiteLevel; }
+    /** TUNE's span on this unit, octaves over the whole travel. */
+    double tuneRange() const noexcept { return tuneSpan; }
     /** Volts at the main output jack for a volt at the output stage, VOLUME at 10. */
     static double jackGain() noexcept { return OutputVolume::gain (1.0); }
     const VcoCore& vco (int i) const noexcept { return vcos[size_t (i)]; }
