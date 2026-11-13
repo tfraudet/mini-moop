@@ -1,0 +1,24 @@
+* Board 3, circuit 15: the modulation mix amplifier (Fig. 9-8; R. A. Moog drawing 1444), as
+* drawn, with the front panel's MODULATION MIX network ahead of it (Fig. 9-16).
+* osc3, noise: the two sources; out: Q7's collector (ahead of R57 1K, pin 1 being the line).
+* The MODULATION MIX pot R3 25K is split by the parameter mix (0: all oscillator 3, the wiper at
+* the noise end; 1: all noise); its wiper is grounded.
+.subckt modmix osc3 noise out vp vn params: mix=0
+r23 osc3 a 24k
+r24 noise b 24k
+rpa a 0 {25k*(1-mix)+1}
+rpb b 0 {25k*mix+1}
+r64 a s 43k
+r62 b s 43k
+* the amplifier: Q18 / Q17 on R54 43K, Q17's base grounded, R42 6.2K into Q7's base
+q18 vp s e Q2N3392
+q17 n17 0 e Q2N3392
+r54 e vn 43k
+r42 vp n17 6.2k
+q7 out n17 vp Q2N4058
+r38 n17 c14n 390
+c14 c14n out 0.022u
+* the output's only pull-down, and the feedback
+r30 out vn 10k
+r60 out s 91k
+.ends

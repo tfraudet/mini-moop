@@ -158,6 +158,9 @@ void Voice::build (uint64_t s)
     glide.setParams (GlideParams::drawn (rng, GlideParams {}));
     extPreamp.setParams (ExtPreampParams::drawn (rng, ExtPreampParams {}));
     drawPanel (rng);
+    // The modulation amplifier's standing offset follows Q18's gain (2N3392:
+    // 150 to 300 about the model's 210).
+    modOffset = rng.tolerance (ModulationMix::outputOffset, 0.30, 0.40);
 
     // The bench: what the service manual's adjustment procedures (section 5,
     // and R. J. Folkman's field service manual) have a technician do.
@@ -580,6 +583,7 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     oscModDepth = p.oscModulation ? lineDivider : 0.0;      // octaves per amplifier volt
     filterModDepth = p.filterModulation ? lineDivider * filterModGain : 0.0;
     std::tie (modOsc3, modNoise) = ModulationMix::amplifier (p.modMix, vcos[2].sourceResistance());
+    modFloor = ModulationMix::outputFloor (rLine);
     feedback = p.feedbackPatch;
     volume = p.mainOn ? OutputVolume::gain (p.volume) : 0.0; // R75 and R20, SW19
 }
@@ -615,7 +619,8 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         const double noiseMod = pink ? redN : pinkN;
 
         // Modulation bus: MODULATION MIX between osc 3 and noise (R3 network)
-        const double mod = -(modOsc3 * osc3Last + modNoise * noiseMod); // the amplifier's output (V): it inverts
+        // the amplifier's output (V): it inverts, and cannot pull far below zero
+        const double mod = ModulationMix::limit (-(modOsc3 * osc3Last + modNoise * noiseMod) + modOffset, modFloor);
 
         // Oscillators (osc 3 first: it is the modulation source, and takes the
         // line like the others while OSC. 3 CONTROL is on)

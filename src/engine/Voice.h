@@ -136,6 +136,8 @@ private:
     double filterStaticCv = 0.0, kbTrack = 0.0, contourOct = 0.0, osc3FreeCv = 0.0;
     double oscModDepth = 0.0, filterModDepth = 0.0, volume = 0.0;
     double modOsc3 = 1.0, modNoise = 0.0; // MODULATION MIX weights
+    double modFloor = -1.7;               // the modulation amplifier's lowest output (V), for the line's load
+    double modOffset = 0.0;               // and its standing offset (V)
     bool osc3Kbd = true, pink = false, feedback = false;
 };
 

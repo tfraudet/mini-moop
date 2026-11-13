@@ -23,11 +23,13 @@
 #include "circuit/blocks/OutputVolume.h"
 #include "engine/SynthEngine.h"
 
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
 #include <vector>
 
 using namespace mm;
+using Catch::Approx;
 
 TEST_CASE ("Red noise is darker than pink, pink darker than white", "[noise]")
 {
@@ -144,5 +146,31 @@ TEST_CASE ("MODULATION MIX: R3 network with grounded wiper", "[modmix]")
     {
         CHECK (ModulationMix::gains (0.1 * (i + 1)).first < ModulationMix::gains (0.1 * i).first);
         CHECK (ModulationMix::gains (0.1 * (i + 1)).second > ModulationMix::gains (0.1 * i).second);
+    }
+}
+
+TEST_CASE ("Modulation amplifier: gain and the floor of its one-way output (ngspice)", "[modmix]")
+{
+    // Fig. 9-8 circuit 15 against ngspice on the drawn circuit
+    // (tools/spice/modulation.cir): oscillator 3 alone (MODULATION MIX at 0),
+    // the line loaded by the three MOD inputs and R52, for three positions
+    // of the MODULATION wheel. Columns: the wheel (ohm), then the output for
+    // +1.5 V, +2 V and -2 V at oscillator 3's input.
+    struct Row { double wheel, at15, at2, atMinus2, floor; };
+    const Row bench[] = { { 1200.0, -1.196, -1.595, 1.702, -1.692 },
+                          { 600.0, -1.183, -1.336, 1.697, -1.336 },
+                          { 200.0, -1.056, -1.055, 1.691, -1.056 } };
+    const double gain = ModulationMix::amplifier (0.0).first;
+    CHECK (gain == Approx (0.829).epsilon (0.005));
+    for (const auto& r : bench)
+    {
+        const double rLine = 1.0 / (1.0 / r.wheel + 3.0 / 51.1e3 + 1.0 / 33.0e3);
+        const double floor = ModulationMix::outputFloor (rLine);
+        INFO ("wheel " << r.wheel << " ohm: floor " << floor);
+        CHECK (floor == Approx (r.floor).margin (0.015));
+        constexpr double off = ModulationMix::outputOffset;
+        CHECK (ModulationMix::limit (-gain * 1.5 + off, floor) == Approx (r.at15).margin (0.02));
+        CHECK (ModulationMix::limit (-gain * 2.0 + off, floor) == Approx (r.at2).margin (0.02));
+        CHECK (ModulationMix::limit (gain * 2.0 + off, floor) == Approx (r.atMinus2).margin (0.02));
     }
 }

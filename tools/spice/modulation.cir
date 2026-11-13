@@ -1,0 +1,29 @@
+modulation mix amplifier (circuit 15): gain, and the output's limits against the line's load
+.include models.lib
+.include board3-modmix.lib
+.options temp=25 tnom=25
+.param rw=1.2k
+vp vp 0 10
+vn vn 0 -10
+vo osc3 0 dc 0
+vno noise 0 dc 0
+x1 osc3 noise out vp vn modmix mix=0
+* the line: R57 1K, the MODULATION wheel R1402 as a rheostat to ground (1.2K fully forward),
+* the loads OSC. MODULATION and FILTER MODULATION connect: three 51.1K MOD inputs and R52 33K
+r57 out line 1k
+rwh line 0 {rw}
+rmod line 0 {51.1k/3}
+rfil line 0 33k
+.control
+foreach w 1200 600 200
+  alterparam rw = $w
+  reset
+  dc vo -3 3 0.05
+  meas dc vlow min v(out)
+  meas dc vhigh max v(out)
+  meas dc knee when v(out)=-0.5
+  wrdata modmix_{$w}.dat v(out)
+  echo "wheel $w ohm: output $&vlow to $&vhigh V, -0.5 V at an oscillator 3 input of $&knee V"
+end
+.endc
+.end

@@ -28,7 +28,18 @@
 // oscillator 3 end (noise only); in between both sources are attenuated by
 // the part of the track that remains to ground, which is not a linear
 // crossfade.
+//
+// The amplifier is discrete, and only one way strong: Q7 (2N4058) sources
+// current up from +10 V, while the output's only pull-down is R30 10K to
+// -10 V. Below zero the output stops where R30 meets what it drives: R57 1K
+// and the line (the MODULATION wheel, a rheostat to ground, and the loads the
+// switches connect), and R60 back to the summing node. With the wheel fully
+// forward that is -1.7 V, near its back end -1 V: oscillator 3's sawtooth
+// and rectangles, and the noise's peaks, are cut on that side. ngspice on the
+// drawn circuit (tools/spice/modulation.cir): a gain of 0.829 where the
+// virtual ground gives 0.840, then a floor within 0.01 V of the divider's.
 
+#include <cmath>
 #include <utility>
 
 namespace mm
@@ -40,6 +51,35 @@ struct ModulationMix
     static constexpr double rPot = 25.0e3;      // R3, linear
     static constexpr double rSum = 43.0e3;      // R62, R64
     static constexpr double rFeedback = 91.0e3; // R60: the amplifier's feedback
+    static constexpr double rOut = 1.0e3;       // R57: from the output to the line
+    static constexpr double rPullDown = 10.0e3; // R30: the output's pull-down to -10 V
+    static constexpr double loopLoss = 0.987;   // the discrete amplifier's finite gain: 0.829 for 0.840 (ngspice)
+    /** The output's standing offset (V): Q18's base current through R60, Q17's
+        base being grounded directly (ngspice, a 2N3392 at a gain of 210). It
+        reaches the line through the wheel's divider: a few cents of pitch
+        with the wheel forward and OSC. MODULATION on. */
+    static constexpr double outputOffset = 0.041;
+    /** What else the output drives when Q7 is off: R60 into the summing node
+        and, behind it, the inputs' networks (about 120K; ngspice's floors). */
+    static constexpr double rFeedbackSide = 120.0e3;
+
+    /** The output's lowest voltage, Q7 off, for the line's resistance to ground. */
+    static double outputFloor (double rLine) noexcept
+    {
+        const double rl = 1.0 / (1.0 / (rOut + rLine) + 1.0 / rFeedbackSide);
+        return -10.0 * rl / (rPullDown + rl);
+    }
+
+    /** The output (V) for its linear value `v`: as Q7's current falls the
+        loop loses gain, and the output bends into the floor along a hyperbola
+        0.11 V wide (ngspice: 6 mV short of the line 0.5 V above the floor,
+        20 mV 0.12 V above it). */
+    static double limit (double v, double floor) noexcept
+    {
+        constexpr double knee = 0.11;
+        const double d = v - floor;
+        return floor + 0.5 * (d + std::sqrt (d * d + knee * knee));
+    }
 
     /** The amplifier's output (V) per volt of oscillator 3 and per volt of
         noise, for a knob position 0..1, as magnitudes (the amplifier inverts).
@@ -66,7 +106,7 @@ private:
     {
         constexpr double minR = 1.0; // wiper contact at the very end of the track
         const double gIn = 1.0 / (rIn + rSource), gW = 1.0 / (rToWiper > minR ? rToWiper : minR), gSum = 1.0 / rSum;
-        return gIn / (gIn + gW + gSum) * (rFeedback / rSum);
+        return gIn / (gIn + gW + gSum) * (rFeedback / rSum) * loopLoss;
     }
 };
 
