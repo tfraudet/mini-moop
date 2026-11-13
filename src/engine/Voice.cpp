@@ -460,6 +460,7 @@ void Voice::prepare (double oversampledRate)
     noise.setWhiteLevel (whiteLevel);
     filterContour.prepare (fs);
     loudnessContour.prepare (fs);
+    trigger.prepare (fs);
     vca.prepare (fs);
     glide.prepare (fs);
     extPreamp.prepare (fs);
@@ -472,6 +473,8 @@ void Voice::reset()
     ladder.reset();
     filterContour.reset();
     loudnessContour.reset();
+    trigger.reset();
+    vTrigger = false;
     vca.reset();
     glide.reset (keyVolts (targetNote));
     extPreamp.reset();
@@ -490,8 +493,13 @@ void Voice::noteOn (int note, bool retrigger) noexcept
         glide.reset (keyVolts (note));
         firstNote = false;
     }
+    // The contours start on the trigger section's V-trigger (render), not on
+    // the key. A key arriving while another is held is the bus staying high
+    // (no new trigger), except a poly voice taken over while it sounds,
+    // which restarts its contours at once (no single-keyboard equivalent).
+    const bool wasDown = gate;
     gate = true;
-    if (retrigger)
+    if (retrigger && wasDown)
     {
         filterContour.gateOn();
         loudnessContour.gateOn();
@@ -500,14 +508,12 @@ void Voice::noteOn (int note, bool retrigger) noexcept
 
 void Voice::noteOff() noexcept
 {
-    gate = false;
-    filterContour.gateOff();
-    loudnessContour.gateOff();
+    gate = false; // the contours are released at the V-trigger's fall
 }
 
 bool Voice::isActive() const noexcept
 {
-    return gate || loudnessContour.currentStage() != ContourGen::Stage::Idle
+    return gate || vTrigger || loudnessContour.currentStage() != ContourGen::Stage::Idle
         || std::abs (lastOut) > 1.0e-4;
 }
 
@@ -602,6 +608,22 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         // (and glides) while a key is down.
         const double kbVolts = glide.process (keyVolts (targetNote), gate);
         const double kb = kbVolts + keyboardZero;
+
+        // The trigger section: C7's delays between the key and the V-trigger.
+        if (trigger.process (gate) != vTrigger)
+        {
+            vTrigger = ! vTrigger;
+            if (vTrigger)
+            {
+                filterContour.gateOn();
+                loudnessContour.gateOn();
+            }
+            else
+            {
+                filterContour.gateOff();
+                loudnessContour.gateOff();
+            }
+        }
 
         // Contours: output voltages. The filter contour goes through AMOUNT OF
         // CONTOUR to the filter's control node; the loudness contour drives the

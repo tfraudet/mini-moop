@@ -43,8 +43,9 @@
 //            contour at about +0.15 V.
 //
 // Each RC segment is integrated exactly (exponential step), so the curve is
-// independent of the sample rate. Not modelled: the trigger section's delay
-// and the electrolytic's dielectric absorption.
+// independent of the sample rate. The trigger section that starts and ends
+// it is TriggerSection. Not modelled: the electrolytic's dielectric
+// absorption.
 
 #include "../components/Passives.h"
 

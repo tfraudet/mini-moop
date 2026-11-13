@@ -33,6 +33,7 @@
 #include "../circuit/blocks/ModulationMix.h"
 #include "../circuit/blocks/NoiseSource.h"
 #include "../circuit/blocks/OutputVolume.h"
+#include "../circuit/blocks/TriggerSection.h"
 #include "../circuit/blocks/Vca.h"
 #include "../circuit/blocks/VcoCore.h"
 #include "DriftModel.h"
@@ -110,6 +111,8 @@ private:
     Mixer mixer;
     ExtPreamp extPreamp;
     ContourGen filterContour, loudnessContour;
+    TriggerSection trigger;     // the contours' trigger section: C7's delay on both edges
+    bool vTrigger = false;      // its output, the V-trigger
     Vca vca;
     Glide glide;
     DriftModel drift;

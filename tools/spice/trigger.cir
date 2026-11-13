@@ -1,0 +1,28 @@
+trigger section (circuit 8, Fig. 9-7): the delay from the key to the V-trigger
+.include models.lib
+.options temp=25 tnom=25 reltol=1e-4
+vx vx 0 9.3
+* the keyboard's trigger bus: +10 V while a key is down, -10 V otherwise (drawing 1436)
+vkey kb 0 pwl(0 -10 10m -10 10.001m 10 60m 10 60.001m -10 120m -10)
+rkb kb k20 100
+* CR10 (germanium) into R60 100K, C7 .1 uF, R55 47K into Q20's base
+dcr10 k20 c7n D1N34A
+r60 c7n c7 100k
+c7 c7 0 0.1u
+r55 c7 b20 47k
+q20 n20 b20 0 Q2N3392
+* Q20's collector: pulled up to +9.3 V through R32 10K; R19 10K into Q12's base; Q12's
+* collector on R23 3.3K is the V-trigger
+r32 vx n20 10k
+r19 n20 b12 10k
+q12 vtrig b12 0 Q2N3392
+r23 vx vtrig 3.3k
+.control
+tran 5u 120m
+meas tran ton when v(vtrig)=4.65 rise=1
+meas tran toff when v(vtrig)=4.65 fall=1
+let don = (ton - 10.001m) * 1000
+let doff = (toff - 60.001m) * 1000
+echo "V-trigger: up $&don ms after the key, down $&doff ms after its release"
+.endc
+.end

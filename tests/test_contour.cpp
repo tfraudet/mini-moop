@@ -20,6 +20,7 @@
 // 10 uF capacitors; levels from the drawn networks (Fig. 9-7).
 
 #include "circuit/blocks/ContourGen.h"
+#include "circuit/blocks/TriggerSection.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -161,4 +162,32 @@ TEST_CASE ("DECAY TIME spans the specification", "[contour]")
     CHECK (c.decayTau() < 0.010);
     c.setDecay (1.0);
     CHECK (c.decayTau() == Approx (10.0).epsilon (0.01));
+}
+
+TEST_CASE ("Trigger section: C7's delays on both edges (ngspice)", "[contour]")
+{
+    // Fig. 9-7: the bus through CR10 and R60 100K into C7 .1 uF, R55 47K into
+    // Q20's base. ngspice on the drawn circuit (tools/spice/trigger.cir), C7
+    // starting at -10 V: the V-trigger rises 7.9 ms after the key and falls
+    // 10.8 ms after its release.
+    constexpr double rate = 96000.0;
+    TriggerSection t;
+    t.prepare (rate);
+    t.reset();
+    auto timeTo = [&] (bool key, bool state) {
+        for (int i = 0; i < int (rate); ++i)
+            if (t.process (key) == state) return 1000.0 * i / rate;
+        return 1.0e9;
+    };
+    const double on = timeTo (true, true);
+    for (int i = 0; i < int (0.05 * rate); ++i) t.process (true);
+    const double off = timeTo (false, false);
+    INFO ("on after " << on << " ms, off after " << off << " ms");
+    CHECK (on == Approx (7.92).margin (0.3));
+    CHECK (off == Approx (10.79).margin (0.5));
+    // Struck again 20 ms after the release: C7 has not drifted far yet.
+    for (int i = 0; i < int (0.02 * rate); ++i) t.process (false);
+    const double again = timeTo (true, true);
+    INFO ("struck again: " << again << " ms");
+    CHECK (again < 1.5);
 }

@@ -109,6 +109,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Filter output stage (Q5 to Q8) against ngspice; passband gain against the whole of circuit 6 | table within 20 mV; 56.7; clipping at +6.4 / -3.7 V | `test_filter_output.cpp` (four test cases) |
 | VCA (circuit 7) against ngspice: Q18's current, gain against the contour, clipping | within 3 %; within 1 dB (1.97 at a 5 V contour); +/-2.8 V against +3.05 / -2.84 | `test_vca.cpp` (three test cases) |
 | Contour levels against ngspice; times from the drawn networks | rest, peaks (5.22 V loudness, 4.43 V filter) and the levels held at six SUSTAIN settings within 0.04 V of `contour.cir`; 1.4 ms to 11 s | `test_contour.cpp` |
+| Trigger section's delays | 7.9 ms after a key struck after a rest, 10.8 ms after a release (ngspice), under 1.5 ms struck again 20 ms after a release | `test_contour.cpp`: "Trigger section: C7's delays on both edges (ngspice)" |
 | Oscillator aliasing in the audio band, against the fundamental | sawtooth and rectangles below -100 dB at 3.5 and 7 kHz (2x and 4x); triangle below -75 dB | `test_vco.cpp`: "Band-limited steps and corners keep aliasing low at high pitch" |
 | Waveform levels, the triangle's shape and the rectangle widths | +/-2.09 V sawtooth, +/-1.75 V triangle, 3.5 V rectangle; the triangle within 40 mV of ngspice's transfer; 50.1, 31.7 and 19.9 % (ngspice) | `test_vco.cpp` |
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
@@ -175,7 +176,7 @@ Mini Moop models revision 2 as Fig. 9-3 draws it, that is with the 94-001 kit fi
 | Board | Moog reference | Circuit (service manual) | Simulated by | Not simulated |
 |---|---|---|---|---|
 | **1** Oscillator (rev 2) | 93-113, Fig. 9-3 / 9-4 | 3 × CV summer, CA3046 expo converter with its fixed high-frequency compensation, sawtooth core (0.01 µF, FET reset, 0 to −4 V ramp), waveshapers, −5 V reference and OCTAVE trim | `ExpoConverter` (summer reduced to its gain and tempco), `VcoCore`, the RANGE string in `Voice` | the summers' op-amp dynamics; the triangle shaper Q2 as a circuit (a rounded fold fitted to ngspice's transfer) |
-| **2** Contour generator and keyboard | 93-114, Fig. 9-6 / 9-7 | circuit 8: two contour generators (C5 / C2 = 10 µF) | 2 × `ContourGen` (filter, loudness) | the trigger section's delay |
+| **2** Contour generator and keyboard | 93-114, Fig. 9-6 / 9-7 | circuit 8: two contour generators (C5 / C2 = 10 µF) and their trigger section | 2 × `ContourGen` (filter, loudness), `TriggerSection` (C7's delays) | the S-TRIG input |
 | | | circuit 1: keyboard circuit: 43 × 10 Ω key string, track and hold with glide (C6 = 1 µF) | the key string's tolerances in `Voice`, `Glide` (the hold when the key is released, the glide's two rails, the hold's sag) | the current source (its value goes into the oscillators' SCALE), C9 on the pitch input. Lowest-note priority and single triggering are handled by `VoiceAllocator` |
 | **3** Power supply | 93-115, Fig. 9-8 / 9-9 | circuit 3: noise generator (white, pink, red) | `NoiseSource` | |
 | | | circuit 15: modulation mix | `ModulationMix` (R3 25 kΩ linear pot with grounded wiper between the two 24 kΩ inputs, 43 kΩ summing resistors; the discrete amplifier's gain, offset and one-way output from ngspice) | the amplifier's dynamics |
@@ -269,6 +270,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Release dump with DECAY off | R1401 1.5 kΩ | Moog (Fig. 9-12; 2.10) |
 | Decay path at minimum setting | R11 100 Ω | Moog (Fig. 9-7) |
 | Lowest-note priority, single trigger | | Moog (2.19) |
+| Trigger section | the bus through CR10 (germanium) and R60 100 kΩ into C7 0.1 µF, R55 47 kΩ into Q20: the V-trigger rises 7.9 ms after a key struck after a rest (CR10's leakage has let C7 drift to −10 V), under 1 ms for a key struck again soon after a release, and falls 10.8 ms after the release | Moog, ngspice (Fig. 9-7; `trigger.cir`); CR10's leakage: Other (the 1N34A card) |
 
 ### VCA and output (board 4, circuit 7, front panel)
 
