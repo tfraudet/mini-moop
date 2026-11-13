@@ -382,9 +382,6 @@ void Voice::calibrateNoise()
     // follow from the circuit with it).
     constexpr double target = 0.775 * 0.5623; // -5 dB
     constexpr double probe = 0.02;            // V rms: small enough for the chain to be linear
-    NoiseSource n;
-    n.prepare (calibrationRate, seed * 13 + 5);
-    n.setWhiteLevel (probe);
     Mixer m = mixer;
     for (int ch = 0; ch < MixerParams::numChannels; ++ch)
         m.setChannel (ch, 1.0, ch == 3);
@@ -392,30 +389,62 @@ void Voice::calibrateNoise()
     params.noiseRms = 0.0;
     const auto& lc = loudnessContour.params();
     const double sustained = std::fmin (lc.sustainCap (1.0), lc.peakOutput() + lc.vOutDrop) - lc.vOutDrop;
-    const int total = int (0.25 * calibrationRate), skip = int (0.03 * calibrationRate);
-    std::array<double, 2> sum {}; // white, pink
-    for (size_t colour = 0; colour < 2; ++colour)
-    {
-        LadderFilter f = ladder;
-        f.setParams (params);
-        f.prepare (calibrationRate, 1);
-        f.setTemperature (298.15);
-        f.setCutoffCurrent (filterExpo.current (cutoffGain * 10.0));
-        f.setEmphasis (0.0);
-        Vca v = vca;
-        v.prepare (calibrationRate);
-        for (int i = 0; i < total; ++i)
+    // What the meter reads for a white level (V rms at the board): white and
+    // pink.
+    auto reading = [&] (double level, double seconds) {
+        const int total = int (seconds * calibrationRate), skip = int (0.03 * calibrationRate);
+        NoiseSource n;
+        n.prepare (calibrationRate, seed * 13 + 5);
+        n.setWhiteLevel (level);
+        std::array<double, 2> sum {}; // white, pink
+        for (size_t colour = 0; colour < 2; ++colour)
         {
-            double white, pinkN, redN;
-            n.process (white, pinkN, redN);
-            const double source = colour == 0 ? white : pinkN;
-            const double y = v.process (f.process (m.process ({ 0.0, 0.0, 0.0, source, 0.0 })), sustained) * jackGain();
-            if (i >= skip)
-                sum[colour] += y * y;
+            LadderFilter f = ladder;
+            f.setParams (params);
+            f.prepare (calibrationRate, 1);
+            f.setTemperature (298.15);
+            f.setCutoffCurrent (filterExpo.current (cutoffGain * 10.0));
+            f.setEmphasis (0.0);
+            Vca v = vca;
+            v.prepare (calibrationRate);
+            for (int i = 0; i < total; ++i)
+            {
+                double white, pinkN, redN;
+                n.process (white, pinkN, redN);
+                const double source = colour == 0 ? white : pinkN;
+                const double y = v.process (f.process (m.process ({ 0.0, 0.0, 0.0, source, 0.0 })), sustained) * jackGain();
+                if (i >= skip)
+                    sum[colour] += y * y;
+            }
         }
+        return std::array<double, 2> { std::sqrt (sum[0] / double (total - skip)),
+                                       std::sqrt (sum[1] / double (total - skip)) };
+    };
+    auto centre = [] (const std::array<double, 2>& r) { return std::sqrt (r[0] * r[1]); }; // the two averaged in dB
+    // A first setting where the chain is linear, then the trim turned with
+    // the meter read at the real level: the wideband white noise drives the
+    // ladder's input pair into its curve, and comes out lower than the
+    // small-signal gain says.
+    const double small = centre (reading (probe, 0.1));
+    whiteLevel = small > 0.0 ? probe * target / small : 0.1;
+    std::array<double, 2> r {};
+    for (int it = 0; it < 2; ++it)
+    {
+        r = reading (whiteLevel, 0.25);
+        const double c = centre (r);
+        if (c <= 0.0) return;
+        whiteLevel *= target / c;
+        r[0] *= target / c; // what the meter now reads, the chain being nearly
+        r[1] *= target / c; // linear over so small a turn
     }
-    const double centre = std::sqrt (std::sqrt (sum[0] * sum[1]) / double (total - skip)); // the two, averaged in dB
-    whiteLevel = centre > 0.0 ? probe * target / centre : 0.1;
+    // "... so that both white and pink fall within specification": where the
+    // two lie close to 6 dB apart on a unit (the filter's top end decides how
+    // much of the white noise reaches the jack), centring can leave one at
+    // the edge of -5 +/- 3 dB, and the trim goes the little further that
+    // brings it a tenth of a decibel inside.
+    constexpr double low = 0.775 * 0.3981 * 1.012, high = 0.775 * 0.7943 / 1.012; // -8 and -2 dB, less 0.1 dB
+    if (r[1] > high)      whiteLevel *= high / r[1];
+    else if (r[0] < low)  whiteLevel *= low / r[0];
 }
 
 void Voice::prepare (double oversampledRate)

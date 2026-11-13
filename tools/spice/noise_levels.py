@@ -4,8 +4,8 @@
 R. A. Moog drawing 1431 marks the three outputs of board 3, white, pink and red, at the same
 level: -4 dBm each. The pink and red levels follow from the white noise's spectrum through the
 drawn networks (noise.cir writes their transfers to noise_ac.dat); the white noise's bandwidth,
-the junction and Q12's, is not on the drawing. This finds the bandwidth for which pink comes
-out at white's level, and reports red's level with it.
+the junction and Q12's, is not on the drawing. This finds the bandwidth for which the three
+levels come closest to one another (least squares about their mean).
 
 usage: python3 tools/spice/noise_levels.py   (after ngspice -b noise.cir, from tools/spice)
 """
@@ -36,9 +36,19 @@ def levels(bw):
 for bw in (5e3, 10e3, 20e3, 40e3, 80e3):
     p, r = levels(bw)
     print("white bandwidth %6.0f Hz: pink %+5.1f dB, red %+5.1f dB against white" % (bw, p, r))
+
+
+def spread(bw):
+    """Variance of the three levels (white at 0 dB) about their mean."""
+    p, r = levels(bw)
+    m = (0.0 + p + r) / 3.0
+    return (m * m + (p - m) ** 2 + (r - m) ** 2) / 3.0
+
+
 lo, hi = 1e3, 1e6
-for _ in range(60):
-    mid = math.sqrt(lo * hi)
-    (lo, hi) = (mid, hi) if levels(mid)[0] > 0 else (lo, mid)
+for _ in range(80):  # golden-section search on log(bandwidth)
+    a, b = math.exp(math.log(lo) + 0.382 * (math.log(hi) - math.log(lo))), math.exp(math.log(lo) + 0.618 * (math.log(hi) - math.log(lo)))
+    (lo, hi) = (lo, b) if spread(a) < spread(b) else (a, hi)
 p, r = levels(lo)
-print("pink at white's level (drawing 1431) for a %.0f Hz bandwidth; red then %+.1f dB" % (lo, r))
+print("the three levels closest to one another (drawing 1431: -4 dBm each) for a %.0f Hz bandwidth:"
+      " pink %+.1f dB, red %+.1f dB against white" % (lo, p, r))

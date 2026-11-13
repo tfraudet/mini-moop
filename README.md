@@ -72,7 +72,7 @@ tools/spice              The netlists transcribed from the service manual's figu
 tests/                   Catch2 tests: the service manual's checks, comparisons with ngspice
 ```
 
-The engine (`minimoop_dsp`) is plain C++20 with no JUCE dependency. After `prepare()` it allocates no memory; a test checks this. Drawing and calibrating the eight units (`build`) takes about 0.2 s: it renders short bench measurements (the filter singing, noise through the whole chain), and is done when the plugin loads and when Unit changes.
+The engine (`minimoop_dsp`) is plain C++20 with no JUCE dependency. After `prepare()` it allocates no memory; a test checks this. Drawing and calibrating the eight units (`build`) takes about 0.35 s: it renders short bench measurements (the filter singing, noise through the whole chain, read at its real level), and is done when the plugin loads and when Unit changes.
 
 ### Validation
 
@@ -92,9 +92,9 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 28 kHz; sings at 220 Hz |
 | Filter scale, KEYBOARD 1/3 (5.14, 5.15) | two then three octaves of keys track with switches 1 and 2; 880 +/- 50 Hz three octaves up with switch 1 | within 10 and 40 cents; within the 50 Hz |
 | Amount of contour, filter control (5.17, 5.18) | fully clockwise: "35kHz +/- 10kHz"; two octaves for about two divisions | 38 to 40 kHz (the converter's limit); 1.96 octaves |
-| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -7.8 and -2.8 dB (read over 48 kHz, as a wideband meter); -8.0 dB; -80 dB |
+| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -8.0 and -2.0 dB (read over 48 kHz, as a wideband meter; this unit's two lie 5.9 dB apart, close to the 6 dB the check allows); -8.0 dB; -80 dB |
 | Contour generator balance (5.25) | -55 dB maximum | -63 dB |
-| Keyboard and glide (2.19, specifications) | 1 V an octave; 1 ms to 1 s an octave; the pitch is held when the key is released | GLIDE 10: 0.60 s an octave up, 0.84 down; held, sagging by 2 cents a minute |
+| Keyboard and glide (2.19, specifications) | 1 V an octave; 1 ms to 1 s an octave; the pitch is held when the key is released | GLIDE 10: 0.59 s an octave up, 1.06 down (ngspice on the drawn circuit: 0.58 and 1.07); held, drifting by a few cents a minute |
 | Short term oscillator stability (specifications) | better than 0.25 % | 3.6 cents over a minute at Drift 1 |
 
 **The models against ngspice and against the drawn networks**
@@ -154,7 +154,7 @@ Each voice draws its own component values from the "Unit" seed, then is **calibr
 | Filter SCALE (R49) | KEYBOARD CONTROL 1 and 2 on: two octaves of keys for two octaves of the singing filter |
 | Filter RANGE (R39) | KEYBOARD CONTROL off, CUTOFF at -1, EMPHASIS at 10: zero beats with the A-440 |
 | 1ST VCA BAL (R14) | the contour's feedthrough nulled to the manual's -55 dB |
-| NOISE LEVEL (R26) | white and pink noise centred on -5 dB at the main output |
+| NOISE LEVEL (R26) | white and pink noise centred on -5 dB at the main output, read at the real level; "so that both white and pink fall within specification": a little further where the two lie close to 6 dB apart |
 
 The filter's trimmers are set on what the unit does (the pitch the filter sings at is measured), not on its formulas. Changing the "Unit" is like playing a different example of the instrument.
 
@@ -296,7 +296,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Red noise | R12 10 kΩ / C7 0.15 µF into the common emitter stage Q6 (R24 10 kΩ, R15 3.9 kΩ, gain 1.81), C22 0.15 µF across its load: two poles at 106 and 149 Hz | Moog, ngspice (Fig. 9-8; drawing 1431) |
 | Output couplings | white C18 0.15 µF, pink C20 2.5 µF, red C28 10 µF, into about 25 kΩ | Moog (Fig. 9-8) |
 | Noise level | NOISE LEVEL trimmed for white and pink centred on −5 dB at the main output: about 0.18 V rms (−12 dBm) of white noise at the board. Drawing 1431 (1970) marks −4 dBm, which would put the main output near +3 dB, outside 5.27: only its relative levels are used | Moog (2.5, 5.27; Folkman) |
-| White noise bandwidth | 49 kHz: white, pink and red come out at the same level (within 1.9 dB), as drawing 1431 marks them ("−4 dBm" each) | Moog, ngspice (drawing 1431; `tools/spice/noise_levels.py`) |
+| White noise bandwidth | 37 kHz: white, pink and red come out closest to one level (pink +1.1 dB, red −0.7 dB against white), as drawing 1431 marks them ("−4 dBm" each) | Moog, ngspice (drawing 1431; `tools/spice/noise_levels.py`) |
 | Junction noise: 1/f corner, popcorn | 20 Hz, rare 0.03 steps | Assumed |
 | MODULATION MIX | R3 25 kΩ linear with its wiper grounded, 24 kΩ inputs, 43 kΩ into the amplifier's virtual ground, R60 91 kΩ feedback | Moog (Fig. 9-8, 9-16) |
 | Modulation line | the amplifier through R57 1 kΩ, against the MOD. wheel and the loads the switches connect (the oscillators' 51.1 kΩ MOD inputs, oscillator 3's only with OSC. 3 CONTROL on; R52 33 kΩ) | Moog (Fig. 9-8, 9-12, 9-3) |
@@ -310,9 +310,9 @@ No value comes from another emulation or from a modern recreation of the instrum
 |---|---|---|
 | Key string | 43 resistors of 10 Ω 1 % under a constant current; low A and high A, on which the oscillators are scaled, are exact | Moog (Fig. 9-7; 2.19) |
 | Glide capacitor, GLIDE pot | C6 1 µF, R2 5 MΩ "No. 1 taper", R61 330 Ω | Moog (Fig. 9-7, Table 7-3) |
-| Glide law | C6 charged through the pot from the saturated amplifier: towards +9.8 V going up, towards −4.44 V (R59 3.9 kΩ / R54 1.5 kΩ) going down; 0.6 and 0.84 s an octave at 10 ("1 millisecond to 1 second/octave") | Moog (Fig. 9-7; 2.19; specifications) |
+| Glide law | C6 charged through the pot from the saturated amplifier: towards +9.87 V going up, towards −4.44 V (R59 3.9 kΩ / R54 1.5 kΩ) going down, seen through the follower Q10 (out = 0.927 C6 + 0.88 V); 0.59 and 1.06 s an octave at 10 ("1 millisecond to 1 second/octave") | Moog, ngspice (Fig. 9-7; 2.19; specifications; `keyboard.cir`) |
 | Hold | the glide stops and the voltage is held when the last key is released | Moog (2.19) |
-| The amplifier's gain, Q13's channel, the hold's leakage | 2000, 250 Ω, 30 pA (2 cents a minute) | Assumed / Other (2N4303) |
+| The amplifier's gain, Q13's channel, the hold's leakage | 2000, 250 Ω, the net of the two FETs' gate leakages, 30 pA either way (a few cents a minute) | Assumed / Other (2N4303) |
 
 ### Components, tolerances and drift
 

@@ -32,9 +32,17 @@
 // GLIDE: continuously variable from 1 millisecond to 1 second/octave"
 // (specifications).
 //
+// The output is not C6 itself but the FET follower Q10 on R18 3.9K: ngspice
+// on the drawn circuit gives out = 0.927 C6 + 0.88 V (tools/spice/
+// keyboard.cir). C6 sits below the output, closer to the -4.44 V rail than to
+// the +9.87 V one, which makes the glide down nearly twice as slow as the
+// glide up (the bench: 0.58 and 1.07 s an octave at 5M, from 1 to 2 V).
+//
 // "When the key is released, Q13 is turned off and the pitch voltage is held"
 // (2.19): the glide stops where it is when the last key is released, and the
-// held voltage only sags by the two FETs' gate leakage.
+// held voltage only drifts by the two FETs' gate leakages, Q13's out of C6
+// and Q10's into it: either way, by a few cents a minute ("greater than 1
+// semitone per minute" is a fault, Folkman).
 //
 // Values are keyboard volts: 0 V on the lowest key (the string's grounded
 // end), 1 V an octave.
@@ -51,10 +59,13 @@ struct GlideParams
     double c        = 1.0e-6;   // storage capacitor C6, 1 uF polyester
     double rSeries  = 580.0;    // R61 330 and Q13's channel (2N4303 on, about 250 ohm: data sheet)
     double rPot     = 5.0e6;    // GLIDE pot R2: 5 Mohm, "No. 1 taper" (Table 7-3)
-    double vUp      = 9.8;      // Q24 saturated on the +10 V rail
+    double vUp      = 9.87;     // Q24 saturated on the +10 V rail (ngspice)
     double vDown    = -4.44;    // Q24 off: R59 3.9K to +10 V against R54 1.5K to -10 V
+    double followerGain   = 0.927; // Q10 on R18 3.9K: out = gain C6 + offset (ngspice, keyboard.cir)
+    double followerOffset = 0.88;
     double loopGain = 2000.0;   // the amplifier's gain in its linear range (estimated: it only shapes the last millivolts)
-    double leakage  = 30.0e-12; // Q13's and Q10's gate leakage out of C6, A (2N4303 data sheet: tens of pA at 25 C)
+    double leakage  = 30.0e-12; // the net of Q13's and Q10's gate leakages, A (2N4303 data sheet: tens of pA at 25 C);
+                                // positive out of C6
 
     static GlideParams drawn (Rng& rng, const GlideParams& nominal) noexcept
     {
@@ -63,7 +74,8 @@ struct GlideParams
         p.rPot = rng.tolerance (nominal.rPot, 0.20);
         const double r59 = rng.tolerance (3.9e3, 0.05), r54 = rng.tolerance (1.5e3, 0.05);
         p.vDown = (10.0 * r54 - 10.0 * r59) / (r59 + r54);
-        p.leakage = nominal.leakage * std::exp (0.7 * rng.normal()); // FETs differ widely
+        // FETs differ widely, and which of the two leaks more decides the sign.
+        p.leakage = nominal.leakage * std::exp (0.7 * rng.normal()) * (rng.uniform() < 0.5 ? -1.0 : 1.0);
         return p;
     }
 
@@ -92,9 +104,11 @@ public:
         const double e = target - y;
         if (e == 0.0)
             return y;
-        // Saturated: C6 through the pot from the amplifier's rail. Linear
-        // range: the same resistance from loopGain times the error.
-        const double sat = ((e > 0.0 ? p.vUp : p.vDown) - y) * kSat;
+        // Saturated: C6 through the pot from the amplifier's rail, seen at the
+        // output through the follower. Linear range: the same resistance from
+        // loopGain times the error.
+        const double rail = p.followerGain * (e > 0.0 ? p.vUp : p.vDown) + p.followerOffset;
+        const double sat = (rail - y) * kSat;
         const double lin = e * kLin;
         y += std::abs (lin) < std::abs (sat) ? lin : sat;
         return y;
@@ -111,7 +125,7 @@ private:
         const double rc = resistance() * p.c;
         kSat = 1.0 - std::exp (-h / rc);
         kLin = 1.0 - std::exp (-h * p.loopGain / rc);
-        droop = p.leakage / p.c * h;
+        droop = p.followerGain * p.leakage / p.c * h;
     }
 
     GlideParams p;

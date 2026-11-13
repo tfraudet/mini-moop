@@ -24,8 +24,9 @@
 // The junction noise is Gaussian white with a weak 1/f excess (flicker) and
 // occasional "popcorn" steps, filtered by the amplifier's own bandwidth. That
 // bandwidth is not on the drawing: it is the one for which the three outputs
-// come out at the same level, as R. A. Moog drawing 1431 marks them ("-4 dBm"
-// on white, pink and red): 49 kHz (tools/spice/noise_levels.py).
+// come out closest to one level, as R. A. Moog drawing 1431 marks them ("-4
+// dBm" on white, pink and red): 37 kHz, pink then 1.1 dB above white and red
+// 0.7 dB below (tools/spice/noise_levels.py).
 //
 // Pink: R16 10K from Q4 into two series RC branches (C3 .12 uF with R8 3.3K,
 // C2 .033 uF with R13 220) and, through C1 2.5 uF, the base of the amplifier
@@ -57,7 +58,7 @@ class NoiseSource
 {
 public:
     /** The white noise's bandwidth (Hz): equal levels on the three outputs (drawing 1431). */
-    static constexpr double whiteBandwidth = 49000.0;
+    static constexpr double whiteBandwidth = 37000.0;
     /** Q6's gain from C8 to its collector: the load over R15 3.9K and its own re (ngspice). */
     static constexpr double redGain = 1.81;
 
@@ -68,7 +69,7 @@ public:
         // Amplifier bandwidth (one pole): see above. The generator's samples
         // are scaled so that the white noise has the same density at every
         // sample rate: that of `level` volts rms spread over the noise
-        // bandwidth (pi / 2 times the pole) of the full 49 kHz, also where
+        // bandwidth (pi / 2 times the pole) of the full 37 kHz, also where
         // the pole itself has to sit lower, below Nyquist. What lies above
         // Nyquist is then lost, not folded into the audio band.
         const double fc = std::fmin (whiteBandwidth, 0.45 * fs);

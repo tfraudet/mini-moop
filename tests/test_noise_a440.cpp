@@ -51,7 +51,7 @@ TEST_CASE ("Red noise is darker than pink, pink darker than white", "[noise]")
 
 TEST_CASE ("The noise outputs' levels do not depend on the sample rate", "[noise]")
 {
-    // White: the level set, in the amplifier's 49 kHz bandwidth, less what lies
+    // White: the level set, in the amplifier's 37 kHz bandwidth, less what lies
     // above Nyquist at the lower rate (its density is kept, not its total).
     // Pink and red: what board 3's networks make of it, the same at both rates.
     double whiteAt[2] {}, pinkAt[2] {}, redAt[2] {};

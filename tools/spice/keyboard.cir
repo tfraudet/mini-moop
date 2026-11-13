@@ -24,11 +24,15 @@ meas tran vhold1 find v(out) at=5.1
 meas tran vhold2 find v(out) at=6.4
 meas tran c6v find v(x1.hold) at=4.9
 meas tran outv find v(out) at=4.9
+meas tran c6hi find v(x1.hold) at=2.5
+meas tran outhi find v(out) at=2.5
+let fgain = (outhi - outv) / (c6hi - c6v)
+let foff = outv - fgain * c6v
 let up = (t95u-t05u)/0.9
 let dn = (t05d-t95d)/0.9
 let sag = (vhold2-vhold1)/1.3*1200*60
 echo "amplifier saturated: $&koup V going up, $&kodn V going down"
 echo "GLIDE 5M: $&up s an octave up, $&dn s down"
-echo "follower: C6 $&c6v V for $&outv V out; hold sag $&sag cents a minute"
+echo "follower: C6 $&c6v V for $&outv V out, $&c6hi V for $&outhi V: out = $&fgain C6 + $&foff; hold sag $&sag cents a minute"
 .endc
 .end
