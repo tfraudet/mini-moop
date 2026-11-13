@@ -110,7 +110,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | VCA (circuit 7) against ngspice: Q18's current, gain against the contour, clipping | within 3 %; within 1 dB (1.97 at a 5 V contour); +/-2.8 V against +3.05 / -2.84 | `test_vca.cpp` (three test cases) |
 | Contour levels and times from the drawn networks | peaks 5.2 V (loudness) and 4.4 V (filter); sustain at six settings within 0.07 V; 1.4 ms to 11 s | `test_contour.cpp` |
 | Oscillator aliasing in the audio band, against the fundamental | sawtooth and rectangles below -100 dB at 3.5 and 7 kHz (2x and 4x); triangle below -75 dB | `test_vco.cpp`: "Band-limited steps and corners keep aliasing low at high pitch" |
-| Waveform levels and rectangle widths | +/-2.09 V sawtooth, +/-1.7 V triangle, 3.5 V rectangle; 50, 31 and 19 % | `test_vco.cpp` |
+| Waveform levels, the triangle's shape and the rectangle widths | +/-2.09 V sawtooth, +/-1.75 V triangle, 3.5 V rectangle; the triangle within 40 mV of ngspice's transfer; 50.1, 31.7 and 19.9 % (ngspice) | `test_vco.cpp` |
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
 | KEYBOARD CONTROL, modulation line and its polarity through the whole instrument | 1/3, 2/3 and 1 octave an octave; +-0.74 octave at full wheel, half way 54 %; filter 3 times as deep; a rising oscillator 3 lowers the pitch | `test_service_manual.cpp` |
 | Pink noise against white; red against pink | the drawn network's transfer within 1 dB from 200 Hz to 10 kHz; ngspice's within 1 dB from 20 to 500 Hz | `test_service_manual.cpp`: "Pink and red noise follow board 3's drawn networks" |
@@ -174,7 +174,7 @@ Mini Moop models revision 2 as Fig. 9-3 draws it, that is with the 94-001 kit fi
 
 | Board | Moog reference | Circuit (service manual) | Simulated by | Not simulated |
 |---|---|---|---|---|
-| **1** Oscillator (rev 2) | 93-113, Fig. 9-3 / 9-4 | 3 × CV summer, CA3046 expo converter with its fixed high-frequency compensation, sawtooth core (0.01 µF, FET reset, 0 to −4 V ramp), waveshapers, −5 V reference and OCTAVE trim | `ExpoConverter` (summer reduced to its gain and tempco), `VcoCore`, the RANGE string in `Voice` | the summers' op-amp dynamics; the triangle shaper Q2 as a circuit (a rounded fold with the drawn levels) |
+| **1** Oscillator (rev 2) | 93-113, Fig. 9-3 / 9-4 | 3 × CV summer, CA3046 expo converter with its fixed high-frequency compensation, sawtooth core (0.01 µF, FET reset, 0 to −4 V ramp), waveshapers, −5 V reference and OCTAVE trim | `ExpoConverter` (summer reduced to its gain and tempco), `VcoCore`, the RANGE string in `Voice` | the summers' op-amp dynamics; the triangle shaper Q2 as a circuit (a rounded fold fitted to ngspice's transfer) |
 | **2** Contour generator and keyboard | 93-114, Fig. 9-6 / 9-7 | circuit 8: two contour generators (C5 / C2 = 10 µF) | 2 × `ContourGen` (filter, loudness) | the trigger section's delay |
 | | | circuit 1: keyboard circuit: 43 × 10 Ω key string, track and hold with glide (C6 = 1 µF) | the key string's tolerances in `Voice`, `Glide` (the hold when the key is released, the glide's two rails, the hold's sag) | the current source (its value goes into the oscillators' SCALE), C9 on the pitch input. Lowest-note priority and single triggering are handled by `VoiceAllocator` |
 | **3** Power supply | 93-115, Fig. 9-8 / 9-9 | circuit 3: noise generator (white, pink, red) | `NoiseSource` | |
@@ -214,11 +214,12 @@ No value comes from another emulation or from a modern recreation of the instrum
 | CA3046 transistors: saturation current | 6.734 fA (generic; the trims absorb it) | Other |
 | Timing capacitor, ramp | 0.01 µF polystyrene 2 %, 0 to −4 V | Moog (Fig. 9-3, 2.16) |
 | Sawtooth level | +4 to −4 V through R34 4300 / R33 4700: ±2.09 V, 2.25 kΩ source | Moog (Fig. 9-3) |
-| Triangle, reverse sawtooth, rectangle levels | "+1.7 TO −1.7V" (0.69 kΩ source), "+1.7 TO −1.7V LOADED", "(3.5V)" | Moog (Fig. 9-3) |
-| Rectangle widths | 50, 31 and 19 %: bias of 0, −1.5 and −2.5 V from −10 V, 7.5 kΩ, 1 kΩ, 1.5 kΩ, against the ±4 V sawtooth through equal 43 kΩ ("from a 50 percent to a 15 percent duty cycle", 2.16) | Moog (Fig. 9-16, 9-3) |
+| Triangle, reverse sawtooth, rectangle levels | triangle ±1.75 V (ngspice on the drawn shaper; the drawing: "+1.7 TO −1.7V"), 0.69 kΩ source; "+1.7 TO −1.7V LOADED"; "(3.5V)" (ngspice on the transcribed Schmitt trigger gives 4.3 V unloaded: not reconciled, the drawn level is kept) | Moog, ngspice (Fig. 9-3; `shapers.cir`) |
+| Rectangle widths | 50.1, 31.7 and 19.9 %: bias of 0, −1.5 and −2.5 V from −10 V, 7.5 kΩ, 1 kΩ, 1.5 kΩ, against the ±4 V sawtooth through equal 43 kΩ into the Schmitt trigger Q11 / Q12 ("from a 50 percent to a 15 percent duty cycle", 2.16) | Moog, ngspice (Fig. 9-16, 9-3; `shapers.cir`) |
 | Shark-tooth mix | sawtooth through R030 47 kΩ, triangle through R031 10 kΩ, against the outputs' dividers: 17.8 % sawtooth, 8.8 kΩ source | Moog (Fig. 9-16, Table 7-2, Fig. 9-3) |
 | Reset dead time | 1.6 µs | Assumed |
-| Triangle fold rounding, rectangle slew, comparator jitter | 3 % of the swing, 2 V/µs, 4·10⁻⁵ | Assumed |
+| Triangle fold rounding | 2.1 % of the swing: fitted to ngspice's transfer (11 mV rms) | Moog, ngspice (`shapers.cir`) |
+| Rectangle slew, comparator jitter | 2 V/µs, 4·10⁻⁵ | Assumed |
 | Rectangles' and reverse sawtooth's source resistance | not modelled (0) | Assumed |
 | Band-limiting kernel (not a circuit value) | windowed sinc at 0.48 of the rate, Kaiser β 8, 32 taps | a numerical choice, held to its aliasing by `test_vco.cpp` |
 | RANGE | one string for the three switches: R29 4.75 kΩ 1 % (LO to 32'), then R25 to R28 1 kΩ matched (0.1 %), trimmed as a whole by OCTAVE: LO is 4.75 octaves below 32' | Moog (Fig. 9-16, Table 7-2, 2.15) |

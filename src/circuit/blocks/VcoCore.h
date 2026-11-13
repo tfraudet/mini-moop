@@ -73,17 +73,23 @@ struct VcoParams
     double swing      = 4.0;       // ramp amplitude across the capacitor: 0 to -4 V (Fig. 9-3)
     double tReset     = 1.6e-6;    // reset dead time (s)
     double sawPeak    = 4.0 * 4.7e3 / 9.0e3; // sawtooth: +/-4 V through R34 4300 / R33 4700 (Fig. 9-3), unloaded
-    double triPeak    = 1.7;       // triangle: "+1.7 TO -1.7V" (Fig. 9-3)
+    double triPeak    = 1.747;     // triangle: "+1.7 TO -1.7V" (Fig. 9-3); ngspice on the drawn shaper (shapers.cir):
+                                   // 3.49 V peak to peak about -0.21 V
     double rectPeak   = 1.75;      // rectangle: "(3.5V)" peak to peak (Fig. 9-3)
     double revSawPeak = 1.7;       // oscillator 3's reverse sawtooth: "+1.7 TO -1.7V LOADED" (Fig. 9-3)
-    double foldRound  = 0.03;      // triangle fold rounding (fraction of swing)
+    double foldRound  = 0.021;     // triangle fold rounding (fraction of swing): Q2's knee, fitted to shapers.cir
+                                   // (11 mV rms from ngspice's transfer)
     double rSawOut    = 4.3e3 * 4.7e3 / 9.0e3; // sawtooth output divider R34 / R33 (Fig. 9-3): its source resistance
     double rTriOut    = 750.0 * 8.2e3 / 8.95e3; // triangle output, R28 / R23 behind Q1 (Fig. 9-3)
     double rSharkSaw  = 47.0e3;    // R030: sawtooth into the shark tooth (drawing 1448, Table 7-2, 5 %)
     double rSharkTri  = 10.0e3;    // R031: triangle into the shark tooth
-    double thrSquare  = 0.0;       // comparator thresholds, normalised ramp
-    double thrWide    = -0.375;    // -1.5 V of bias against the +/-4 V sawtooth: 31 %
-    double thrNarrow  = -0.625;    // -2.5 V: 19 %
+    // Comparator thresholds, normalised ramp: the Schmitt trigger Q11 / Q12 on
+    // the sawtooth and the WAVEFORM switch's bias (0, -1.5, -2.5 V) through
+    // equal 43K; ngspice on the drawn circuit (shapers.cir): 50.1, 31.7 and
+    // 19.9 % of the cycle.
+    double thrSquare  = 0.002;
+    double thrWide    = -0.366;
+    double thrNarrow  = -0.602;
     double pulseSlew  = 2.0e6;     // V/s of the rectangle output stage
     double thrJitter  = 4.0e-5;    // comparator noise (normalised), per cycle
 

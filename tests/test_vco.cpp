@@ -22,7 +22,9 @@
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <array>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 using namespace mm;
@@ -139,10 +141,11 @@ TEST_CASE ("Waveforms stay within the waveshaper swing and have no DC runaway", 
 TEST_CASE ("Rectangle widths follow the WAVEFORM switch's bias string", "[vco]")
 {
     // -10 V, R32 7.5K, R33 1K, R34 1.5K, ground (Fig. 9-16): 0, -1.5 and -2.5 V
-    // against the +/-4 V sawtooth through equal 43K: 50, 31 and 19 %.
+    // against the +/-4 V sawtooth through equal 43K: ngspice on the drawn
+    // Schmitt trigger (tools/spice/shapers.cir) gives 50.1, 31.7 and 19.9 %.
     const double fs = 192000.0;
     struct Case { Waveform w; double width; };
-    for (const auto& c : { Case { Waveform::Square, 0.5 }, Case { Waveform::WideRect, 0.3125 }, Case { Waveform::NarrowRect, 0.1875 } })
+    for (const auto& c : { Case { Waveform::Square, 0.501 }, Case { Waveform::WideRect, 0.317 }, Case { Waveform::NarrowRect, 0.199 } })
     {
         VcoCore core;
         core.setParams ({});
@@ -154,6 +157,25 @@ TEST_CASE ("Rectangle widths follow the WAVEFORM switch's bias string", "[vco]")
             if (core.process (20e-6) < 0.0) ++low; // 500 Hz
         INFO ("waveform " << int (c.w) << " narrow part " << double (low) / n);
         CHECK (double (low) / n == Approx (c.width).margin (0.004));
+    }
+}
+
+TEST_CASE ("Triangle: the drawn shaper's transfer (ngspice)", "[vco]")
+{
+    // Q2 saturating then inverting, follower Q1 (Fig. 9-3): ngspice's
+    // triangle against the sawtooth (tools/spice/shapers.cir, triangle.dat),
+    // less its -0.21 V centre, at normalised ramp positions.
+    VcoCore core;
+    core.setParams ({});
+    core.prepare (96000.0, 1);
+    core.setWaveform (Waveform::Triangle, false);
+    constexpr std::array<std::pair<double, double>, 9> bench { { { -1.0, 1.737 }, { -0.5, -0.039 }, { -0.1, -1.435 },
+                                                               { -0.05, -1.600 }, { 0.0, -1.744 }, { 0.05, -1.655 },
+                                                               { 0.1, -1.475 }, { 0.5, -0.036 }, { 1.0, 1.761 } } };
+    for (const auto& [r, v] : bench)
+    {
+        INFO ("ramp " << r << ": " << core.shape (r) << " V, ngspice " << v);
+        CHECK (core.shape (r) == Approx (v).margin (0.04));
     }
 }
 
