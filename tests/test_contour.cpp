@@ -111,10 +111,11 @@ TEST_CASE ("Contour levels follow the drawn networks (Fig. 9-7, service manual 2
 {
     // Output voltages held at six SUSTAIN settings: the SUSTAIN dividers (R19 /
     // R18 5K, R57 / R13 4.7K, 4.7K or R1 3K with R17 150K to -10 V), the sustain
-    // follower's Vbe and the output follower's drop.
+    // follower and the output follower; ngspice on the drawn circuit
+    // (tools/spice/contour.cir).
     struct Level { double sustain, loudness, filter; };
-    const Level held[] = { { 0.0, -0.457, 0.057 }, { 0.2, 0.453, 0.734 }, { 0.4, 1.293, 1.354 },
-                           { 0.6, 2.166, 2.008 }, { 0.8, 3.175, 2.790 }, { 1.0, 4.462, 3.841 } };
+    const Level held[] = { { 0.0, -0.368, 0.132 }, { 0.2, 0.539, 0.807 }, { 0.4, 1.376, 1.426 },
+                           { 0.6, 2.247, 2.078 }, { 0.8, 3.253, 2.858 }, { 1.0, 4.539, 3.907 } };
     for (int section = 0; section < 2; ++section)
     {
         const auto params = section == 0 ? ContourParams::loudness() : ContourParams::filter();
@@ -124,14 +125,14 @@ TEST_CASE ("Contour levels follow the drawn networks (Fig. 9-7, service manual 2
             c.setParams (params);
             c.prepare (fs);
             c.reset();
-            CHECK (c.output() == Approx (section == 0 ? -0.487 : 0.151).margin (0.06)); // at rest
+            CHECK (c.output() == Approx (section == 0 ? -0.466 : 0.157).margin (0.03)); // at rest (ngspice)
             c.gateOn();
             double peak = -10.0;
             for (int n = 0; n < int (0.02 * fs); ++n) peak = std::fmax (peak, c.process());
             // "When the voltage on R33 reaches approximately 5 volts, CR3 conducts"
             // (2.10): R24 6.8K / R33 5.6K against R27 / R29 16.9K to -10 V, the
             // germanium CR6 / CR3 and the flip-flop's Vbe.
-            CHECK (peak == Approx (section == 0 ? 5.2 : 4.4).margin (0.12));
+            CHECK (peak == Approx (section == 0 ? 5.223 : 4.434).margin (0.04)); // ngspice
         }
         for (const auto& l : held)
         {
@@ -144,7 +145,7 @@ TEST_CASE ("Contour levels follow the drawn networks (Fig. 9-7, service manual 2
             c.setSustain (l.sustain);
             c.gateOn();
             for (int n = 0; n < int (0.2 * fs); ++n) c.process();
-            CHECK (c.output() == Approx (section == 0 ? l.loudness : l.filter).margin (0.07));
+            CHECK (c.output() == Approx (section == 0 ? l.loudness : l.filter).margin (0.04));
         }
     }
 }

@@ -65,23 +65,28 @@ struct ContourParams
     double rDump        = 1.5e3;   // R1401 1.5K (Fig. 9-12): the dump into V-trig with DECAY off
     double rSwitchOn    = 30.0;    // transistor switch saturation resistance
 
-    // Levels (Fig. 9-7)
+    // Levels (Fig. 9-7). The junction voltages are ngspice's on the drawn
+    // circuit (tools/spice/contour.cir): the rest, the peak and the levels
+    // held at six SUSTAIN settings, on the timing capacitor and at the output.
     double vRail        = 9.3;     // Q26's decoupled +9.3 V rail
     double vSwitchSat   = 0.1;     // attack switch saturation: the attack's target is the rail less this
-    double vRest        = 0.66;    // capacitor at rest: V-trig (0.2 V) plus CR9/CR2 (ngspice operating point)
-    double vOutDrop     = 1.16;    // output follower: Darlington Q3/Q2, two Vbe (filter: Q22/Q21, 0.52 V)
+    double vRest        = 0.645;   // capacitor at rest: V-trig (0.2 V) plus CR9/CR2 (ngspice)
+    double vOutDrop     = 1.127;   // output follower: Darlington Q3/Q2, two Vbe (filter: Q22/Q21, 0.505 V);
+                                   // ngspice, over the output's range (1.11 to 1.15 V; filter 0.49 to 0.52 V)
     double rPeak        = 6.8e3;   // peak detector divider: R24 6.8K (filter: R33 5.6K) ...
     double rPeakNeg     = 16.9e3;  // ... against R27/R29 16.9K 1 % to -10 V
-    // Where the flip-flop resets: Q15/Q4 must draw the 0.85 mA that takes its
-    // partner out of saturation (Vbe 0.65 V), CR6/CR3 then carries the 15 uA of
-    // R14 33K and the base (1N34A: 0.10 V), and that current drops 0.07 V in
-    // the divider's 4.2K.
-    double vPeakJunctions = 0.82;
+    // Where the flip-flop resets: Q15/Q4 must draw the current that takes its
+    // partner out of saturation, through the germanium CR6/CR3 (1N34A) and the
+    // divider: ngspice's peaks, 5.22 V (filter: 4.43 V), give these.
+    double vPeakJunctions = 0.855; // (filter: 0.842)
     double rSustainPot  = 5.0e3;   // SUSTAIN R19/R18: 5K linear across +10 V
     double rSustainSeries = 4.7e3; // R57 (filter: R13 4.7K) into the follower's base
     double rSustainGround = 4.7e3; // the 4.7K to ground labelled R41 (filter: R1 3K)
     double rSustainNeg  = 0.0;     // to -10 V: none (filter: R17 150K); 0 = absent
-    double vSustainVbe  = 0.64;    // the sustain follower Q19/Q8's Vbe
+    // The sustain follower Q19/Q8: its Vbe, and its base current's load on the
+    // divider as a gain, fitted to ngspice's six held levels (within 3 mV).
+    double vSustainVbe  = 0.746;   // (filter: 0.739)
+    double sustainGain  = 0.988;   // (filter: 0.990)
 
     /** The loudness section: R42, R24, R57, the 4.7K "R41", Darlington Q3/Q2. */
     static ContourParams loudness() noexcept { return {}; }
@@ -94,7 +99,10 @@ struct ContourParams
         p.rPeak = 5.6e3;
         p.rSustainGround = 3.0e3;
         p.rSustainNeg = 150.0e3;
-        p.vOutDrop = 0.52;
+        p.vOutDrop = 0.505;
+        p.vPeakJunctions = 0.842;
+        p.vSustainVbe = 0.739;
+        p.sustainGain = 0.990;
         return p;
     }
 
@@ -129,7 +137,7 @@ struct ContourParams
         double g = 1.0 / (rSustainSeries + rTh) + 1.0 / rSustainGround;
         double i = vTh / (rSustainSeries + rTh);
         if (rSustainNeg > 0.0) { g += 1.0 / rSustainNeg; i -= 10.0 / rSustainNeg; }
-        return i / g + vSustainVbe;
+        return sustainGain * i / g + vSustainVbe;
     }
 };
 

@@ -108,7 +108,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | EMPHASIS: the drawn feedback path and REGEN CAL's range | loop gain 0.17 at 0; 2.3 to 9.2 at 10 over the trimmer; the trimmer can put the threshold at 7.5 | `test_ladder.cpp`: "EMPHASIS: the drawn feedback path, REGEN CAL's range" |
 | Filter output stage (Q5 to Q8) against ngspice; passband gain against the whole of circuit 6 | table within 20 mV; 56.7; clipping at +6.4 / -3.7 V | `test_filter_output.cpp` (four test cases) |
 | VCA (circuit 7) against ngspice: Q18's current, gain against the contour, clipping | within 3 %; within 1 dB (1.97 at a 5 V contour); +/-2.8 V against +3.05 / -2.84 | `test_vca.cpp` (three test cases) |
-| Contour levels and times from the drawn networks | peaks 5.2 V (loudness) and 4.4 V (filter); sustain at six settings within 0.07 V; 1.4 ms to 11 s | `test_contour.cpp` |
+| Contour levels against ngspice; times from the drawn networks | rest, peaks (5.22 V loudness, 4.43 V filter) and the levels held at six SUSTAIN settings within 0.04 V of `contour.cir`; 1.4 ms to 11 s | `test_contour.cpp` |
 | Oscillator aliasing in the audio band, against the fundamental | sawtooth and rectangles below -100 dB at 3.5 and 7 kHz (2x and 4x); triangle below -75 dB | `test_vco.cpp`: "Band-limited steps and corners keep aliasing low at high pitch" |
 | Waveform levels, the triangle's shape and the rectangle widths | +/-2.09 V sawtooth, +/-1.75 V triangle, 3.5 V rectangle; the triangle within 40 mV of ngspice's transfer; 50.1, 31.7 and 19.9 % (ngspice) | `test_vco.cpp` |
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
@@ -264,8 +264,8 @@ No value comes from another emulation or from a modern recreation of the instrum
 |---|---|---|
 | Timing capacitors, series resistors, ATTACK / DECAY pots | C5 / C2 10 µF, R7 / R42 100 Ω, 1 MΩ audio rheostats: 1.4 ms to 11 s to the peak, decay time constant 1.3 ms to 10 s ("10 milliseconds to 10 seconds", specifications) | Moog (Fig. 9-7, Table 7-3) |
 | +9.3 V rail, peak detector, sustain networks | Q26; R24 6.8 kΩ / R33 5.6 kΩ against R27 / R29 16.9 kΩ; R19 / R18 5 kΩ, R57 / R13 4.7 kΩ, 4.7 kΩ, R1 3 kΩ, R17 150 kΩ | Moog (Fig. 9-7) |
-| Peak detector's diodes and threshold | CR6 / CR3 1N34A (germanium) into the flip-flop: 0.82 V at the divider, peaks of 5.2 V (loudness) and 4.4 V (filter); "approximately 5 volts" (2.10) | Moog (Fig. 9-7; 2.10); the junction voltages estimated by hand (Other: 1N34A, 2N3392) |
-| Junction drops: output followers, sustain follower, rest | 1.16 / 0.52 V, 0.64 V, 0.66 V | Assumed (transistor Vbe at their currents; circuit 8 has no netlist in `tools/spice` yet) |
+| Peak detector's diodes and threshold | CR6 / CR3 1N34A (germanium) into the flip-flop: peaks of 5.22 V (loudness) and 4.43 V (filter); "approximately 5 volts" (2.10). R. A. Moog drawing 1437 marks "+4.5 V" and "+4.0 V": with the drawn dividers no single junction voltage gives both, and they are read as rounded marks | Moog, ngspice (Fig. 9-7; 2.10; `contour.cir`) |
+| Junction drops: output followers, sustain follower, rest | 1.127 / 0.505 V (the mean over the output's range, ±0.02 V); the sustain follower's Vbe and base load fitted to six held levels (0.746 V and 0.988; filter 0.739 V and 0.990, within 3 mV); 0.645 V | Moog, ngspice (Fig. 9-7; `contour.cir`); the device cards: Other |
 | Release dump with DECAY off | R1401 1.5 kΩ | Moog (Fig. 9-12; 2.10) |
 | Decay path at minimum setting | R11 100 Ω | Moog (Fig. 9-7) |
 | Lowest-note priority, single trigger | | Moog (2.19) |
