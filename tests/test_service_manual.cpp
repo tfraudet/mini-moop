@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 using namespace mm;
@@ -50,19 +51,22 @@ double cents (double f, double ref) { return 1200.0 * std::log2 (f / ref); }
     the jack times SynthEngine::outputScale). */
 double dBm (double rmsSamples) { return 20.0 * std::log10 (rmsSamples / SynthEngine::outputScale / 0.775); }
 
-/** Renders a held note and returns the output from 1 s on. */
-std::vector<float> held (PanelState p, int note, double seconds, uint64_t unit = 1, bool play = true)
+/** Renders a held note and returns the output from 1 s on. `rate`: the host
+    rate; a level read on a wideband meter needs more than 48 kHz (white noise
+    reaches well above 24 kHz at the jack). */
+std::vector<float> held (PanelState p, int note, double seconds, uint64_t unit = 1, bool play = true,
+                         double rate = 48000.0)
 {
     SynthEngine e;
     e.build (unit);
-    e.prepare (48000.0, 256, 4);
+    e.prepare (rate, 256, 4);
     p.drift = 0.0;
     e.setPanel (p);
-    std::vector<float> y (size_t (48000.0 * (1.0 + seconds)));
+    std::vector<float> y (size_t (rate * (1.0 + seconds)));
     if (play) e.noteOn (note, 1.0f);
     for (size_t i = 0; i < y.size(); i += 256)
         e.process (y.data() + i, nullptr, int (std::min<size_t> (256, y.size() - i)));
-    return { y.begin() + 48000, y.end() };
+    return { y.begin() + std::ptrdiff_t (rate), y.end() };
 }
 
 double rmsOf (const std::vector<float>& y)
@@ -391,9 +395,10 @@ TEST_CASE ("5.8, 5.27, 5.7 Levels at the main output: triangle +1 dB, noise -5 d
     p.osc[0].on = false;
     p.noiseOn = true;
     p.noiseVolume = 1.0;
-    const double white = dBm (rmsOf (held (p, 69, 2.0)));
+    // Read as the technician's AC voltmeter does, over the jack's whole band.
+    const double white = dBm (rmsOf (held (p, 69, 2.0, 1, true, 96000.0)));
     p.noisePink = true;
-    const double pink = dBm (rmsOf (held (p, 69, 2.0)));
+    const double pink = dBm (rmsOf (held (p, 69, 2.0, 1, true, 96000.0)));
     INFO ("white " << white << " dB, pink " << pink << " dB");
     CHECK (white == Approx (-5.0).margin (3.0));
     CHECK (pink == Approx (-5.0).margin (3.0));
@@ -589,11 +594,12 @@ TEST_CASE ("Modulation polarity: oscillator 3's rising sawtooth lowers the pitch
     CHECK (falling > 3 * rising);
 }
 
-TEST_CASE ("Pink noise follows board 3's drawn network", "[manual][noise]")
+TEST_CASE ("Pink and red noise follow board 3's drawn networks", "[manual][noise]")
 {
     // R16 10K into C3 .12 uF + R8 3.3K, C2 .033 uF + R13 220 and Q3's input
     // (Fig. 9-8): the pink output against the white, in third-octave bands,
-    // against the network's own transfer function.
+    // against the network's own transfer function, with Q3's input resistance
+    // and gain as ngspice gives them on the drawn circuit (tools/spice/noise.cir).
     const double fs = 96000.0;
     auto network = [] (double f) {
         // |gain * Zp / (R16 + Zp)|^2 with Zp the three branches in parallel
@@ -601,27 +607,25 @@ TEST_CASE ("Pink noise follows board 3's drawn network", "[manual][noise]")
         struct C { double re, im; };
         auto inv = [] (C z) { const double d = z.re * z.re + z.im * z.im; return C { z.re / d, -z.im / d }; };
         const C y1 = inv ({ 3.3e3, -1.0 / (w * 0.12e-6) }), y2 = inv ({ 220.0, -1.0 / (w * 0.033e-6) }),
-                y3 = inv ({ 29.0e3, -1.0 / (w * 2.5e-6) });
+                y3 = inv ({ 26.9e3, -1.0 / (w * 2.5e-6) });
         const C zp = inv ({ y1.re + y2.re + y3.re, y1.im + y2.im + y3.im });
         const C den { 10.0e3 + zp.re, zp.im };
         const double num = zp.re * zp.re + zp.im * zp.im, d = den.re * den.re + den.im * den.im;
-        return 15.0 * 15.0 * num / d;
+        return 16.9 * 16.9 * num / d;
     };
     NoiseSource n;
     n.prepare (fs, 5);
     n.setWhiteLevel (1.0);
     const int count = int (fs * 20.0);
-    std::vector<double> w, pk;
+    std::vector<double> w, pk, rd;
     w.resize (size_t (count));
     pk.resize (size_t (count));
+    rd.resize (size_t (count));
     for (int i = 0; i < count; ++i)
-    {
-        double r;
-        n.process (w[size_t (i)], pk[size_t (i)], r);
-    }
+        n.process (w[size_t (i)], pk[size_t (i)], rd[size_t (i)]);
     // Band power by a two-pole resonator at each frequency
-    auto band = [fs] (const std::vector<double>& x, double f) {
-        const double q = 4.0, w0 = 2.0 * M_PI * f / fs, alpha = std::sin (w0) / (2.0 * q);
+    auto band = [fs] (const std::vector<double>& x, double f, double q = 4.0) {
+        const double w0 = 2.0 * M_PI * f / fs, alpha = std::sin (w0) / (2.0 * q);
         const double b0 = alpha, a0 = 1.0 + alpha, a1 = -2.0 * std::cos (w0), a2 = 1.0 - alpha;
         double x1 = 0, x2 = 0, y1 = 0, y2 = 0, s = 0;
         for (double v : x)
@@ -637,6 +641,18 @@ TEST_CASE ("Pink noise follows board 3's drawn network", "[manual][noise]")
         const double dB = 10.0 * std::log10 (band (pk, f) / band (w, f));
         INFO (f << " Hz: pink / white " << dB << " dB, network " << 10.0 * std::log10 (network (f)));
         CHECK (dB == Approx (10.0 * std::log10 (network (f))).margin (1.0));
+    }
+    // Red: R12 10K into C7 .15 uF, then the common emitter stage Q6 with C22
+    // .15 uF across its load: louder than pink in the bass, two poles above.
+    // The red output against the pink, against ngspice on the drawn circuit;
+    // narrow bands, the red falling too steeply for the wide ones.
+    constexpr std::array<std::pair<double, double>, 5> redBench { { { 20.0, 4.8 }, { 50.0, 3.6 }, { 100.0, 0.6 },
+                                                                    { 200.0, -6.0 }, { 500.0, -19.5 } } };
+    for (const auto& [f, bench] : redBench)
+    {
+        const double dB = 10.0 * std::log10 (band (rd, f, 40.0) / band (pk, f, 40.0));
+        INFO (f << " Hz: red / pink " << dB << " dB, ngspice " << bench);
+        CHECK (dB == Approx (bench).margin (1.0));
     }
 }
 

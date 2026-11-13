@@ -92,7 +92,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 28 kHz; sings at 220 Hz |
 | Filter scale, KEYBOARD 1/3 (5.14, 5.15) | two then three octaves of keys track with switches 1 and 2; 880 +/- 50 Hz three octaves up with switch 1 | within 10 and 40 cents; within the 50 Hz |
 | Amount of contour, filter control (5.17, 5.18) | fully clockwise: "35kHz +/- 10kHz"; two octaves for about two divisions | 38 to 40 kHz (the converter's limit); 1.96 octaves |
-| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -7.7 and -3.3 dB; -8.0 dB; -80 dB |
+| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -7.8 and -2.8 dB (read over 48 kHz, as a wideband meter); -8.0 dB; -80 dB |
 | Contour generator balance (5.25) | -55 dB maximum | -63 dB |
 | Keyboard and glide (2.19, specifications) | 1 V an octave; 1 ms to 1 s an octave; the pitch is held when the key is released | GLIDE 10: 0.60 s an octave up, 0.84 down; held, sagging by 2 cents a minute |
 | Short term oscillator stability (specifications) | better than 0.25 % | 3.6 cents over a minute at Drift 1 |
@@ -113,7 +113,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Waveform levels and rectangle widths | +/-2.09 V sawtooth, +/-1.7 V triangle, 3.5 V rectangle; 50, 31 and 19 % | `test_vco.cpp` |
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
 | KEYBOARD CONTROL, modulation line and its polarity through the whole instrument | 1/3, 2/3 and 1 octave an octave; +-0.74 octave at full wheel, half way 54 %; filter 3 times as deep; a rising oscillator 3 lowers the pitch | `test_service_manual.cpp` |
-| Pink noise against white | the drawn network's transfer within 1 dB from 200 Hz to 10 kHz | `test_service_manual.cpp`: "Pink noise follows board 3's drawn network" |
+| Pink noise against white; red against pink | the drawn network's transfer within 1 dB from 200 Hz to 10 kHz; ngspice's within 1 dB from 20 to 500 Hz | `test_service_manual.cpp`: "Pink and red noise follow board 3's drawn networks" |
 | External input pre-amp and OVERLOAD lamp; its interpolation to the oversampled rate | gain 201, rails +9.8 / -7.7 V, lamp from about 2.1 V; images below -80 dB | `test_extpreamp.cpp`; `test_service_manual.cpp` |
 | MODULATION MIX, main VOLUME, A-440, noise levels independent of the sample rate | as wired on the original | `test_noise_a440.cpp` |
 | Voice behaviour: level, extreme settings stay finite, poly, MOD. AMOUNT | | `test_voice.cpp` |
@@ -292,11 +292,12 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Parameter | Value | Source |
 |---|---|---|
 | Pink network | R16 10 kΩ; C3 0.12 µF with R8 3.3 kΩ; C2 0.033 µF with R13 220 Ω; C1 2.5 µF into Q3 | Moog (Fig. 9-8) |
-| Q3's input resistance and gain | 29 kΩ, 15: from R1 120 Ω, R3 3.3 kΩ, R7 560 kΩ, R12 10 kΩ and a 2N3392's gain | Moog (Fig. 9-8), computed by hand |
-| Red noise | R12 10 kΩ / C7 0.15 µF | Moog (Fig. 9-8) |
-| Output couplings | white C18 0.15 µF, pink C20 and red C8 2.5 µF, into about 25 kΩ | Moog (Fig. 9-8) |
-| Noise level | NOISE LEVEL trimmed for white and pink centred on −5 dB at the main output (about 0.16 V rms of white noise at the board) | Moog (2.5, 5.27; Folkman) |
-| Junction noise: 1/f corner, popcorn, amplifier bandwidth | 20 Hz, rare 0.03 steps, 40 kHz | Assumed |
+| Q3's input resistance and gain | 26.9 kΩ, 16.9: Q3 at 2.3 mA between +10 V and the board's −10 V rail (drawing 1431: its collector at +3.8 V) | Moog, ngspice (Fig. 9-8; drawing 1431) |
+| Red noise | R12 10 kΩ / C7 0.15 µF into the common emitter stage Q6 (R24 10 kΩ, R15 3.9 kΩ, gain 1.81), C22 0.15 µF across its load: two poles at 106 and 149 Hz | Moog, ngspice (Fig. 9-8; drawing 1431) |
+| Output couplings | white C18 0.15 µF, pink C20 2.5 µF, red C28 10 µF, into about 25 kΩ | Moog (Fig. 9-8) |
+| Noise level | NOISE LEVEL trimmed for white and pink centred on −5 dB at the main output: about 0.18 V rms (−12 dBm) of white noise at the board. Drawing 1431 (1970) marks −4 dBm, which would put the main output near +3 dB, outside 5.27: only its relative levels are used | Moog (2.5, 5.27; Folkman) |
+| White noise bandwidth | 49 kHz: white, pink and red come out at the same level (within 1.9 dB), as drawing 1431 marks them ("−4 dBm" each) | Moog, ngspice (drawing 1431; `tools/spice/noise_levels.py`) |
+| Junction noise: 1/f corner, popcorn | 20 Hz, rare 0.03 steps | Assumed |
 | MODULATION MIX | R3 25 kΩ linear with its wiper grounded, 24 kΩ inputs, 43 kΩ into the amplifier's virtual ground, R60 91 kΩ feedback | Moog (Fig. 9-8, 9-16) |
 | Modulation line | the amplifier through R57 1 kΩ, against the MOD. wheel and the loads the switches connect (the oscillators' 51.1 kΩ MOD inputs, oscillator 3's only with OSC. 3 CONTROL on; R52 33 kΩ) | Moog (Fig. 9-8, 9-12, 9-3) |
 | MOD. wheel | R1402 50 kΩ audio used as a rheostat from the line to ground, "90° rotation used from counterclockwise stop", "1.2K when fully forward" | Moog (Fig. 9-12) |

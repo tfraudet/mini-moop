@@ -51,9 +51,10 @@ TEST_CASE ("Red noise is darker than pink, pink darker than white", "[noise]")
 
 TEST_CASE ("The noise outputs' levels do not depend on the sample rate", "[noise]")
 {
-    // White: the level set, in the amplifier's 40 kHz bandwidth. Pink and red:
-    // what board 3's networks make of it.
-    double pinkAt[2] {}, redAt[2] {};
+    // White: the level set, in the amplifier's 49 kHz bandwidth, less what lies
+    // above Nyquist at the lower rate (its density is kept, not its total).
+    // Pink and red: what board 3's networks make of it, the same at both rates.
+    double whiteAt[2] {}, pinkAt[2] {}, redAt[2] {};
     int k = 0;
     for (double fs : { 96000.0, 384000.0 })
     {
@@ -72,12 +73,15 @@ TEST_CASE ("The noise outputs' levels do not depend on the sample rate", "[noise
         }
         INFO ("fs " << fs << ": white " << std::sqrt (sw / count) << ", pink " << std::sqrt (sp / count)
               << ", red " << std::sqrt (sr / count));
-        CHECK (std::sqrt (sw / count) > 0.08);
-        CHECK (std::sqrt (sw / count) < 0.12);
+        whiteAt[k] = std::sqrt (sw / count);
         pinkAt[k] = std::sqrt (sp / count);
         redAt[k] = std::sqrt (sr / count);
         ++k;
     }
+    CHECK (whiteAt[1] > 0.09);
+    CHECK (whiteAt[1] < 0.11);
+    CHECK (whiteAt[0] > 0.07);
+    CHECK (whiteAt[0] < whiteAt[1]);
     CHECK (pinkAt[1] / pinkAt[0] > 0.9);
     CHECK (pinkAt[1] / pinkAt[0] < 1.1);
     CHECK (redAt[1] / redAt[0] > 0.85);

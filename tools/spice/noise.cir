@@ -3,22 +3,32 @@ noise generator (circuit 3): pink and red against white
 .include board3-noise.lib
 .options temp=25 tnom=25
 vp vp 0 10
+vn vn 0 -10
 vw white 0 dc 0 ac 1
-x1 white pink red vp noisefilters
-* the pink output's load: C20 2.5 uF into the NOISE VOLUME pot (25K) or MODULATION MIX (24K)
+x1 white pink red vp vn noisefilters
+* the outputs' loads: pink C20 2.5 uF and red C28 10 uF into about 25K (NOISE VOLUME or
+* MODULATION MIX)
 c20 pink po 2.5u
-rl po 0 25k
+rlp po 0 25k
+c28 red ro 10u
+rlr ro 0 25k
 .control
 op
-print v(pink) v(x1.b3) v(x1.e3) @q.x1.q3[ic]
-ac dec 3 20 20k
-print vdb(po) vdb(red)
-* Q3's gain from its base and its input resistance at 1 kHz
+echo "operating point: Q3's collector $&v(pink) V, Q6's collector $&v(red) V (drawing 1431: +3.8 V)"
+print @q.x1.q3[ic] @q.x1.q6[ic]
+* Q3's gain from its base and its input resistance at 1 kHz; C1's current is
+* (v(p) - v(b3)) j w C1: ngspice cannot probe a capacitor's current directly
 ac lin 1 1k 1k
-* C1's current is (v(p) - v(b3)) j w C1: ngspice cannot probe a capacitor's current directly
 let gain = mag(v(po)/v(x1.b3))
 let ic1 = mag((v(x1.p) - v(x1.b3)) * 2 * pi * 1k * 2.5u)
 let rin = mag(v(x1.b3)) / ic1
-print gain rin mag(v(x1.p))
+let redgain = mag(v(ro)/v(po))
+echo "Q3: gain $&gain, input resistance $&rin ohm; red against pink at 1 kHz $&redgain"
+ac lin 1 10 10
+let redlow = mag(v(ro)/v(po))
+echo "red against pink at 10 Hz: $&redlow"
+* the transfers from white, for the levels (tools/spice/noise_levels.py)
+ac dec 40 1 1meg
+wrdata noise_ac.dat mag(v(po)) mag(v(ro))
 .endc
 .end

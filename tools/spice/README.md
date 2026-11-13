@@ -88,15 +88,18 @@ Oscillator 1 (2 and 3 the same with their own designators).
 | Track and hold | pair Q23 / Q14 2N3392 (tail R52 43K to -10 V, R58 6.2K), C9 .33 on the pitch input, R53 4.7M to +10 V; Q24 2N4058 with R59 3.9K to +10 V and R54 1.5K to -10 V on its collector; R61 330 to pin 8 (GLIDE pot and switch), back on pin 7; Q13 2N4303 "(GLIDE UP)" switched by the trigger through CR5 1N4004; C6 1 uF; follower Q10 2N4303 "(GLIDE DOWN)", R18 3.9K to -10 V; R30 10K back to Q14 | C |
 | Glide drives | Q24 saturated: about +9.8 V; Q24 off: R59 / R54, -4.44 V | D |
 
-## Board 3, noise (Fig. 9-8, page 10)
+## Board 3, noise (Fig. 9-8, page 10; R. A. Moog drawing 1431)
+
+The board's lower rail is -10 V (pins 17 / 18): the emitters and the RC branches return to it, not
+to ground. Drawing 1431 marks Q3's and Q6's collectors at +3.8 V and the three outputs at -4 dBm.
 
 | What | Reading | Conf. |
 |---|---|---|
 | Source | Q15 2N3392 (selected), R67 470K, R47 75K, C25 10 uF; C12 5.6 uF, R29 4.7M | C |
 | Amplifier | Q12 2N3392, R17 100K, NOISE LEVEL R26 2.5K in its emitter; follower Q4, R9 470, R19 3.3K; white output through C18 .15 to pin 5 | C |
 | Pink network | R16 10K; C3 .12 with R8 3.3K; **C2 .033 with R13 220**; C1 2.5 uF into Q3 | C |
-| Pink amplifier | Q3 2N3392, R3 3.3K, R1 120, bias R7 / R6 560K decoupled by C4 2.5 uF; output through C20 2.5 uF to pin 6 | C |
-| Red | R12 10K, C7 .15, C8 2.5 uF | C |
+| Pink amplifier | Q3 2N3392, R3 3.3K, R1 120 to -10 V, bias R7 / R6 560K decoupled by C4 2.5 uF; output through C20 2.5 uF to pin 6 | C |
+| Red | R12 10K into C7 .15, C8 2.5 uF into Q6 2N3392: a common emitter stage, R24 10K load from +10 V, R15 3.9K emitter, base biased from the collector through R28 / R23 2.2M decoupled by C10 .1, C22 .15 across the load; output through C28 10 uF to pin 2, R59 100K. Drawing 1431 has the same stage (Q905, R917, R918, C910) | C |
 
 ## Device models (`models.lib`)
 
@@ -119,7 +122,8 @@ Run with `ngspice -b <file>.cir`.
 | `sensitivity.cir` | the above against the TIS97's gain and saturation current | the units' tolerance draws |
 | `contour.cir` | circuit 8, both contour generators on the trigger section, for SUSTAIN 0 to 1: rest, peak and held levels at the output and on the timing capacitor (filter contour: peak 4.43 V, cap 4.96 V; loudness: 5.22 V, cap 6.37 V; the capacitor returns to 0.645 V after the release) | `tests/test_contour.cpp`: the peaks, 5.2 V (loudness) and 4.4 V (filter), within 0.12 V; the bench's sustain levels and capacitor voltages are not compared |
 | `keyboard.cir` | circuit 1, track and hold: the amplifier's rails (+9.87 / -4.44 V, the "glide drives" of board 2), GLIDE 5M's time an octave (0.58 s up, 1.07 s down), the hold's sag (about 2 cents a minute) | `Glide.h` (the -4.44 V); `tests/test_service_manual.cpp` (2.19): the time an octave of GLIDE 10 between 0.4 and 1.2 s, up shorter than down, a sag below 20 cents a minute (the bench is at 5M, not at the panel's pot) |
-| `noise.cir` | circuit 3, the pink and red filters against white: Q3's operating point (pink output 6.38 V DC, base 0.78 V), its gain 15.4 and its input resistance 29.2K at 1 kHz | none: `tests/test_service_manual.cpp` compares the pink output with the drawn network's analytic transfer, not with this bench's operating point or gain |
+| `noise.cir` | circuit 3 on its -10 V rail: Q3's collector +2.3 V and Q6's +4.1 V (drawing 1431: +3.8 V); Q3's gain 16.9 and input resistance 26.9K at 1 kHz; red against pink, +4.8 dB at 20 Hz to -19.5 dB at 500 Hz. Writes `noise_ac.dat`, the pink and red transfers from white | `NoiseSource.h` (Q3's gain and input resistance, the red stage's 1.81); `tests/test_service_manual.cpp`: the red against the pink within 1 dB from 20 to 500 Hz |
+| `noise_levels.py` | from `noise_ac.dat`: the white noise's bandwidth for which pink comes out at white's level, as drawing 1431 marks them: 49 kHz; red is then 1.9 dB lower | `NoiseSource::whiteBandwidth` |
 | `shapers.cir` | board 1's waveshapers: the triangle (+1.53 V at the top of the sawtooth, -1.97 V at its lowest, 1.55 V at the end), the sawtooth output +/-2.09 V, the rectangle's width for the three bias taps (0 / -1.5 / -2.5 V: high for 50.1 / 31.7 / 19.9 % of the cycle, swinging 0 to -4.3 V). Writes `triangle.dat`, the triangle's transfer, on each run | `tests/test_vco.cpp`: rectangle widths 50 / 31.25 / 18.75 % and the waveform levels; the triangle's transfer (`triangle.dat`) is not compared |
 
 The libraries `board1-shapers.lib`, `board2-contour.lib`, `board2-keyboard.lib`, `board3-noise.lib`, `board4-vca.lib` and `board4-vcf.lib` hold the circuits as subcircuits, one per figure; `models.lib` holds the devices.

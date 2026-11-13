@@ -22,18 +22,24 @@
 // Q12 (NOISE LEVEL R26 in its emitter) and buffered by Q4: the white noise.
 //
 // The junction noise is Gaussian white with a weak 1/f excess (flicker) and
-// occasional "popcorn" steps, filtered by the amplifier's own bandwidth.
+// occasional "popcorn" steps, filtered by the amplifier's own bandwidth. That
+// bandwidth is not on the drawing: it is the one for which the three outputs
+// come out at the same level, as R. A. Moog drawing 1431 marks them ("-4 dBm"
+// on white, pink and red): 49 kHz (tools/spice/noise_levels.py).
+//
 // Pink: R16 10K from Q4 into two series RC branches (C3 .12 uF with R8 3.3K,
 // C2 .033 uF with R13 220) and, through C1 2.5 uF, the base of the amplifier
-// Q3. Q3's input resistance (its beta of about 210 times R1 120 and its own
-// emitter resistance, beside R7 560K: 29K) and its gain (R3 3.3K beside R12
-// 10K and the outputs' loads, over R1: 15) follow from the drawn values. The
-// third-order network is integrated with the bilinear transform.
+// Q3. The board's lower rail is -10 V (drawing 1431: Q3's collector at
+// +3.8 V), which sets Q3 at about 2.3 mA: its input resistance (27K) and its
+// gain (R3 3.3K beside R12 and the loads, over R1 120: 16.9) are ngspice's on
+// the drawn circuit (tools/spice/noise.cir). The third-order network is
+// integrated with the bilinear transform.
 //
-// Red noise: the pink noise through R12 10k into C7 0.15 uF (one pole at
-// 106 Hz), buffered by the follower Q6. It only feeds the modulation bus: the
-// WHITE / PINK switch selects white or pink for the mixer, and pink or red for
-// MODULATION MIX.
+// Red noise: the pink noise through R12 10K into C7 0.15 uF (106 Hz), then the
+// common emitter stage Q6: R24 10K load beside the output's load, R15 3.9K
+// emitter, gain 1.81 (ngspice), C22 0.15 uF across the load (a second pole,
+// 149 Hz). It only feeds the modulation bus: the WHITE / PINK switch selects
+// white or pink for the mixer, and pink or red for MODULATION MIX.
 //
 // The outputs are volts at the board's pins. The white noise's level is the
 // NOISE LEVEL trim: Voice sets it as the service manual does, for -5 dB at the
@@ -50,28 +56,42 @@ namespace mm
 class NoiseSource
 {
 public:
+    /** The white noise's bandwidth (Hz): equal levels on the three outputs (drawing 1431). */
+    static constexpr double whiteBandwidth = 49000.0;
+    /** Q6's gain from C8 to its collector: the load over R15 3.9K and its own re (ngspice). */
+    static constexpr double redGain = 1.81;
+
     void prepare (double sampleRate, uint64_t seed) noexcept
     {
         fs = sampleRate;
         rng.reseed (seed);
-        // Amplifier bandwidth ~ 40 kHz (one pole). The generator's samples are
-        // scaled so that the white noise has the same density, hence the same
-        // level in that bandwidth, at every sample rate.
-        const double fc = std::fmin (40000.0, 0.45 * fs);
+        // Amplifier bandwidth (one pole): see above. The generator's samples
+        // are scaled so that the white noise has the same density at every
+        // sample rate: that of `level` volts rms spread over the noise
+        // bandwidth (pi / 2 times the pole) of the full 49 kHz, also where
+        // the pole itself has to sit lower, below Nyquist. What lies above
+        // Nyquist is then lost, not folded into the audio band.
+        const double fc = std::fmin (whiteBandwidth, 0.45 * fs);
         ampCoeff = 1.0 - std::exp (-2.0 * M_PI * fc / fs);
-        density = std::sqrt (0.5 * fs / (0.5 * M_PI * fc));
+        density = std::sqrt (0.5 * fs / (0.5 * M_PI * whiteBandwidth));
         // Flicker component: leaky integrator corner ~ 20 Hz
         flickerCoeff = std::exp (-2.0 * M_PI * 20.0 / fs);
         makePinkNetwork();
         pinkState.fill (0.0);
-        // Red noise: R12 10k / C7 0.15 uF low-pass (one pole)
-        redCoeff = 1.0 - std::exp (-2.0 * M_PI * (1.0 / (2.0 * M_PI * 10.0e3 * 0.15e-6)) / fs);
+        // Red noise: R12 10K into C7 0.15 uF, then Q6's load (R24 10K beside
+        // R28 2.2M and the output's 25K) against C22 0.15 uF.
+        auto lowPass = [this] (double rc) { return 1.0 - std::exp (-1.0 / (rc * fs)); };
+        constexpr double rRedLoad = 1.0 / (1.0 / 10.0e3 + 1.0 / 2.2e6 + 1.0 / 25.0e3);
+        red1Coeff = lowPass (10.0e3 * 0.15e-6);
+        red2Coeff = lowPass (rRedLoad * 0.15e-6);
         // Output coupling capacitors: no DC reaches the mixer or the modulation
         // bus, so the rare popcorn steps and the slowest flicker die away
-        // instead of offsetting pitch. Pink C20 and red C8 2.5 uF into about
-        // 25K (2.5 Hz); white C18 .15 uF into the NOISE VOLUME pot's 25K (42 Hz).
+        // instead of offsetting pitch. Pink C20 2.5 uF and red C28 10 uF into
+        // about 25K (2.5 and 0.6 Hz); white C18 .15 uF into the NOISE VOLUME
+        // pot's 25K (42 Hz).
         auto coupling = [this] (double c, double r) { const double rc = c * r; return rc / (rc + 1.0 / fs); };
         dcCoeff = coupling (2.5e-6, 25.0e3);
+        dcRedCoeff = coupling (10.0e-6, 25.0e3);
         dcWhiteCoeff = coupling (0.15e-6, 25.0e3);
     }
 
@@ -93,10 +113,11 @@ public:
         pinkState[0] = pinkB[1] * white - pinkA[1] * pinkRaw + pinkState[1];
         pinkState[1] = pinkB[2] * white - pinkA[2] * pinkRaw + pinkState[2];
         pinkState[2] = pinkB[3] * white - pinkA[3] * pinkRaw;
-        redState += redCoeff * (pinkRaw - redState);
+        red1 += red1Coeff * (pinkRaw - red1);
+        red2 += red2Coeff * (redGain * red1 - red2);
         white = couple (dcWhite, white, dcWhiteCoeff);
         pink = couple (dcPink, pinkRaw, dcCoeff);
-        red = couple (dcRed, redState, dcCoeff);
+        red = couple (dcRed, red2, dcRedCoeff);
     }
 
 private:
@@ -117,7 +138,7 @@ private:
     void makePinkNetwork() noexcept
     {
         constexpr double r16 = 10.0e3, r8 = 3.3e3, c3 = 0.12e-6, r13 = 220.0, c2 = 0.033e-6;
-        constexpr double c1 = 2.5e-6, rIn = 29.0e3, gain = 15.0;
+        constexpr double c1 = 2.5e-6, rIn = 26.9e3, gain = 16.9; // Q3 (tools/spice/noise.cir)
         using P = std::array<double, 4>; // ascending powers of s
         auto mul1 = [] (const P& p, double t) { P r {}; for (int i = 0; i < 4; ++i) { r[size_t (i)] += p[size_t (i)]; if (i < 3) r[size_t (i + 1)] += t * p[size_t (i)]; } return r; };
         const double t1 = r8 * c3, t2 = r13 * c2, tb = rIn * c1;
@@ -160,7 +181,8 @@ private:
     std::array<double, 3> pinkState {};
     double fs = 48000.0, ampCoeff = 1.0, flickerCoeff = 0.99, density = 1.0;
     double amp = 0.0, flicker = 0.0, popcorn = 0.0, level = 1.0;
-    double redCoeff = 0.0, redState = 0.0, dcCoeff = 1.0, dcWhiteCoeff = 1.0;
+    double red1Coeff = 0.0, red2Coeff = 0.0, red1 = 0.0, red2 = 0.0;
+    double dcCoeff = 1.0, dcRedCoeff = 1.0, dcWhiteCoeff = 1.0;
     Coupling dcWhite, dcPink, dcRed;
 };
 
