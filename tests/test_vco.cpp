@@ -57,8 +57,12 @@ double measureFrequency (VcoCore& vco, ExpoConverter& ex, double cv, double fs, 
 }
 } // namespace
 
-TEST_CASE ("Calibrated oscillators track 1 V/oct to within a few cents over 6 octaves", "[vco]")
+TEST_CASE ("Tuned oscillators: exact on the two tuning notes, a few cents elsewhere over 6 octaves", "[vco]")
 {
+    // The old board is tuned on two notes only, 440 and 3520 Hz with RANGE at
+    // 2' (CV 0 and +3 here), and its high-frequency compensation is a fixed
+    // resistor: away from those notes each unit keeps its own error, larger
+    // towards the low octaves.
     for (uint64_t seed : { 1ull, 2ull, 3ull, 99ull })
     {
         Voice v;
@@ -70,9 +74,7 @@ TEST_CASE ("Calibrated oscillators track 1 V/oct to within a few cents over 6 oc
                 const double target = 440.0 * std::pow (2.0, oct);
                 const double cents = 1200.0 * std::log2 (v.oscFrequency (osc, oct) / target);
                 INFO ("seed " << seed << " osc " << osc << " octave " << oct << " error " << cents << " cents");
-                // calibration points (A1, A4, A7) within 1 cent; extremes a bit looser,
-                // as on a real, well-trimmed instrument.
-                CHECK (std::abs (cents) < (std::abs (oct) == 3 || oct == 0 ? 1.0 : 3.0));
+                CHECK (std::abs (cents) < (oct == 3 || oct == 0 ? 2.0 : 12.0));
             }
         }
     }
@@ -91,7 +93,6 @@ TEST_CASE ("Simulated core frequency matches the analytic period", "[vco]")
     ExpoConverter ex;
     ex.setParams ({});
     ex.setTemperatures (298.15, 298.15, 298.15);
-    ex.calibrate (0.0, 22.0e-6);
     for (double cv : { -2.0, 0.0, 2.0 })
     {
         const double expected = core.frequencyForCurrent (ex.current (cv));
@@ -120,10 +121,39 @@ TEST_CASE ("Waveforms stay within the waveshaper swing and have no DC runaway", 
             sum += y;
         }
         INFO ("waveform " << w << " min " << mn << " max " << mx << " mean " << sum / n);
-        const double peak = core.params().outPeak; // 1.7 V (Fig. 9-3)
+        // Fig. 9-3's levels: triangle "+1.7 TO -1.7V", sawtooth +/-4 V through
+        // R34 / R33 (2.09 V), rectangle "(3.5V)" peak to peak; the shark tooth is
+        // their mix. The band-limited edges overshoot a little.
+        const auto& pr = core.params();
+        const double peak = Waveform (w) == Waveform::Sawtooth ? pr.sawPeak
+                          : Waveform (w) == Waveform::Triangle ? pr.triPeak
+                          : Waveform (w) == Waveform::SharkTooth ? (1.0 - pr.sharkMix()) * pr.triPeak + pr.sharkMix() * pr.sawPeak
+                          : pr.rectPeak;
         CHECK (mx < 1.28 * peak);
         CHECK (mn > -1.28 * peak);
-        CHECK (mx - mn > 1.2 * peak);
+        CHECK (mx - mn > 1.7 * peak);
+    }
+    CHECK (VcoParams {}.sawPeak == Approx (2.089).margin (0.001));
+}
+
+TEST_CASE ("Rectangle widths follow the WAVEFORM switch's bias string", "[vco]")
+{
+    // -10 V, R32 7.5K, R33 1K, R34 1.5K, ground (Fig. 9-16): 0, -1.5 and -2.5 V
+    // against the +/-4 V sawtooth through equal 43K: 50, 31 and 19 %.
+    const double fs = 192000.0;
+    struct Case { Waveform w; double width; };
+    for (const auto& c : { Case { Waveform::Square, 0.5 }, Case { Waveform::WideRect, 0.3125 }, Case { Waveform::NarrowRect, 0.1875 } })
+    {
+        VcoCore core;
+        core.setParams ({});
+        core.prepare (fs, 3);
+        core.setWaveform (c.w, false);
+        int low = 0;
+        const int n = int (fs * 0.5);
+        for (int i = 0; i < n; ++i)
+            if (core.process (20e-6) < 0.0) ++low; // 500 Hz
+        INFO ("waveform " << int (c.w) << " narrow part " << double (low) / n);
+        CHECK (double (low) / n == Approx (c.width).margin (0.004));
     }
 }
 

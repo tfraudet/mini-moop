@@ -33,21 +33,18 @@ TEST_CASE ("Filter output stage table matches ngspice", "[filter][spice]")
 {
     if (! mmtest::ngspiceAvailable()) SKIP ("ngspice not installed");
 
-    // Fig. 9-11's Q5-Q8 stage as in FilterOutputStage.h; the top capacitor's
+    // Fig. 9-11's Q5-Q8 stage as in tools/spice/outstage.cir; the top capacitor's
     // AC voltage swept slowly from -0.3 to +0.3 V (quasi-static: the stage has
-    // no capacitor once C9 is replaced by its operating point). TIS97 model
-    // card from the CA-72 project's mm-devices.lib (GPL-3.0-or-later).
+    // no capacitor once C9 is replaced by its operating point).
     std::ostringstream net;
-    net << "vp vp 0 10\nvn vn 0 -10\n"
+    net << ".include " << MINIMOOP_SPICE_DIR << "/models.lib\n"
+        << "vp vp 0 10\nvn vn 0 -10\n"
         << "vd d 0 pwl(0 -0.3 1 0.3)\n"
-        << "eb8 b8 s8 d 0 0.5\nvb8 s8 0 -0.00851005\neb6 b6 s6 d 0 -0.5\nvb6 s6 0 -0.0135756\n"
-        << "q8 out b8 e8 QTIS97\nq6 vp b6 e6 QTIS97\nr24 e8 vn 220k\nr20 e6 vn 100k\n"
-        << "q7 out e8 e57 QTIS97\nq5 vp e6 e57 QTIS97\nr26 e57 vn 1k\n"
-        << "r3 nu out 1k\nr7 nt nu 180\nvnt nt 0 9.73812\n"
-        << "rvca out vo 82.82k\nvvo vo 0 3.16331\nremph nu vu 50.5k\nvvu vu 0 8.73518\n"
-        << ".model QTIS97 NPN (TNOM=25 IS=5e-15 NF=1 BF=420 ISE=1e-14 NE=1.5 VAF=100 IKF=0.1\n"
-        << "+ BR=4 RB=50 RE=0.5 RC=1 CJE=5p VJE=0.75 MJE=0.33 CJC=3p VJC=0.75 MJC=0.33\n"
-        << "+ TF=0.4n TR=60n EG=1.11 XTI=3 XTB=1.5)\n"
+        << "eb8 b8 s8 d 0 0.5\nvb8 s8 0 -0.00574568\neb6 b6 s6 d 0 -0.5\nvb6 s6 0 -0.00978441\n"
+        << "q8 out b8 e8 TIS97\nq6 vp b6 e6 TIS97\nr24 e8 vn 220k\nr20 e6 vn 100k\n"
+        << "q7 out e8 e57 TIS97\nq5 vp e6 e57 TIS97\nr26 e57 vn 1k\n"
+        << "r3 nu out 1k\nr7 nt nu 180\nvnt nt 0 9.739830\n"
+        << "rvca out vo 82.82k\nvvo vo 0 3.207904\nremph nu vu 51.33k\nvvu vu 0 8.743435\n"
         << ".options temp=25 tnom=25\n";
     const auto ref = mmtest::runNgspiceTran ("filter_output", net.str(), { "v(out)" }, 1.0e-4, 1.0);
     REQUIRE (ref);

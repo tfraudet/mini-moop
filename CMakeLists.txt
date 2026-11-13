@@ -24,7 +24,7 @@ cmake_minimum_required(VERSION 3.24)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Target architectures")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
 
-project(MiniMoop VERSION 1.0.0 LANGUAGES C CXX)
+project(MiniMoop VERSION 1.1.0 LANGUAGES C CXX)
 
 string(TIMESTAMP MINIMOOP_BUILD_DATE "%Y-%m-%d")
 
@@ -166,7 +166,7 @@ if(MINIMOOP_BUILD_TESTS)
         tests/test_contour.cpp
         tests/test_vca.cpp
         tests/test_filter_output.cpp
-        tests/test_reference_laws.cpp
+        tests/test_service_manual.cpp
         tests/test_noise_a440.cpp)
     target_link_libraries(minimoop_tests PRIVATE minimoop_dsp Catch2::Catch2WithMain)
     target_compile_definitions(minimoop_tests PRIVATE

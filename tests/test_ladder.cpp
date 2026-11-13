@@ -62,7 +62,7 @@ TEST_CASE ("Ladder: -12 dB at the small-signal cutoff without emphasis", "[ladde
     const double fs = 192000.0;
     LadderFilter f;
     auto p = idealParams();
-    p.kMax = 0.0; // no feedback at all (EMPHASIS at 0 still leaks a little through R14)
+    p.kOverride = 0.0; // no feedback at all (EMPHASIS at 0 still leaks a little through R14)
     f.setParams (p);
     f.prepare (fs);
     f.setTemperature (300.15);
@@ -146,7 +146,7 @@ TEST_CASE ("Ladder reduced model matches transistor-level ngspice ladder", "[lad
     p.c.fill (C);
     p.beta = bf;
     p.inputGain = 1.0;
-    p.kMax = k;
+    p.kOverride = k;
     p.noiseRms = 0.0;
     p.feedbackThroughOutputStage = false; // the netlist's feedback is an ideal VCVS
     LadderFilter f;
@@ -177,22 +177,38 @@ TEST_CASE ("Ladder reduced model matches transistor-level ngspice ladder", "[lad
     CHECK (err < 0.05);
 }
 
-TEST_CASE ("EMPHASIS: the hardware reference's passband loss, self-oscillation from about 7", "[ladder]")
+TEST_CASE ("EMPHASIS: the drawn feedback path, REGEN CAL's range", "[ladder]")
 {
-    const LadderParams p;
-    auto k = [&p] (double dial) { return p.kMax * LadderFilter::emphasisLaw (p, dial / 10.0); };
-    // The passband falls as the CA-72 project's hardware reference's does
-    const double k0 = k (0.0);
-    struct Drop { double dial, dB; };
-    for (const auto& d : { Drop { 2.5, -2.25 }, Drop { 5.0, -9.53 }, Drop { 6.0, -10.43 }, Drop { 7.0, -11.92 },
-                           Drop { 7.5, -12.50 }, Drop { 8.5, -14.67 } })
-        CHECK (20.0 * std::log10 ((1.0 + k0) / (1.0 + k (d.dial))) == Approx (d.dB).margin (0.01));
-    // The ladder self-oscillates for k above about 4.0: from about 7 (the panel's 7-8)
-    CHECK (k (6.5) < 4.0);
-    CHECK (k (7.5) > 4.0);
-    // Monotonic, small residual feedback fully counter-clockwise, full rotation unchanged
+    // Fig. 9-11 / 9-16: the output's load tap (R7 180 over R3 1K + R7), C10, R14
+    // 50K reverse audio as a rheostat, R73 1K REGEN CAL with its wiper on Q30's
+    // base, R76 330 to the AC-grounded bias node.
+    LadderParams p;
+    auto k = [&p] (double dial) { return LadderFilter::loopGain (p, dial / 10.0); };
+
+    // EMPHASIS 0: all of R14 in the path. ngspice on the whole of circuit 6
+    // (tools/spice/vcf_op.cir): passband 56.7 for a stage gain of 68.0, a
+    // residual loop gain of 0.2.
+    p.regenCal = 0.5;
+    CHECK (k (0.0) == Approx (0.17).margin (0.04));
+    CHECK (LadderFilter::emphasisOhms (p, 0.0) == Approx (50.0e3));
+    CHECK (LadderFilter::emphasisOhms (p, 1.0) == Approx (0.0).margin (1e-9));
+
+    // EMPHASIS 10: 68.0 * 180 / 1180 * (330 + t 1000) / (330 + 1000 + 153)
+    p.regenCal = 0.0;
+    CHECK (k (10.0) == Approx (68.0 * 180.0 / 1180.0 * 330.0 / 1483.0).epsilon (0.01));
+    p.regenCal = 1.0;
+    CHECK (k (10.0) == Approx (68.0 * 180.0 / 1180.0 * 1330.0 / 1483.0).epsilon (0.01));
+
+    // Regeneration Cal: "Regeneration should start when the EMPHASIS control is
+    // between 7 and 8" (Folkman). The ladder needs a loop gain of about 4: the
+    // trimmer must be able to put that at 7.5, with room either side.
+    p.regenCal = 0.0;
+    CHECK (k (7.5) < 3.0);
+    p.regenCal = 1.0;
+    CHECK (k (7.5) > 4.6);
+
+    // Monotonic over the dial
+    p.regenCal = 0.73;
     for (int i = 0; i < 100; ++i)
         CHECK (k (0.1 * (i + 1)) > k (0.1 * i));
-    CHECK (k (0.0) < 0.5);
-    CHECK (k (10.0) == Approx (p.kMax));
 }

@@ -16,8 +16,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Contour generator: ATTACK and DECAY follow the pot laws measured on the
-// CA-72 project's hardware reference; levels follow the circuit (ngspice).
+// Contour generator: ATTACK and DECAY from the drawn 1 Mohm audio pots and
+// 10 uF capacitors; levels from the drawn networks (Fig. 9-7).
 
 #include "circuit/blocks/ContourGen.h"
 
@@ -67,40 +67,30 @@ double attackRise (const ContourParams& p, double dial)
 }
 } // namespace
 
-TEST_CASE ("ATTACK and DECAY follow the hardware reference's pot laws", "[contour]")
+TEST_CASE ("ATTACK and DECAY: 1 Mohm audio pots on 10 uF, 10 ms to 10 s", "[contour]")
 {
-    // CA-72's measured resistances at the reference's dial marks, over 0.89
-    // (its capacitor's dielectric absorption, absent here).
-    struct Point { double dial, attackL, decayL, attackF, decayF; };
-    const Point law[] = { { 0.2, 14.13e3, 13.00e3, 13.56e3, 15.94e3 }, { 0.5, 41.85e3, 37.04e3, 36.02e3, 43.46e3 },
-                          { 0.7, 267.0e3, 206.4e3, 225.9e3, 236.8e3 }, { 1.0, 982.6e3, 755.4e3, 946.8e3, 768.2e3 } };
+    // Fig. 9-7, Table 7-3: R12 / R13 / R15 / R16 "Audio, 1 Megohm" as rheostats
+    // on C5 / C2 10 uF, R7 / R42 100 in series. Specifications: "RANGE OF
+    // ATTACK TIME: 10 milliseconds to 10 seconds", decay the same.
     const auto l = ContourParams::loudness(), f = ContourParams::filter();
-    for (const auto& pt : law)
+    for (double dial : { 0.0, 0.2, 0.5, 0.8, 1.0 })
     {
-        INFO ("dial " << pt.dial);
-        CHECK (ContourGen::attackPot (l, pt.dial) == Approx (pt.attackL / 0.89));
-        CHECK (ContourGen::decayPot (l, pt.dial) == Approx (pt.decayL / 0.89));
-        CHECK (ContourGen::attackPot (f, pt.dial) == Approx (pt.attackF / 0.89));
-        CHECK (ContourGen::decayPot (f, pt.dial) == Approx (pt.decayF / 0.89));
-        // The attack's 10-90 % time is about the network's time constant
-        ContourGen c;
-        c.setParams (l);
-        c.prepare (fs);
-        c.setAttack (pt.dial);
-        CHECK (attackRise (l, pt.dial) == Approx (c.attackTau()).epsilon (0.05));
+        INFO ("dial " << dial);
+        CHECK (ContourGen::attackPot (l, dial) == Approx (1.0e6 * taper::audio (dial)).margin (1e-6));
+        CHECK (ContourGen::decayPot (f, dial) == Approx (1.0e6 * taper::audio (dial)).margin (1e-6));
     }
-    // Monotonic
+    CHECK (ContourGen::attackPot (l, 0.5) == Approx (100.0e3)); // 10 % of the track at half rotation: 1 s
     for (int i = 0; i < 100; ++i)
     {
         CHECK (ContourGen::attackPot (l, 0.01 * (i + 1)) > ContourGen::attackPot (l, 0.01 * i));
         CHECK (ContourGen::decayPot (f, 0.01 * (i + 1)) > ContourGen::decayPot (f, 0.01 * i));
     }
-    // The peak comes after about 1.3 time constants: from the 0.66 V rest
-    // towards the 9.2 V target, stopped at 5.75 V + the Darlington's drop
-    // (ngspice: 1.2 ms with the drawn 100 ohm and the attack pot at zero).
+    // The peak comes after about 1.1 time constants: from the 0.66 V rest
+    // towards the 9.2 V target, stopped at the peak detector's 5.2 V plus the
+    // Darlington's drop.
     const double span = ContourGen::attackSpan (ContourParams::loudness());
-    CHECK (span > 1.25);
-    CHECK (span < 1.40);
+    CHECK (span > 1.0);
+    CHECK (span < 1.2);
     for (double dial : { 0.0, 0.3, 0.7 })
     {
         ContourGen c;
@@ -108,16 +98,20 @@ TEST_CASE ("ATTACK and DECAY follow the hardware reference's pot laws", "[contou
         c.prepare (fs);
         c.setAttack (dial);
         CHECK (attackTime (dial) == Approx (span * c.attackTau()).epsilon (0.01).margin (2.0 / fs));
+        // the 10-90 % rise is a little under a time constant
+        CHECK (attackRise (l, dial) == Approx (0.85 * c.attackTau()).epsilon (0.05).margin (3.0 / fs));
     }
-    // Spec: about 1 ms fully counter-clockwise, 10 s fully clockwise
-    CHECK (attackTime (0.0) < 0.002);
-    CHECK (attackTime (1.0) > 9.0);
+    // The specification's range: under 10 ms fully counter-clockwise (the
+    // drawn 100 ohm gives 1.4 ms), 10 s fully clockwise.
+    CHECK (attackTime (0.0) < 0.010);
+    CHECK (attackTime (1.0) == Approx (11.0).margin (1.5));
 }
 
-TEST_CASE ("Contour levels match the circuit (ngspice, Fig. 9-7)", "[contour]")
+TEST_CASE ("Contour levels follow the drawn networks (Fig. 9-7, service manual 2.10)", "[contour]")
 {
-    // ngspice transient of board 2 circuit 8 (25 C), DECAY pots at 1K so that
-    // the sustain settles within 200 ms; output voltages.
+    // Output voltages held at six SUSTAIN settings: the SUSTAIN dividers (R19 /
+    // R18 5K, R57 / R13 4.7K, 4.7K or R1 3K with R17 150K to -10 V), the sustain
+    // follower's Vbe and the output follower's drop.
     struct Level { double sustain, loudness, filter; };
     const Level held[] = { { 0.0, -0.457, 0.057 }, { 0.2, 0.453, 0.734 }, { 0.4, 1.293, 1.354 },
                            { 0.6, 2.166, 2.008 }, { 0.8, 3.175, 2.790 }, { 1.0, 4.462, 3.841 } };
@@ -134,7 +128,10 @@ TEST_CASE ("Contour levels match the circuit (ngspice, Fig. 9-7)", "[contour]")
             c.gateOn();
             double peak = -10.0;
             for (int n = 0; n < int (0.02 * fs); ++n) peak = std::fmax (peak, c.process());
-            CHECK (peak == Approx (section == 0 ? 5.77 : 4.95).margin (0.08));
+            // "When the voltage on R33 reaches approximately 5 volts, CR3 conducts"
+            // (2.10): R24 6.8K / R33 5.6K against R27 / R29 16.9K to -10 V, the
+            // germanium CR6 / CR3 and the flip-flop's Vbe.
+            CHECK (peak == Approx (section == 0 ? 5.2 : 4.4).margin (0.12));
         }
         for (const auto& l : held)
         {
@@ -154,12 +151,13 @@ TEST_CASE ("Contour levels match the circuit (ngspice, Fig. 9-7)", "[contour]")
 
 TEST_CASE ("DECAY TIME spans the specification", "[contour]")
 {
-    // Spec: decay from about 4 ms to 35 s (read as ~3 time constants)
+    // Specifications: decay from 10 milliseconds to 10 seconds. The time
+    // constant: 1.3 ms with the pot at zero, 10 s with its whole megohm.
     ContourGen c;
     c.setParams ({});
     c.prepare (fs);
     c.setDecay (0.0);
-    CHECK (3.0 * c.decayTau() < 0.006);
+    CHECK (c.decayTau() < 0.010);
     c.setDecay (1.0);
-    CHECK (3.0 * c.decayTau() > 20.0); // the reference's pots: 8.5 s time constant fully clockwise
+    CHECK (c.decayTau() == Approx (10.0).epsilon (0.01));
 }
