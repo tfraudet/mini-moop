@@ -86,13 +86,13 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Octave adjust (Folkman; 5.34) | oscillator 1 at 8' zero-beats two octaves below 2' (the later 5.34 uses 16') | within 1 cent; the other steps and oscillators within 5 to 10 cents; LO 4.75 octaves below 32' |
 | Range of TUNE and FREQUENCY (5.35) | 4 to 6 and 14 to 17 semitones | 5.4 and 16.8 with nominal pots (15 to 18 with 20 % pots) |
 | Oscillator 3 wide range (5.36) | OSC. 3 CONTROL off, LO, FREQUENCY at minimum: a click every 2 to 5 s; the keyboard has no effect; LO overlaps 32' | a click every 3 to 3.5 s; FREQUENCY spans 6 octaves |
-| Modulation of the oscillators (5.37) | 13 to 23 semitones with the MOD wheel fully up | 18.9 |
-| Amount of modulation (5.19) | the filter from 440 Hz to at least 2.4 kHz | 5 octaves |
+| Modulation of the oscillators (5.37) | 13 to 23 semitones with the MOD wheel fully up | 18.6 |
+| Amount of modulation (5.19) | the filter from 440 Hz to at least 2.4 kHz | 4.6 octaves |
 | Emphasis calibration (5.12; Folkman) | regeneration starts between 7 and 8 | does not at 7, does at 8, on every unit |
-| Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 24 to 30 kHz, unit by unit; sings at 220 Hz |
+| Filter cutoff (5.13; Folkman) | 440 Hz at -1; at least 16 kHz fully clockwise; still singing under 300 Hz | within 5 cents; 24 to 34 kHz, unit by unit; sings at 220 Hz |
 | Filter scale, KEYBOARD 1/3 (5.14, 5.15) | two then three octaves of keys track with switches 1 and 2; 880 +/- 50 Hz three octaves up with switch 1 | within 10 and 40 cents; within the 50 Hz |
 | Amount of contour, filter control (5.17, 5.18) | fully clockwise: "35kHz +/- 10kHz"; two octaves for about two divisions | 38 to 40 kHz (the converter's limit); 1.96 octaves |
-| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.5 dB; -8.0 and -2.0 dB (read over 48 kHz, as a wideband meter; this unit's two lie 5.9 dB apart, close to the 6 dB the check allows); -8.9 dB (ngspice on the drawn circuits: -8.3); -80 dB |
+| Levels (5.8, 5.27, 5.7, 5.24) | triangle +1 +/- 3 dB; white and pink noise -5 +/- 3 dB; A-440 -8 +/- 2 dB at 440 +/- 1 Hz; residual noise -65 dB | +2.6 dB; -8.2 and -2.0 dB (read over 48 kHz, as a wideband meter): this unit's two lie 6.2 dB apart, more than the 6 dB the check leaves, so white falls 0.2 dB outside it; the test allows half a decibel, a needle meter's reading; -8.9 dB (ngspice on the drawn circuits: -8.3); -80 dB |
 | Contour generator balance (5.25) | -55 dB maximum | -63 dB |
 | Keyboard and glide (2.19, specifications) | 1 V an octave; 1 ms to 1 s an octave; the pitch is held when the key is released | GLIDE 10: 0.59 s an octave up, 1.06 down (ngspice on the drawn circuit: 0.58 and 1.07); held, drifting by a few cents a minute |
 | Short term oscillator stability (specifications) | better than 0.25 % | 3.6 cents over a minute at Drift 1 |
@@ -116,7 +116,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Oscillator aliasing in the audio band, against the fundamental | sawtooth and rectangles below -100 dB at 3.5 and 7 kHz (2x and 4x); triangle below -75 dB | `test_vco.cpp`: "Band-limited steps and corners keep aliasing low at high pitch" |
 | Waveform levels, the triangle's shape and the rectangle widths | +/-2.09 V sawtooth, +/-1.75 V triangle, 3.5 V rectangle; the triangle within 40 mV of ngspice's transfer; 50.1, 31.7 and 19.9 % (ngspice) | `test_vco.cpp` |
 | Shark tooth's mix and the outputs' loading of the VOLUME pot | 17.8 % sawtooth; -4.2 / -1.3 / -0.4 dB at VOLUME 10 (shark tooth, sawtooth, triangle) | `test_vco.cpp`: "Shark tooth: the front panel's R030 / R031 against the board's outputs" |
-| KEYBOARD CONTROL, modulation line and its polarity through the whole instrument | 1/3, 2/3 and 1 octave an octave; +-0.74 octave at full wheel, half way 54 %; filter 3 times as deep; a rising oscillator 3 lowers the pitch | `test_service_manual.cpp` |
+| KEYBOARD CONTROL, modulation line and its polarity through the whole instrument | 1/3, 2/3 and 1 octave an octave; +-0.73 octave at full wheel, half way 52 %; filter 3 times as deep; a rising oscillator 3 lowers the pitch | `test_service_manual.cpp` |
 | Pink noise against white; red against pink | the drawn network's transfer within 1 dB from 200 Hz to 10 kHz; ngspice's within 1 dB from 20 to 500 Hz | `test_service_manual.cpp`: "Pink and red noise follow board 3's drawn networks" |
 | External input pre-amp and OVERLOAD lamp; its interpolation to the oversampled rate | gain 201, rails +9.8 / -7.7 V, lamp from about 1.5 V (ngspice); images below -80 dB | `test_extpreamp.cpp`; `test_service_manual.cpp` |
 | MODULATION MIX, main VOLUME, A-440, noise levels independent of the sample rate | as wired on the original | `test_noise_a440.cpp` |
@@ -131,9 +131,9 @@ Share of one core, real time being 100 %: three oscillators, EMPHASIS 6, DRIFT 1
 
 | Quality | 1 voice | 8 voices |
 |---|---|---|
-| Eco 2x | ~3 % | ~26 % |
+| Eco 2x | ~3 % | ~25 % |
 | High 4x | ~5.5 % | ~48 % |
-| Ultra 8x | ~11.5 % | ~92 % |
+| Ultra 8x | ~11 % | ~90 % |
 
 ### Outside the test suite
 
@@ -158,7 +158,7 @@ Each voice draws its own component values from the "Unit" seed, then is **calibr
 | Filter SCALE (R49) | KEYBOARD CONTROL 1 and 2 on, the third A tuned to 1760 Hz with CUTOFF: low A two octaves below, through the keys and the cutoff converter |
 | Filter RANGE (R39) | KEYBOARD CONTROL off, CUTOFF at -1, EMPHASIS at 10: zero beats with the A-440. SCALE and RANGE repeated, as the manual asks, "until the filter will track three octaves" |
 | 1ST VCA BAL (R14) | the contour's feedthrough nulled to the manual's -55 dB |
-| NOISE LEVEL (R26) | white and pink noise centred on -5 dB at the main output, read at the real level; "so that both white and pink fall within specification": a little further where the two lie close to 6 dB apart |
+| NOISE LEVEL (R26) | white and pink noise centred on -5 dB at the main output, read at the real level; "so that both white and pink fall within specification": a little further where the two lie close to 6 dB apart. Where they lie more than 6 dB apart, pink is kept inside and white ends a few tenths below |
 
 The filter's trimmers are set on what the unit does (the pitch the filter sings at is measured), not on its formulas. Changing the "Unit" is like playing a different example of the instrument.
 
@@ -242,7 +242,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | EXTERNAL INPUT volume, pre-amp gain, couplings | R9 1 MΩ audio, R66 100 kΩ, gain 201 (1 + R61/R62), C23, C26, C20 | Moog (Fig. 9-11, 9-16) |
 | Pre-amp saturation | +9.8 / −7.7 V | Moog (derived from the rails, R57 and the mixer load) |
 | OVERLOAD lamp driver: C14 peak detector, R56 / R48, Q31, Q34, threshold | the lamp from a 1.5 V peak at the pre-amp's output: Q31's base current lifts its base by some 0.7 V (the manual's 2.12: "approximately 1.2 volts"); C14 relaxes towards −4.5 V | Moog, ngspice (Fig. 9-11; drawing 1442; `overload.cir`); the transistor cards: Other |
-| Lamp filament heating / cooling | 25 / 60 ms | Assumed |
+| C14's charge through Q25; the lamp filament's heating and cooling | 50 µs; 25 / 60 ms | Assumed |
 
 ### Filter (board 4, circuit 6)
 
@@ -259,7 +259,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | The converter's limit | Q28 against R60 680 Ω: 1.765 mA, 38 kHz ("35kHz ± 10kHz", 5.17), a sharp knee (r^11.5) | Moog, ngspice (Fig. 9-11; 5.17; `cutoff.cir`) |
 | The converter's octaves | 17.9 mV an octave at the bottom, stretching to 21.7 mV at 1.1 mA: 4.0 Ω in series with the exponential (Q28's base current out of Q26's emitter current, the junctions' own resistances); within 0.04 dB rms of ngspice over the whole sweep | Moog, ngspice (Fig. 9-11; `cutoff.cir`); the device cards: Other |
 | Output stage Q5 to Q8: transfer, gain 68.0, clipping +6.4 / −3.7 V | table; the gain follows the TIS97's current gain (63 to 71 over its bin), drawn per unit | Moog, ngspice (Fig. 9-11); Other (TIS97: hFE 250 to 700) |
-| EMPHASIS path | the output's load tap (R7 180 Ω over R3 1 kΩ + R7), C10, R14 50 kΩ reverse audio as a rheostat, REGEN CAL R73 1 kΩ with its wiper on Q30's base, R76 330 Ω: loop gain 0.2 at 0 (passband 56.7 for a stage gain of 68.0) | Moog, ngspice (Fig. 9-11, 9-16) |
+| EMPHASIS path | the output's load tap (R7 180 Ω over R3 1 kΩ + R7), C10, R14 50 kΩ reverse audio as a rheostat, REGEN CAL R73 1 kΩ with its wiper on Q30's base, R76 330 Ω: loop gain 0.17 at 0 (passband 56.7 for a stage gain of 68.0) | Moog, ngspice (Fig. 9-11, 9-16) |
 | Self-oscillation | from EMPHASIS 7.5, by Regeneration Cal | Moog (5.12; Folkman) |
 | Output coupling | C5 / C1 0.22 µF into R31 / R38 47 kΩ | Moog (Fig. 9-11) |
 | Emphasis coupling | C10 10 µF into the emphasis path (R3 // R7, R14, R73, R76): about 10 Hz at EMPHASIS 10, inside the loop. At 10 the filter sings at a 50 Hz cutoff, not at 30 Hz | Moog (Fig. 9-11) |
@@ -304,7 +304,7 @@ No value comes from another emulation or from a modern recreation of the instrum
 | Q3's input resistance and gain | 26.9 kΩ, 16.9: Q3 at 2.3 mA between +10 V and the board's −10 V rail (drawing 1431: its collector at +3.8 V) | Moog, ngspice (Fig. 9-8; drawing 1431) |
 | Red noise | R12 10 kΩ / C7 0.15 µF into the common emitter stage Q6 (R24 10 kΩ, R15 3.9 kΩ, gain 1.81), C22 0.15 µF across its load: two poles at 106 and 149 Hz | Moog, ngspice (Fig. 9-8; drawing 1431) |
 | Output couplings | white C18 0.15 µF, pink C20 2.5 µF, red C28 10 µF, into about 25 kΩ | Moog (Fig. 9-8) |
-| Noise level | NOISE LEVEL trimmed for white and pink centred on −5 dB at the main output: about 0.18 V rms (−12 dBm) of white noise at the board. Drawing 1431 (1970) marks −4 dBm, which would put the main output near +3 dB, outside 5.27: only its relative levels are used | Moog (2.5, 5.27; Folkman) |
+| Noise level | NOISE LEVEL trimmed for white and pink centred on −5 dB at the main output: 0.16 to 0.19 V rms (−14 to −12 dBm) of white noise at the board, unit by unit. Drawing 1431 (1970) marks −4 dBm, which would put the main output near +4 dB, outside 5.27: only its relative levels are used | Moog (2.5, 5.27; Folkman) |
 | White noise bandwidth | 37 kHz: white, pink and red come out closest to one level (pink +1.1 dB, red −0.7 dB against white), as drawing 1431 marks them ("−4 dBm" each) | Moog, ngspice (drawing 1431; `tools/spice/noise_levels.py`) |
 | Junction noise: 1/f corner, popcorn | 20 Hz, rare 0.03 steps | Assumed |
 | MODULATION MIX | R3 25 kΩ linear with its wiper grounded, 24 kΩ inputs, 43 kΩ into the amplifier's virtual ground, R60 91 kΩ feedback | Moog (Fig. 9-8, 9-16) |

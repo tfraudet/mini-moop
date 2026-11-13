@@ -75,6 +75,7 @@ Oscillator 1 (2 and 3 the same with their own designators).
 | Second VCA | Q14 / Q13 on the first pair's collectors; loads R18 / R21 330 and R12 100 (2ND VCA BAL, wiper to the R11 / R13 node); R33 470 to Q21; R51 33K from pin 10, R42 3.3K to ground, R44 150K to -10 V | C |
 | Output | Q12 / Q17 2N4058 on the second pair's collectors, R8 / R28 8.2 to Q1 2N4058 (R9 62 from +10 V, base on the R10 / R11 node, C4 220 uF); R30 / R29 680 to ground; CR1 / CR2 1N458A; C2 10 uF, R75 1K to pin 21, R77 1K to pin 22 | C |
 | A-440 | Wien bridge: series arm R71 4.75K, R68 1K ADJ, C13 .030 (+ C17 selected) from Q9's collector (R17 4.75K); parallel arm R55 16.9K, C19 .030 (+ C25) at Q22's base (R50 82K). Q22 TIS97 (R25 75K, R47 33.2K), Q9 2N4058 (R15 3.32K), limiter CR3 / CR4 SG3246 with C12 .1 and R27 470K; Q4 2N3392 on Q9's emitter, collector on R1 ("680K / 22M SELECTED", Table 7-8: 2.2M), emitter on R5 22K. R40 2.2K (the earlier reading 22K was wrong; Table 7-8 agrees) and C8 .1 into Q14's collector (Q12's base): after both VCAs | C |
+| OVERLOAD lamp driver (circuit 12; drawing 1442) | the pre-amp's output through R53 10K into the follower Q25 (collector on +15 V) charging C14 .47; R56 100K and R48 680K to -10 V bias the PNP Q31, whose emitter holds Q34's base against R69 10K from +15 V; Q34 sinks the lamp (16ESB, from +15 V) through R72 47 | P |
 
 ## Board 2, contours and keyboard (Fig. 9-7, page 9)
 
@@ -87,8 +88,9 @@ Oscillator 1 (2 and 3 the same with their own designators).
 | Keyboard | 43 resistors of 10 ohm 1 %, "8.33 ma" from Q9 TIS93 / Q11 TIS92 (R1 590 1 %, R20 / R22 1K 1 %) | C |
 | Track and hold | pair Q23 / Q14 2N3392 (tail R52 43K to -10 V, R58 6.2K), C9 .33 on the pitch input, R53 4.7M to +10 V; Q24 2N4058 with R59 3.9K to +10 V and R54 1.5K to -10 V on its collector; R61 330 to pin 8 (GLIDE pot and switch), back on pin 7; Q13 2N4303 "(GLIDE UP)" switched by the trigger through CR5 1N4004; C6 1 uF; follower Q10 2N4303 "(GLIDE DOWN)", R18 3.9K to -10 V; R30 10K back to Q14 | C |
 | Glide drives | Q24 saturated: about +9.8 V; Q24 off: R59 / R54, -4.44 V | D |
+| Trigger section | the keyboard's trigger bus (+10 V with a key down, -10 V otherwise; drawing 1436) through CR10 1N34A and R60 100K into C7 .1 uF, R55 47K into Q20's base; Q20's collector on R32 10K from +9.3 V, R19 10K into Q12, whose collector on R23 3.3K is the V-trigger | P |
 
-## Board 3, noise (Fig. 9-8, page 10; R. A. Moog drawing 1431)
+## Board 3, noise and modulation (Fig. 9-8, page 10; R. A. Moog drawings 1431, 1444)
 
 The board's lower rail is -10 V (pins 17 / 18): the emitters and the RC branches return to it, not
 to ground. Drawing 1431 marks Q3's and Q6's collectors at +3.8 V and the three outputs at -4 dBm.
@@ -100,6 +102,7 @@ to ground. Drawing 1431 marks Q3's and Q6's collectors at +3.8 V and the three o
 | Pink network | R16 10K; C3 .12 with R8 3.3K; **C2 .033 with R13 220**; C1 2.5 uF into Q3 | C |
 | Pink amplifier | Q3 2N3392, R3 3.3K, R1 120 to -10 V, bias R7 / R6 560K decoupled by C4 2.5 uF; output through C20 2.5 uF to pin 6 | C |
 | Red | R12 10K into C7 .15, C8 2.5 uF into Q6 2N3392: a common emitter stage, R24 10K load from +10 V, R15 3.9K emitter, base biased from the collector through R28 / R23 2.2M decoupled by C10 .1, C22 .15 across the load; output through C28 10 uF to pin 2, R59 100K. Drawing 1431 has the same stage (Q905, R917, R918, C910) | C |
+| Modulation amplifier (circuit 15; drawing 1444) | MODULATION MIX R3 25K's two sides through R64 / R62 43K into Q18's base; pair Q18 / Q17 2N3392 on R54 43K to -10 V, Q17's base grounded, its collector on R42 6.2K from +10 V into Q7 2N4058; R38 390 in series with C14 .022 from Q7's base to its collector; Q7's collector pulled down only by R30 10K to -10 V, fed back through R60 91K, out through R57 1K to the line | P |
 
 ## Device models (`models.lib`)
 
@@ -133,6 +136,6 @@ Run with `ngspice -b <file>.cir`.
 | `cutoff.cir` | circuit 6's cutoff converter (`board4-vcf.lib`): the ladder's standing current against the control node from -0.25 to +0.25 V: 17.94 mV an octave at the bottom, 21.7 at 1.1 mA, the limit at 1.772 mA (the bottom pair's emitters at 1.37 V). Writes `cutoff.dat` | `CutoffConverter.h` (4.0 ohm in series, the knee at 1.765 mA, r^11.5); `tests/test_ladder.cpp`: within 0.25 dB |
 | `overload.cir` | circuit 12's lamp driver: the lamp's current against the pre-amp's output peak (a DC sweep standing for the held peak): a tenth at 1.44 V, half at 1.51 V (C14 at 0.974 V), nine tenths at 1.55 V; with Q25 off C14 rests at -4.48 V. Writes `overload.dat` | `ExtPreamp.h` (Q25's drop, C14's half-current voltage and width, its resting voltage); `tests/test_extpreamp.cpp` |
 
-The libraries `board1-shapers.lib`, `board2-contour.lib`, `board2-keyboard.lib`, `board3-noise.lib`, `board4-vca.lib` and `board4-vcf.lib` hold the circuits as subcircuits, one per figure; `models.lib` holds the devices.
+The libraries `board1-shapers.lib`, `board2-contour.lib`, `board2-keyboard.lib`, `board3-noise.lib`, `board3-modmix.lib`, `board4-vca.lib` and `board4-vcf.lib` hold the circuits as subcircuits, one per figure; `models.lib` holds the devices.
 
 `gen_tables.py` regenerates the tabulated headers in `src/circuit/blocks/` (today `FilterOutputStage.h`, from `outstage.cir` and `outstage.dat`). `triangle.dat` is not read by the code: `VcoCore`'s rounded fold was fitted to it once, and `test_vco.cpp` holds nine of its points.
