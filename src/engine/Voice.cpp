@@ -56,9 +56,10 @@ constexpr int lowA = 45, highA = 81;
 // R163 33K from +10 V on the MOD bus gives back about what three of them
 // draw. OSC. MODULATION (SW1, Fig. 9-16) moves the bus from ground to the
 // line, and the oscillators are tuned with it off (Folkman). With OSC. 3
-// CONTROL off only two inputs draw, and the wheel pushed forward lifts the
-// line: 0.055 V, two thirds of a semitone, fully forward (ngspice,
-// tools/spice/modulation.cir).
+// CONTROL off oscillator 3's input R136 still loads the line, through the bus
+// SW2 has lifted off its summer (ModulationMix::floatingOsc3Bus): the line at
+// rest moves by 4 mV, not by the 0.055 V two inputs alone would give
+// (ngspice, tools/spice/modulation.cir).
 constexpr double rWheelFull = 1.2e3; // R1402 "1.2K WHEN FULLY FORWARD" (Fig. 9-12)
 
 /** The MODULATION wheel's resistance (R1402, 50K audio, "90 degrees rotation
@@ -212,15 +213,15 @@ void Voice::drawPanel (Rng& rng)
     // TUNE and FREQUENCY: 5K carbon pots (20 %) against 5 % resistors.
     tuneSpan = FrontPanel::tuneOctaves (1.0, rng.tolerance (FrontPanel::rTunePot, 0.20))
              - FrontPanel::tuneOctaves (0.0, rng.tolerance (FrontPanel::rTunePot, 0.20));
-    for (size_t i = 1; i < 3; ++i)
     {
-        const double pot = rng.tolerance (FrontPanel::rFreqPot, 0.20);
-        freqSpan[i] = FrontPanel::frequencyOctaves (1.0, pot) - FrontPanel::frequencyOctaves (0.0, pot);
-        if (i == 2) osc3Free.pot = pot;
+        const double pot = rng.tolerance (FrontPanel::rFreqPot, 0.20); // R4
+        freqSpan = FrontPanel::frequencyOctaves (1.0, pot) - FrontPanel::frequencyOctaves (0.0, pot);
+        osc3Free.pot = rng.tolerance (FrontPanel::rFreqPot, 0.20);     // R5, through IC8
     }
     {
         // Oscillator 3's free-running network (Table 7-5 tolerances), from its
-        // own draw so the units' other parts stay as they were.
+        // own draw so the units' other parts stay as they were. R79 is not
+        // drawn here: the converter's drawn R79 / R42 (its hfTrim) sets it.
         Rng r3 (seed ^ 0x05C3ull);
         const Osc3Free n;
         osc3Free.r150 = r3.tolerance (n.r150, 0.01);
@@ -231,7 +232,6 @@ void Voice::drawPanel (Rng& rng)
         osc3Free.r180 = r3.tolerance (n.r180, 0.05);
         osc3Free.r143 = r3.tolerance (n.r143, 0.01);
         osc3Free.r42 = r3.tolerance (n.r42, 0.05);
-        osc3Free.r79 = r3.tolerance (n.r79, 0.05);
         osc3Free.foot = r3.tolerance (n.foot, 0.05);
     }
 
@@ -272,9 +272,30 @@ bool Voice::filterRegenerates (double cv, double emphasis)
 double Voice::oscPanelCv (int osc, const PanelState& p) const noexcept
 {
     const auto& o = p.osc[size_t (osc)];
-    const double detune = osc > 0 ? freqSpan[size_t (osc)] * (o.frequency - 0.5) : 0.0;
+    // FREQUENCY: oscillator 2's wiper through R95; oscillator 3's through IC8
+    // and R143, about its centre (the RANGE trim takes IC8's standing output)
+    const double detune = osc == 1 ? freqSpan * (o.frequency - 0.5)
+                        : osc == 2 ? (osc3Ic8 (o.frequency, false) - osc3Ic8 (0.5, false)) / osc3Free.r143 * vcoExpo[2].params().rIn
+                                   : 0.0;
     return tuneSpan * (p.tune - 0.5) + p.pitchWheel * p.bendRange / 12.0
          + rangeCv[size_t (osc)][size_t (o.range)] + detune;
+}
+
+/** IC8's output (V) for oscillator 3's FREQUENCY at `pos` (Fig. 9-3): it
+    inverts R5's wiper through R181, joined by R180 with OSC. 3 CONTROL off
+    (`wide`), against R162 from +10 V, its + input at 7.51 V (R150 / R155),
+    feedback R170. Over the knob's travel R181 alone gives 1.73 octaves (20.8
+    semitones; 5.35 asks 14 to 17 for oscillator 3 as for oscillator 2, which
+    neither the drawn 51K nor the 56K it replaced reach), R181 with R180 7.1. */
+double Voice::osc3Ic8 (double pos, bool wide) const noexcept
+{
+    const auto& c = osc3Free;
+    const double x = std::clamp (pos, 0.0, 1.0);
+    const double rTop = x * c.pot, rBottom = (1.0 - x) * c.pot + c.foot; // R5's wiper towards +10 V, towards R41
+    const double vWiper = 10.0 * rBottom / (rTop + rBottom), rWiper = rTop * rBottom / (rTop + rBottom);
+    const double vPlus = 10.0 * c.r155 / (c.r150 + c.r155);
+    const double rFreq = wide ? c.r181 * c.r180 / (c.r181 + c.r180) : c.r181;
+    return vPlus - c.r170 * ((vWiper - vPlus) / (rWiper + rFreq) + (10.0 - vPlus) / c.r162);
 }
 
 /** Oscillator 3 with OSC. 3 CONTROL off (Fig. 9-3). SW2 takes the bus 16A off
@@ -283,9 +304,7 @@ double Voice::oscPanelCv (int osc, const PanelState& p) const noexcept
     sets the pitch with no trimmer: the RANGE input R179 from the octave string
     (the 2' tap is the -5 V reference itself, so it carries nothing at 2' and
     an octave's current per step below), R42's standing current from the tail's
-    emitter, and IC8's output through R143. IC8 inverts FREQUENCY's wiper
-    through R181, joined by R180 (OSC. 3 CONTROL off), against R162 from +10 V
-    and its + input at 7.51 V (R150 / R155). The model's control voltage is
+    emitter, and IC8's output through R143 (osc3Ic8, R180 joining R181). The model's control voltage is
     the summer's current times the keyboard input R129, less the unit's RANGE
     trim (the converter's offset): 1 V an octave both. Nominally, at LO with
     FREQUENCY at its minimum, a click every 4.6 s (5.36: two to five). */
@@ -293,16 +312,15 @@ double Voice::osc3FreeCvFor (const PanelState& p) const noexcept
 {
     const auto& c = osc3Free;
     const auto& ex = vcoExpo[2];
-    const double pos = std::clamp (p.osc[2].frequency, 0.0, 1.0);
-    const double rTop = pos * c.pot, rBottom = (1.0 - pos) * c.pot + c.foot; // R5's wiper towards +10 V, towards R41
-    const double vWiper = 10.0 * rBottom / (rTop + rBottom), rWiper = rTop * rBottom / (rTop + rBottom);
-    const double vPlus = 10.0 * c.r155 / (c.r150 + c.r155);
-    const double rFreq = c.r181 * c.r180 / (c.r181 + c.r180);
-    const double vIc8 = vPlus - c.r170 * ((vWiper - vPlus) / (rWiper + rFreq) + (10.0 - vPlus) / c.r162);
-    const double iR143 = (vIc8 + 5.0) / c.r143;
-    const double iR42 = (-5.0 + c.r79 * ex.params().iRef) / c.r42;
+    const double iR143 = (osc3Ic8 (p.osc[2].frequency, true) + 5.0) / c.r143;
+    // R42 from the tail's emitter, R79 (Iref + Iout) above -10 V, to the
+    // summer's -5 V node: the Iout part is the converter's own feedback
+    // (ExpoConverter::current), the rest is standing. R79 / R42 from the
+    // converter's hfTrim (R79 R27 / R42), R42 from this network's draw.
+    const auto& ep = ex.params();
+    const double cvR42 = -5.0 / c.r42 * ep.rIn + ep.hfTrim * ep.iRef * ep.rIn / FrontPanel::rKeyboard;
     const auto r = size_t (p.osc[2].range);
-    return rangeCv[2][r] - rangeCv[2][size_t (Range::Ft2)] + (iR42 + iR143) * ex.params().rIn - ex.offsetTrim();
+    return rangeCv[2][r] - rangeCv[2][size_t (Range::Ft2)] + iR143 * ep.rIn + cvR42 - ex.offsetTrim();
 }
 
 double Voice::oscFrequencyFor (int osc, const PanelState& p, int note) noexcept
@@ -642,11 +660,14 @@ void Voice::controlUpdate (const PanelState& p) noexcept
     // MOD. AMOUNT sets a stored minimum wheel position. Depths in octaves per
     // volt of the amplifier's output (`mod`).
     const double rWheel = modWheelOhms (std::max (p.modWheel, p.modAmount));
-    const auto line = ModulationMix::line (rWheel, p.oscModulation ? (osc3Kbd ? 3 : 2) : 0, p.filterModulation);
+    const auto line = ModulationMix::line (rWheel, p.oscModulation, osc3Kbd, p.filterModulation);
     oscModDepth = p.oscModulation ? line.divider : 0.0; // octaves per amplifier volt
     filterModDepth = p.filterModulation ? line.divider * filterModGain : 0.0;
-    oscModRest = p.oscModulation ? line.rest : 0.0;     // octaves
-    filterModRest = p.filterModulation ? line.rest * filterModGain : 0.0;
+    // the line's level with the amplifier at 0 V, in octaves: a standing CV
+    if (p.oscModulation)
+        for (auto& cv : oscStaticCv) cv += line.rest;
+    if (p.filterModulation)
+        filterStaticCv += line.rest * filterModGain;
     std::tie (modOsc3, modNoise) = ModulationMix::amplifier (p.modMix, vcos[2].sourceResistance());
     modFloor = line.floor;
     feedback = p.feedbackPatch;
@@ -705,7 +726,7 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
 
         // Oscillators (osc 3 first: it is the modulation source, and takes the
         // line like the others while OSC. 3 CONTROL is on)
-        const double modCv = oscModDepth * mod + oscModRest;
+        const double modCv = oscModDepth * mod;
         const double cv3 = osc3Kbd ? oscStaticCv[2] + kb + modCv : osc3FreeCv;
         const double o3 = vcos[2].process (vcoExpo[2].current (cv3));
         const double o1 = vcos[0].process (vcoExpo[0].current (oscStaticCv[0] + kb + modCv));
@@ -716,7 +737,7 @@ void Voice::render (const PanelState& p, double* out, const double* extIn, int n
         const double ext = extPreamp.process ((extIn ? extIn[s] : 0.0) + (feedback ? feedbackSample : 0.0));
         const double mixed = mixer.process ({ o1, ext, o2, noiseOut, o3 });
 
-        const double fcv = filterStaticCv + contourOct * fContour + kbTrack * kbVolts + filterModDepth * mod + filterModRest;
+        const double fcv = filterStaticCv + contourOct * fContour + kbTrack * kbVolts + filterModDepth * mod;
         ladder.setCutoffCurrent (filterExpo.current (fcv));
         const double filtered = ladder.process (mixed);
 

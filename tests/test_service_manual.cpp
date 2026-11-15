@@ -185,7 +185,10 @@ TEST_CASE ("5.35 Range of the TUNE and FREQUENCY controls", "[manual][vco]")
 {
     // "TUNE control 4-6 Semitones, OSCILLATOR-2 FREQUENCY adjust 14-17
     // Semitones, OSCILLATOR-3 the same", counter-clockwise to clockwise. The
-    // drawn networks give 5.4 and 16.8 with nominal pots.
+    // drawn networks give 5.4 and 16.8 with nominal pots. Oscillator 3's
+    // FREQUENCY goes through IC8 (R181 51K, R170 15K: Fig. 9-3; Folkman's
+    // modification list, kit 94-001) and gives 20.8: the drawing, not the
+    // manual's "the same" (R181's earlier 56K gave 19).
     CHECK (12.0 * (FrontPanel::tuneOctaves (1.0) - FrontPanel::tuneOctaves (0.0)) == Approx (5.42).margin (0.05));
     CHECK (12.0 * (FrontPanel::frequencyOctaves (1.0) - FrontPanel::frequencyOctaves (0.0)) == Approx (16.8).margin (0.1));
     for (uint64_t unit : { 1ull, 2ull, 3ull })
@@ -205,11 +208,21 @@ TEST_CASE ("5.35 Range of the TUNE and FREQUENCY controls", "[manual][vco]")
             b.osc[size_t (osc)].frequency = 1.0;
             const double span = 12.0 * std::log2 (v.oscFrequencyFor (osc, b, 60) / v.oscFrequencyFor (osc, a, 60));
             INFO ("oscillator " << osc + 1 << " FREQUENCY " << span << " semitones");
-            CHECK (span > 14.0);
-            CHECK (span < 18.5); // 20 % pots: a little over the manual's 17 on some units
-            // linear pot: the centre is the middle
+            if (osc == 1)
+            {
+                CHECK (span > 14.0);
+                CHECK (span < 18.5); // 20 % pots: a little over the manual's 17 on some units
+            }
+            else
+            {
+                CHECK (span > 19.0);
+                CHECK (span < 23.0);
+            }
+            // linear pot: the centre is the middle (oscillator 3: R181 51K
+            // loads R5's wiper, up to 2K, and the centre sits 0.15 to 0.2
+            // semitone above it)
             PanelState c;
-            CHECK (12.0 * std::log2 (v.oscFrequencyFor (osc, c, 60) / v.oscFrequencyFor (osc, a, 60)) == Approx (0.5 * span).margin (0.01));
+            CHECK (12.0 * std::log2 (v.oscFrequencyFor (osc, c, 60) / v.oscFrequencyFor (osc, a, 60)) == Approx (0.5 * span + (osc == 1 ? 0.0 : 0.17)).margin (osc == 1 ? 0.01 : 0.05));
         }
     }
 }
@@ -234,7 +247,7 @@ TEST_CASE ("5.36 Oscillator 3 wide range: clicks two to five seconds apart, LO o
         const double period = 1.0 / v.oscFrequencyFor (2, p, 60);
         INFO ("unit " << unit << ": a click every " << period << " s");
         CHECK (period > 2.0);
-        CHECK (period < 6.5);
+        CHECK (period < 6.0);
         periods.push_back (period);
         if (unit > 3)
             continue;
@@ -291,8 +304,11 @@ TEST_CASE ("Modulation line: the MOD bus's standing currents with OSC. 3 CONTROL
     // (Fig. 9-3), and R163 33K from +10 V gives back about what three of them
     // draw; OSC. MODULATION moves the bus from ground to the line. The
     // oscillators are tuned with it off (Folkman). With OSC. 3 CONTROL off
-    // only two inputs draw: the wheel forward lifts the line through R57, and
-    // oscillator 3's square swings oscillator 1 about a higher centre.
+    // oscillator 3's input R136 still draws, into the bus SW2 has lifted off
+    // its summer (ModulationMix::floatingOsc3Bus): the line stays balanced,
+    // and oscillator 3's square swings oscillator 1 about a centre the
+    // amplifier's own offset sets (two inputs alone would add 0.055 V, two
+    // thirds of a semitone).
     PanelState p = levelPanel();
     p.osc[0].on = true;
     p.osc[0].range = Range::Ft2;
@@ -314,15 +330,16 @@ TEST_CASE ("Modulation line: the MOD bus's standing currents with OSC. 3 CONTROL
             if (last >= 0.0) f.push_back (48000.0 / (t - last));
             last = t;
         }
+    REQUIRE (f.size() > 50);
     std::sort (f.begin(), f.end());
     const double centre = std::sqrt (f[size_t (0.02 * double (f.size() - 1))] * f[size_t (0.98 * double (f.size() - 1))]);
     const double shift = 12.0 * std::log2 (centre / f0);
     // what the line gives: its rest, and the divider on the amplifier's two levels
-    const auto line = ModulationMix::line (1200.0, 2, false);
-    INFO ("centre " << shift << " semitones from the wheel at its back stop; the line at rest " << line.rest << " V");
-    CHECK (line.rest == Approx (0.0564).margin (0.003));
-    CHECK (shift > 0.5);
-    CHECK (shift < 1.3);
+    const auto line = ModulationMix::line (1200.0, true, false, false);
+    const double rest = line.rest + line.divider * ModulationMix::outputOffset; // V: an octave a volt
+    INFO ("centre " << shift << " semitones from the wheel at its back stop; the line at rest " << rest << " V");
+    CHECK (line.rest == Approx (0.001).margin (0.002));
+    CHECK (shift == Approx (12.0 * rest).margin (0.1));
 }
 
 TEST_CASE ("5.19 Amount of modulation: the filter goes from 440 Hz to at least 2.4 kHz", "[manual][modulation]")

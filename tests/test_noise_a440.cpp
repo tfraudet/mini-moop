@@ -166,7 +166,7 @@ TEST_CASE ("Modulation amplifier: gain and the floor of its one-way output (ngsp
     constexpr double off = ModulationMix::outputOffset;
     for (const auto& r : bench)
     {
-        const auto line = ModulationMix::line (r.wheel, 3, true);
+        const auto line = ModulationMix::line (r.wheel, true, true, true);
         INFO ("wheel " << r.wheel << " ohm: floor " << line.floor << ", line at rest " << line.rest + line.divider * off);
         CHECK (line.floor == Approx (r.floor).margin (0.015));
         CHECK (line.rest + line.divider * off == Approx (r.lineAtRest).margin (0.003));
@@ -174,11 +174,16 @@ TEST_CASE ("Modulation amplifier: gain and the floor of its one-way output (ngsp
         CHECK (ModulationMix::limit (-gain * 2.0 + off, line.floor) == Approx (r.at2).margin (0.02));
         CHECK (ModulationMix::limit (gain * 2.0 + off, line.floor) == Approx (r.atMinus2).margin (0.02));
     }
-    // OSC. 3 CONTROL off: two inputs, the line at rest 0.0777 V (ngspice).
-    const auto two = ModulationMix::line (1200.0, 2, false);
-    CHECK (two.rest + two.divider * 0.0428 == Approx (0.0777).margin (0.003));
+    // OSC. 3 CONTROL off, FILTER MODULATION off: two inputs to their summers
+    // and R136 to oscillator 3's floating bus, the line at rest 0.0223 V
+    // (ngspice), 4 mV from where three inputs hold it.
+    const auto off3 = ModulationMix::line (1200.0, true, false, false);
+    CHECK (off3.rest + off3.divider * off == Approx (0.0223).margin (0.003));
+    const auto bus = ModulationMix::floatingOsc3Bus();
+    CHECK (bus.v == Approx (-6.20).margin (0.01));
+    CHECK (bus.r == Approx (58.86e3).epsilon (0.002));
     // The wheel at its back stop grounds the line; with OSC. MODULATION off
     // the MOD bus is on ground, not on the line.
-    CHECK (std::abs (ModulationMix::line (0.0, 3, true).rest) < 1.0e-6);
-    CHECK (ModulationMix::line (1200.0, 0, false).rest == 0.0);
+    CHECK (std::abs (ModulationMix::line (0.0, true, true, true).rest) < 1.0e-6);
+    CHECK (ModulationMix::line (1200.0, false, true, false).rest == 0.0);
 }

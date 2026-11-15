@@ -36,7 +36,7 @@ struct FrontPanel
     // --- Oscillators: the summing amplifiers' input resistors (Fig. 9-3) ----
     static constexpr double rKeyboard = 51.1e3; // R27 / R80 / R129, 1 % matched: 1 V an octave
     static constexpr double rTuneIn   = 560.0e3; // R21 / R88 / R120
-    static constexpr double rFreqIn   = 220.0e3; // R95 (oscillator 2's FREQUENCY)
+    static constexpr double rFreqIn   = 220.0e3; // R95 (oscillator 2's FREQUENCY; oscillator 3's goes through IC8, Voice::osc3Ic8)
     static constexpr double rOsc3Tune = 51.0e3;  // R181: oscillator 3's FREQUENCY into IC8
     static constexpr double rOsc3Wide = 15.0e3;  // R180: in parallel with R181 when OSC. 3 CONTROL is off
 
@@ -65,10 +65,6 @@ struct FrontPanel
     {
         return 10.0 * rPot * (pos - 0.5) / (rPot + rFreqFoot) * rKeyboard / rFreqIn;
     }
-    /** How much wider oscillator 3's FREQUENCY is with OSC. 3 CONTROL off: R180
-        joins R181 at IC8's input (4.4: "a frequency sweep of 6 octaves rather
-        than one octave", owner's manual). */
-    static constexpr double osc3WideRatio = 1.0 + rOsc3Tune / rOsc3Wide;
 
     // --- Filter control node (Fig. 9-16, 9-11) --------------------------------
     static constexpr double rUnit    = 100.0e3; // 1 V an octave: R53 || R54

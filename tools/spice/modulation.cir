@@ -2,7 +2,7 @@ modulation mix amplifier (circuit 15): gain, and the output's limits against the
 .include models.lib
 .include board3-modmix.lib
 .options temp=25 tnom=25
-.param rw=1.2k nmod=3
+.param rw=1.2k nmod=3 r136=1e12
 vp vp 0 10
 vn vn 0 -10
 * the oscillators' summers hold their inverting nodes at -5 V (Fig. 9-3: IC1's + input through
@@ -15,13 +15,24 @@ vno noise 0 dc 0
 x1 osc3 noise out vp vn modmix mix=0
 * the line: R57 1K, the MODULATION wheel R1402 as a rheostat to ground (1.2K fully forward),
 * the loads OSC. MODULATION and FILTER MODULATION connect: the MOD bus (three 51.1K inputs to
-* -5 V with OSC. 3 CONTROL on, two with it off; R163) and R52 33K to the filter's control node
-* (Q26's base, near ground)
+* -5 V with OSC. 3 CONTROL on, two with it off and R136 to oscillator 3's bus, below; R163)
+* and R52 33K to the filter's control node (Q26's base, near ground)
 r57 out line 1k
 rwh line 0 {rw}
 rmod line m5 {51.1k/nmod}
 r163 line p10 33k
 rfil line 0 33k
+* OSC. 3 CONTROL off: SW2 lifts oscillator 3's input bus (16A) off its summer, and R136
+* still joins the line to it; the bus keeps R129 51.1K (keyboard), R144 51.1K (EXT bus),
+* R110 150K (BEND), all three taken at ground, R120 560K from TUNE's wiper at its centre
+* (7.52 V), and the RANGE trim R109 1K at its middle with R108 11.8K to -10 V (Fig. 9-3)
+vtune tune 0 7.52
+r136 line b16 {r136}
+r129 b16 0 51.1k
+r144 b16 0 51.1k
+r110 b16 0 150k
+r120 b16 tune 560k
+r108 b16 vn 12.3k
 .control
 foreach w 1200 600 200
   alterparam rw = $w
@@ -38,11 +49,13 @@ foreach w 1200 600 200
   meas dc line0 find v(line) at=0
   echo "  output at +1.5 / +2 / -2 V: $&a15 $&a2 $&am2; the line at rest $&line0 V"
 end
-* the line at rest, the wheel fully forward, with OSC. 3 CONTROL off: two MOD inputs
+* the line at rest, the wheel fully forward, with OSC. 3 CONTROL off: two MOD inputs to
+* their summers, oscillator 3's R136 to its floating bus
 alterparam rw = 1200
 alterparam nmod = 2
+alterparam r136 = 51.1k
 reset
 op
-echo "two MOD inputs, wheel 1200 ohm: the line at rest $&v(line) V, the output $&v(out) V"
+echo "OSC. 3 CONTROL off, wheel 1200 ohm: the line at rest $&v(line) V, the output $&v(out) V, bus 16A $&v(b16) V"
 .endc
 .end

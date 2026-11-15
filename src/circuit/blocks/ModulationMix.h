@@ -35,8 +35,9 @@
 // and the line (the MODULATION wheel, a rheostat to ground, and the loads the
 // switches connect: the oscillators' MOD inputs return to their summers' -5 V
 // node, R163 on board 1 to +10 V), and R60 back to the summing node. With the
-// wheel fully forward that is -1.66 V, near its back end -1.05 V: oscillator 3's sawtooth and
-// rectangles, and the noise's peaks, are cut on that side. ngspice on the
+// wheel fully forward that is -1.66 V, near its back end -1.05 V: oscillator
+// 3's sawtooth and rectangles, and the noise's peaks, are cut on that side.
+// ngspice on the
 // drawn circuit (tools/spice/modulation.cir): a gain of 0.829 where the
 // virtual ground gives 0.840, then a floor within 0.01 V of the divider's.
 
@@ -78,24 +79,59 @@ struct ModulationMix
     static constexpr double vSummerNode = -5.0;    // where the MOD inputs end (Fig. 9-3)
     static constexpr double rBusPullUp = 33.0e3;   // R163, from +10 V on board 1's MOD bus (pin 7A)
 
+    /** Oscillator 3's input bus (16A) with OSC. 3 CONTROL off. SW2 lifts it
+        off the summer, but R136 still joins it to the MOD bus, and the bus
+        keeps its other inputs: R129 51.1K (keyboard), R144 51.1K (EXT bus),
+        R110 150K (BEND), R120 560K (TUNE's wiper) and the RANGE trim R109 1K
+        (taken at its middle) with R108 11.8K to -10 V (Fig. 9-3; board 1's
+        oscillators repeat one another's values). The keyboard, BEND and the EXT
+        bus taken at ground, TUNE at its centre (7.52 V): the bus sits at
+        -6.20 V behind 7.76K, and R136 draws about what a summer's input does.
+        A volt on the keyboard moves the line by about a millivolt: not
+        modelled. */
+    struct Thevenin
+    {
+        double r; // from the line (ohm)
+        double v; // open-circuit (V)
+    };
+    static Thevenin floatingOsc3Bus() noexcept
+    {
+        constexpr double rKeyboard = 51.1e3, rExt = 51.1e3, rBend = 150.0e3, rTune = 560.0e3;
+        constexpr double rRange = 11.8e3 + 0.5e3, vTune = 10.0 * 7.6e3 / 10.1e3;
+        constexpr double g = 1.0 / rKeyboard + 1.0 / rExt + 1.0 / rBend + 1.0 / rTune + 1.0 / rRange;
+        return { rModInput + 1.0 / g, (vTune / rTune - 10.0 / rRange) / g };
+    }
+
     /** The line beyond R57, for the wheel's resistance to ground and the
         inputs the switches connect. OSC. MODULATION (SW1) puts board 1's MOD
-        bus on the line: `modInputs` 51.1K inputs to the summers' -5 V (three
-        with OSC. 3 CONTROL on, two with it off) and R163 from +10 V, which
-        feeds back about what three of them draw. */
+        bus on the line: oscillators 1 and 2's 51.1K inputs to their summers'
+        -5 V, oscillator 3's to its summer (OSC. 3 CONTROL on) or to its
+        floating bus (off), and R163 from +10 V, which feeds back about what
+        three inputs draw. */
     struct Line
     {
         double divider; // line volts per volt of the amplifier's output
         double rest;    // the line (V) with the amplifier's output at 0 V
         double floor;   // the amplifier's lowest output (V)
     };
-    static Line line (double rWheel, int modInputs, bool filterInput) noexcept
+    static Line line (double rWheel, bool oscModulation, bool osc3Control, bool filterInput) noexcept
     {
-        const double gMod = double (modInputs) / rModInput;
-        const double gPull = modInputs > 0 ? 1.0 / rBusPullUp : 0.0;
-        const double gLine = (rWheel > 0.0 ? 1.0 / rWheel : 1.0e12) + gMod + gPull + (filterInput ? 1.0 / rFilterInput : 0.0);
+        double gLine = (rWheel > 0.0 ? 1.0 / rWheel : 1.0e12) + (filterInput ? 1.0 / rFilterInput : 0.0);
+        double iIn = 0.0; // the current the loads push into the line at 0 V
+        if (oscModulation)
+        {
+            const int summers = osc3Control ? 3 : 2;
+            gLine += summers / rModInput + 1.0 / rBusPullUp;
+            iIn += summers * vSummerNode / rModInput + 10.0 / rBusPullUp;
+            if (! osc3Control)
+            {
+                const auto bus = floatingOsc3Bus();
+                gLine += 1.0 / bus.r;
+                iIn += bus.v / bus.r;
+            }
+        }
         const double rLine = 1.0 / gLine;
-        const double open = (vSummerNode * gMod + 10.0 * gPull) * rLine; // without R57: the bus's pull
+        const double open = iIn * rLine; // without R57: the bus's pull
         const double divider = rLine / (rOut + rLine);
         return { divider, open * (1.0 - divider), outputFloor (rLine, open) };
     }

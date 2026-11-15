@@ -27,6 +27,7 @@
 #include "../circuit/blocks/CutoffConverter.h"
 #include "../circuit/blocks/ExpoConverter.h"
 #include "../circuit/blocks/ExtPreamp.h"
+#include "../circuit/blocks/FrontPanel.h"
 #include "../circuit/blocks/Glide.h"
 #include "../circuit/blocks/LadderFilter.h"
 #include "../circuit/blocks/Mixer.h"
@@ -105,6 +106,7 @@ private:
     void controlUpdate (const PanelState& panel) noexcept;
     double oscPanelCv (int osc, const PanelState& panel) const noexcept;
     double osc3FreeCvFor (const PanelState& panel) const noexcept;
+    double osc3Ic8 (double pos, bool wide) const noexcept;
 
     // Circuits
     std::array<ExpoConverter, 3> vcoExpo;
@@ -125,17 +127,18 @@ private:
     std::array<std::array<double, 6>, 3> rangeCv {}; // octaves above 8' of each RANGE position, after the OCTAVE trim
     std::array<double, 128> keyCv {};                // keyboard volts per MIDI note (the 43-resistor string)
     double tuneSpan = 0.0;                           // TUNE, octaves over the whole travel
-    std::array<double, 3> freqSpan {};               // FREQUENCY (oscillators 2, 3), octaves over the whole travel
-    /** Oscillator 3's FREQUENCY inverter IC8 and what stays on its summer
-        with OSC. 3 CONTROL off (Fig. 9-3, Table 7-5). */
+    double freqSpan = 0.0;                           // oscillator 2's FREQUENCY, octaves over the whole travel
+    /** Oscillator 3's FREQUENCY inverter IC8 (both modes) and what stays on
+        its summer with OSC. 3 CONTROL off (Fig. 9-3, Table 7-5). */
     struct Osc3Free
     {
         double r150 = 1.0e3, r155 = 3.01e3; // IC8's + input from +10 V: 7.51 V
         double r162 = 3.01e3;               // from +10 V into IC8's node
-        double r170 = 15.0e3, r181 = 51.0e3, r180 = 15.0e3; // feedback, FREQUENCY, OSC. 3 CONTROL's
+        double r170 = 15.0e3;               // IC8's feedback
+        double r181 = FrontPanel::rOsc3Tune, r180 = FrontPanel::rOsc3Wide; // FREQUENCY, OSC. 3 CONTROL's
         double r143 = 51.1e3;               // IC8's output into the summer
-        double r42 = 160.0e3, r79 = 1.0e3;  // the high-frequency compensation's standing current
-        double pot = 5.0e3, foot = 3.3e3;   // R5 and R41
+        double r42 = 160.0e3;               // the high-frequency compensation's standing current
+        double pot = FrontPanel::rFreqPot, foot = FrontPanel::rFreqFoot; // R5 and R41
     } osc3Free;
     double kbd1Gain = 1.0 / 3.0, kbd2Gain = 2.0 / 3.0; // KEYBOARD CONTROL 1 / 2, octaves per keyboard volt
     double cutoffGain = 0.5, contourGain = 2.128, filterModGain = 3.03; // octaves per volt at the control node
@@ -153,7 +156,6 @@ private:
     std::array<double, 3> oscStaticCv {};
     double filterStaticCv = 0.0, kbTrack = 0.0, contourOct = 0.0, osc3FreeCv = 0.0;
     double oscModDepth = 0.0, filterModDepth = 0.0, volume = 0.0;
-    double oscModRest = 0.0, filterModRest = 0.0; // the line's level with the amplifier at 0 V, in octaves
     double modOsc3 = 1.0, modNoise = 0.0; // MODULATION MIX weights
     double modFloor = -1.7;               // the modulation amplifier's lowest output (V), for the line's load
     double modOffset = 0.0;               // and its standing offset (V)
