@@ -1,0 +1,37 @@
+---
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { t, type Lang } from '../i18n';
+import { samples } from '../data/samples';
+
+interface Props { lang: Lang }
+const tr = t(Astro.props.lang).listen;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+// The build runs from site/: a sample is playable once its file is in public/audio/
+const audioDir = join(process.cwd(), 'public', 'audio');
+const items = samples.map((s) => ({ ...s, ready: existsSync(join(audioDir, s.file)) }));
+---
+<section id="listen" class="section alt">
+  <div class="wrap">
+    <h2>{tr.title}</h2>
+    <p class="intro">{tr.intro}</p>
+    <div class="samples">
+      {items.map((s) => (
+        <article class:list={['sample', { pending: !s.ready }]}>
+          <h3>{s.preset}</h3>
+          <p>{tr.samples[s.text]}</p>
+          {s.ready
+            ? <audio controls preload="none" src={`${base}audio/${s.file}`}></audio>
+            : <p class="soon">{tr.soon}</p>}
+        </article>
+      ))}
+    </div>
+  </div>
+</section>
+
+<script>
+  // One sample at a time: starting a player pauses the others
+  const players = [...document.querySelectorAll<HTMLAudioElement>('.sample audio')];
+  for (const p of players)
+    p.addEventListener('play', () => players.forEach((o) => o !== p && o.pause()));
+</script>

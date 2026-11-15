@@ -1,0 +1,74 @@
+---
+import { getImage } from 'astro:assets';
+import { getAbsoluteLocaleUrl, getRelativeLocaleUrl } from 'astro:i18n';
+import { languages, otherLang, t, type Lang } from '../i18n';
+import { REPO_URL } from '../lib/release';
+import icon from '../assets/icon.png';
+import panel from '../assets/panel-classic.jpg';
+import '../styles/global.css';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const tr = t(lang);
+const other = otherLang(lang);
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const ogImage = await getImage({ src: panel, width: 1200, format: 'jpg' });
+const ogUrl = new URL(ogImage.src, Astro.site).href;
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{tr.meta.title}</title>
+    <meta name="description" content={tr.meta.description} />
+    <link rel="icon" type="image/png" href={`${base}favicon.png`} />
+    <link rel="canonical" href={getAbsoluteLocaleUrl(lang)} />
+    {languages.map((l) => <link rel="alternate" hreflang={l} href={getAbsoluteLocaleUrl(l)} />)}
+    <link rel="alternate" hreflang="x-default" href={getAbsoluteLocaleUrl('en')} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={tr.meta.title} />
+    <meta property="og:description" content={tr.meta.description} />
+    <meta property="og:url" content={getAbsoluteLocaleUrl(lang)} />
+    <meta property="og:image" content={ogUrl} />
+    <meta property="og:locale" content={lang === 'fr' ? 'fr_FR' : 'en_US'} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="color-scheme" content="dark" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="Main">
+        <a class="brand" href={getRelativeLocaleUrl(lang)}>
+          <img src={icon.src} width="32" height="32" alt="" />
+          <span>Mini Moop</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="#how">{tr.nav.how}</a></li>
+          <li><a href="#listen">{tr.nav.listen}</a></li>
+          <li><a href="#download">{tr.nav.download}</a></li>
+          <li><a href={REPO_URL} rel="noopener">{tr.nav.github}</a></li>
+          <li>
+            <a class="lang" href={getRelativeLocaleUrl(other)} hreflang={other} lang={other}
+               aria-label={tr.nav.otherLanguageLabel} title={tr.nav.otherLanguageLabel}>
+              {tr.nav.otherLanguage}
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <p>
+          {`${tr.footer.license} ${tr.footer.builtWith} `}
+          <a href={REPO_URL} rel="noopener">{tr.footer.source}</a>
+        </p>
+        <p class="small">{tr.footer.trademark} {tr.footer.vstTrademark} {tr.footer.auTrademark}</p>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+---
+import { Image } from 'astro:assets';
+import { t, type Lang } from '../i18n';
+import { REPO_URL } from '../lib/release';
+import icon from '../assets/icon.png';
+import modern from '../assets/panel-modern.jpg';
+import classic from '../assets/panel-classic.jpg';
+
+interface Props { lang: Lang }
+const tr = t(Astro.props.lang).hero;
+const sizes = '(min-width: 1200px) 1140px, 100vw';
+const widths = [700, 1140, 1600, 2280];
+---
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-text">
+      <Image src={icon} width={96} height={96} alt="" class="hero-icon" loading="eager" />
+      <h1>Mini Moop</h1>
+      <p class="tagline">{tr.tagline}</p>
+      <p class="lead">{tr.lead}</p>
+      <p class="actions">
+        <a class="button primary" href="#download">{tr.download}</a>
+        <a class="button" href={REPO_URL} rel="noopener">{tr.source}</a>
+      </p>
+    </div>
+
+    <!-- Theme switch without JavaScript: the checked radio shows its image -->
+    <div class="panel-shot">
+      <input type="radio" name="theme" id="theme-classic" checked />
+      <input type="radio" name="theme" id="theme-modern" />
+      <div class="theme-switch" role="group" aria-label={tr.themes}>
+        <span>{tr.themes}</span>
+        <label for="theme-classic">{tr.classic}</label>
+        <label for="theme-modern">{tr.modern}</label>
+      </div>
+      <div class="shots">
+        <Image src={classic} widths={widths} sizes={sizes} alt={tr.panelAlt} class="shot shot-classic" loading="eager" fetchpriority="high" />
+        <Image src={modern} widths={widths} sizes={sizes} alt={tr.panelAlt} class="shot shot-modern" />
+      </div>
+    </div>
+  </div>
+</section>

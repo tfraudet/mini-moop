@@ -1,6 +1,10 @@
 # Mini Moop
 
-Mini Moop is a synthesizer plugin that simulates the Minimoog Model D at the level of its electronic components. It is available as a **VST3** plugin, an **AU** (Audio Unit) plugin and a **standalone** application. On top of the original monophonic instrument, it adds an optional polyphonic mode.
+Mini Moop is a synthesizer plugin that simulates the Minimoog Model D at the level of its electronic components. It is available as a **VST® 3** plugin, an **AU** (Audio Unit) plugin and a **standalone** application. On top of the original monophonic instrument, it adds an optional polyphonic mode.
+
+**Website, downloads and sound samples: https://tfraudet.github.io/mini-moop/** (English and French).
+
+![The Mini Moop panel, Classic theme](site/src/assets/panel-classic.jpg)
 
 ### How the simulation works
 
@@ -13,7 +17,7 @@ Most software synthesizers imitate the *sound* of an instrument with signal-proc
 - **The models are checked against the documentation.** The circuits are transcribed from the service manual's schematics into netlists for ngspice, a standard circuit simulator used by electronics engineers, and the models are compared with it. The finished units are then put through the service manual's own acceptance checks (tuning, ranges, levels).
 - **One specific version of the instrument.** The Model D's oscillator board went through three revisions. Mini Moop simulates **revision 2** (the "old board" with a CA3046 transistor array, serial numbers 1237 to 10174). See [Which revision and which boards are simulated](#which-revision-and-which-boards-are-simulated).
 
-Minimoog and Model D are trademarks of Moog Music Inc. Mini Moop is an independent personal project, not affiliated with or endorsed by Moog Music, and uses no original logo or artwork.
+Minimoog and Model D are trademarks of Moog Music Inc. Mini Moop is an independent personal project, not affiliated with or endorsed by Moog Music, and uses no original logo or artwork. VST is a registered trademark of Steinberg Media Technologies GmbH.
 
 Built with JUCE 9.0.5. Licensed under the GNU AGPLv3 or later (see [License](#license)).
 
@@ -44,6 +48,8 @@ rm -rf build/release && cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=
 At the end of the build, the VST3 and AU are copied to `~/Library/Audio/Plug-Ins/{VST3,Components}`. The Standalone app is in `build/release/MiniMoop_artefacts/Release/Standalone/`.
 
 GitHub Actions (`.github/workflows/build.yml`) runs the same build and the tests on every push to `main`, or by hand from the Actions tab (the CPU load test only reports its figures there, as the shared runners' speed varies), and keeps the app, the VST3 and the AU as a zipped artifact. These bundles are not signed with a Developer ID nor notarized: after downloading, clear the quarantine with `xattr -dr com.apple.quarantine <bundle>`.
+
+Releases are published by hand on GitHub, with one zip per format, named `MiniMoop-<version>-macOS-App.zip`, `-VST3.zip` and `-AU.zip` (each made with `ditto -c -k --keepParent`, as in the workflow). The download buttons of the website point at the latest release's assets, recognised by these names. The website lives in `site/` (Astro) and is published by `.github/workflows/pages.yml`, which also runs when a release is published: see [`site/README.md`](site/README.md).
 
 ### Universal binaries (Apple Silicon and Intel)
 
