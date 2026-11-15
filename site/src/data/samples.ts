@@ -6,15 +6,15 @@ import type en from '../i18n/en';
 
 export interface Sample {
   file: string;
-  preset: string; // name of the Factory preset, shown as is in both languages
+  preset: string; // name of the preset, shown as is in both languages
   text: keyof typeof en.listen.samples;
 }
 
 export const samples: Sample[] = [
-  { file: '01-fat-bass.mp3', preset: 'Fat Bass', text: 'fatBass' },
-  { file: '02-solo-lead.mp3', preset: 'Solo Lead', text: 'soloLead' },
-  { file: '03-self-osc-whistle.mp3', preset: 'Self-Osc Whistle', text: 'whistle' },
-  { file: '04-70s-french-sci-fi-movie.mp3', preset: "'70s French Sci-Fi Movie", text: 'sciFi' },
-  { file: '05-poly-brass.mp3', preset: 'Poly Brass', text: 'polyBrass' },
-  { file: '06-osc3-wobble.mp3', preset: 'Osc 3 Wobble', text: 'osc3Wobble' },
+  { file: 'sample-1.mp3', preset: 'Bubble Bass', text: 'sample-1' },
+  { file: 'sample-2.mp3', preset: 'Saw Monolith', text: 'sample-2' },
+  { file: 'sample-3.mp3', preset: 'Let\'s Groove Bass Bridge', text: 'sample-3' },
+  { file: 'sample-4.mp3', preset: 'Steel Wound', text: 'sample-4' },
+  { file: 'sample-5.mp3', preset: 'Classic Stanley', text: 'sample-5' },
+  { file: 'sample-6.mp3', preset: 'Goom Ba', text: 'sample-6' },
 ];

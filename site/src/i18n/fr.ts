@@ -69,15 +69,15 @@ const fr: Dict = {
   },
   listen: {
     title: 'Écouter',
-    intro: 'Enregistré directement depuis Mini Moop, sans aucun effet ajouté : ce que vous entendez, c’est le circuit simulé.',
+    intro: 'Les seuls effets ajoutés à certains échantillons sont la réverbération et le delay.',
     soon: 'Enregistrement bientôt disponible',
     samples: {
-      fatBass: 'Trois oscillateurs empilés à travers le filtre en échelle',
-      soloLead: 'Le lead monophonique classique',
-      whistle: 'Le filtre qui chante tout seul à forte résonance, joué comme un oscillateur',
-      sciFi: 'Des effets sonores dans l’esprit de la science-fiction des années 1970',
-      polyBrass: 'Mode polyphonique : un accord de cuivres, chaque voix étant un exemplaire légèrement différent',
-      osc3Wobble: 'L’oscillateur 3 utilisé comme source de modulation',
+      'sample-1': 'Une basse pulsée et très résonante, avec une boucle de feedback (banque Factory).',
+      'sample-2': 'Une basse dense formée de trois dents de scie légèrement désaccordées, sculptée par une enveloppe de filtre marquée (inspiré par CA-72).',
+      'sample-3': 'Une ligne de basse en dents de scie, épaulée par un triangle plus grave et un filtre résonant (inspiré par Arturia Mini V4).',
+      'sample-4': 'Un son percussif et métallique mêlant rectangle aigu, triangle grave et bruit (banque Factory).',
+      'sample-5': 'Un lead glissant qui mêle onde carrée aiguë et triangle grave dans un filtre résonant (banque Factory).',
+      'sample-6': 'Une séquence de basse en dents de scie avec glide et un filtre au caractère résonant (inspiré par Arturia Mini V4).',
     },
   },
   download: {

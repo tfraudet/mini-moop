@@ -68,15 +68,15 @@ const en = {
   },
   listen: {
     title: 'Listen',
-    intro: 'Recorded straight from Mini Moop, with no added effects: what you hear is the simulated circuit.',
+    intro: 'The only added effects on some samples are reverb and delay.',
     soon: 'Recording coming soon',
     samples: {
-      fatBass: 'Three oscillators stacked through the ladder filter',
-      soloLead: 'The classic monophonic lead',
-      whistle: 'The filter singing on its own at high emphasis, played as an oscillator',
-      sciFi: 'Sound effects in the spirit of 1970s science fiction',
-      polyBrass: 'Poly mode: a brass chord, each voice a slightly different unit',
-      osc3Wobble: 'Oscillator 3 used as a modulation source',
+      'sample-1': 'A pulsing, highly resonant bass with a feedback edge (Factory bank).',
+      'sample-2': 'A dense bass built from three slightly detuned sawtooths, shaped by a punchy filter envelope (inpired by CA-72).',
+      'sample-3': 'A sawtooth bass line joined by a lower triangle and a resonant filter (inspired by Arturia Mini V4).',
+      'sample-4': 'A percussive, metallic tone combining a high rectangle wave, a low triangle and noise (Factory bank).',
+      'sample-5': 'A gliding lead combining a high square wave and a lower triangle through a resonant filter (Factory bank).',
+      'sample-6': 'A gliding sawtooth bass sequence with a resonant filter (inspred by Arturia Mini V4).',
     },
   },
   download: {
