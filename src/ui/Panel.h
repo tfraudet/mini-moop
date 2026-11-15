@@ -109,6 +109,8 @@ public:
 
     void showAbout() { about.show(); }
     void showBanks() { banks.show(); }
+    /** Redraws the panel in `theme` (does not store the choice). */
+    void applyTheme (Theme theme);
 
     void paint (juce::Graphics&) override;
     void resized() override {}
@@ -153,7 +155,7 @@ private:
     std::vector<Heading> headings;
     std::vector<juce::Line<float>> wires; // painted lines on the panel
 
-    juce::Image wood, leather, brushed;
+    juce::Image wood, leather, leatherClassic, brushed;
     juce::ComboBox presetBox;
     juce::TextButton prevProgram { "<" }, nextProgram { ">" };
     Wheel pitchWheel, modWheel;

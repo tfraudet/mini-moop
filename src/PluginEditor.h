@@ -31,6 +31,7 @@ public:
     void paint (juce::Graphics& g) override { g.fillAll (juce::Colours::black); }
     void showAbout() { panel.showAbout(); }
     void showBanks() { panel.showBanks(); }
+    void applyTheme (mm::ui::Theme theme) { panel.applyTheme (theme); }
 
 private:
     mm::ui::Panel panel;

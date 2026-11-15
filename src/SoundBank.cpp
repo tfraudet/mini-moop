@@ -528,4 +528,14 @@ void BankLibrary::setDefaultBankId (const juce::String& id)
     settings->setValue ("defaultBank", id);
 }
 
+juce::String BankLibrary::getUiTheme() const
+{
+    return settings->getValue ("uiTheme", "modern");
+}
+
+void BankLibrary::setUiTheme (const juce::String& id)
+{
+    settings->setValue ("uiTheme", id);
+}
+
 } // namespace mm

@@ -23,10 +23,23 @@ Built with JUCE 9.0.5. Licensed under the GNU AGPLv3 or later (see [License](#li
 brew install cmake ninja ngspice          # ngspice: only needed for the validation tests
 git clone --depth 1 -b 9.0.5 https://github.com/juce-framework/JUCE.git deps/JUCE                # optional, otherwise FetchContent
 git clone --depth 1 -b v3.16.1 https://github.com/catchorg/Catch2.git deps/Catch2           # optional
-cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build/release
-(cd build/release && ctest --output-on-failure)
+cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release   # 1. configure
+cmake --build build/release                                       # 2. build
+(cd build/release && ctest --output-on-failure)                   # 3. test
+
+# Building a single target instead of everything:
+cmake --build build/release --target MiniMoop_Standalone          # the standalone app only
+cmake --build build/release --target MiniMoop_VST3                # the VST3 only (also MiniMoop_AU, MiniMoop_All)
+cmake --build build/release --target MiniMoopSnapshot             # the panel snapshot tool
+
+# Forcing a rebuild:
+cmake --build build/release --clean-first                         # recompile everything, keep the configuration
+rm -rf build/release && cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build/release   # from scratch
 ```
+
+1. **Configure** (once per build folder): reads `CMakeLists.txt` from the sources (`-S .`), fetches the dependencies, checks the compiler and writes the build files into `build/release` (`-B`), keeping the source tree clean. `-G Ninja` generates files for Ninja rather than Makefiles or Xcode. `-DCMAKE_BUILD_TYPE=Release` turns the optimisations on; a Debug build is much slower to run, which matters for a circuit simulation. These choices are stored in `build/release/CMakeCache.txt`: run this step again only for a new build folder or to change an option.
+2. **Build** (after every code change): runs Ninja in `build/release` to compile and link the app, the plugins, the tests and the snapshot tool. It is incremental: only the files changed since the last build are recompiled, and an edited `CMakeLists.txt` is picked up automatically. Add `--target <name>` to build a single target (examples above). The targets are `MiniMoop_All`, `MiniMoop_Standalone`, `MiniMoop_VST3`, `MiniMoop_AU`, `MiniMoopSnapshot`, `minimoop_tests` and `minimoop_bank_tests`; `cmake --build build/release --target help` lists them all. `--clean-first` deletes the compiled files before building, so everything is recompiled with the same configuration (it can be combined with `--target`). Deleting the build folder and configuring again also resets the configuration: needed after changing the architecture, or when the build is broken by a compiler update (see below).
+3. **Test**: runs the test suite built in step 2.
 
 At the end of the build, the VST3 and AU are copied to `~/Library/Audio/Plug-Ins/{VST3,Components}`. The Standalone app is in `build/release/MiniMoop_artefacts/Release/Standalone/`.
 
@@ -51,7 +64,7 @@ The architecture setting is stored in the CMake cache, so changing it requires a
 
 To test the Intel version on an Apple Silicon Mac, install Rosetta (`softwareupdate --install-rosetta --agree-to-license`) and prefix commands with `arch -x86_64`, for example `arch -x86_64 build/release/minimoop_tests`. If `arch -x86_64 auval` reports "didn't find the component" right after installing, run `killall -9 AudioComponentRegistrar` to refresh the Audio Unit registry.
 
-`build/release/MiniMoopSnapshot_artefacts/Release/MiniMoopSnapshot panel.png` renders the panel to an image without a host.
+`build/release/MiniMoopSnapshot_artefacts/Release/MiniMoopSnapshot panel.png [scale] [about|banks|modern|classic]` renders the panel to an image without a host (optionally scaled, with an overlay open, or in a given theme).
 
 If the link step fails with "linking with album file" after a Command Line Tools update, delete `build/release` and build again from scratch. LTO objects built by an older compiler cannot be linked by the new linker.
 
@@ -126,7 +139,7 @@ Each claim below is checked by a test in `tests/` (Catch2), run by `ctest` or `b
 | Voice behaviour: level, extreme settings stay finite, poly, MOD. AMOUNT | | `test_voice.cpp` |
 | No memory allocated during audio rendering, note events and panel changes | | `test_voice.cpp`: "Rendering, note events and panel changes do not allocate" |
 | CPU load, 1 and 8 voices at 2x, 4x and 8x | reported (table below); one voice at 4x must stay under 10 % of a core | `test_voice.cpp`: "CPU load: 1 and 8 voices at 2x, 4x and 8x oversampling" |
-| Sound banks: parsing, round trip, invalid banks, library, import / export | | `test_soundbank.cpp` (`minimoop_bank_tests`) |
+| Sound banks: parsing, round trip, invalid banks, library, import / export, stored UI theme | | `test_soundbank.cpp` (`minimoop_bank_tests`) |
 
 ### CPU load (Apple M3 Pro, 48 kHz)
 
@@ -371,6 +384,15 @@ Format (values in parameter units, keyed by parameter ID; a parameter that is no
 ```
 
 Rocker switches are two-state choice parameters (Off/On) rather than boolean parameters, so they survive a host state save and restore unchanged (required to pass pluginval).
+
+## Panel themes
+
+The burger menu's **Theme** sub-menu switches the look of the panel hardware:
+
+- **Modern** (default): knurled knobs with large metal caps, flat two-tone rockers, black leather covering.
+- **Classic**: black knobs with a turned-aluminium cap: the pots have a scalloped grip and an index dot, the selector switches (RANGE, WAVEFORM) a bar grip over a round skirt; matte rockers whose selected half is pressed flat while the other stands up, its lip catching the light, dark grey leather covering.
+
+Layout, legends, displays, keyboard and wheels are the same in both. The choice is a user preference shared by the standalone app and every plugin instance (`Mini Moop.settings`, next to the `presets` folder), not part of the project. `MiniMoopSnapshot <out.png> [scale] classic` renders a theme without changing the stored choice.
 
 ## References
 

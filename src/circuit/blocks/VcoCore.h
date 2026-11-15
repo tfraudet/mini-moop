@@ -186,7 +186,11 @@ public:
             const double thr = pulseThreshold();
             const double tThr = (isPulse() && x < thr) ? (thr - x) / rate : 1e30;
             const double tFold = (hasFold() && x < 0.0) ? -x / rate : 1e30;
-            const double tNext = std::fmin (tReset, std::fmin (tThr, tFold));
+            // next event; on a tie the comparator edge wins, then the fold
+            enum class Event { reset, fold, threshold } event = Event::reset;
+            double tNext = tReset;
+            if (tFold <= tNext) { tNext = tFold; event = Event::fold; }
+            if (tThr <= tNext) { tNext = tThr; event = Event::threshold; }
             if (tNext > t)
             {
                 x += rate * t;
@@ -195,13 +199,13 @@ public:
             }
             x += rate * tNext;
             t -= tNext;
-            if (tNext == tThr)
+            if (event == Event::threshold)
             {
                 // comparator edge: a value jump
                 x = thr;
                 line.step (shape (x + 1e-9) - shape (x - 1e-9), t / h);
             }
-            else if (tNext == tFold)
+            else if (event == Event::fold)
             {
                 // the triangle's fold: a rounded corner (the transistors'
                 // knee), as eight band-limited ramps spread where its slope
@@ -258,8 +262,11 @@ public:
             case Waveform::Triangle:   return p.rTriOut;
             case Waveform::Sawtooth:   return p.rSawOut;
             case Waveform::SharkTooth: return osc3 ? 0.0 : p.rSharkOut();
-            default:                   return 0.0;
+            case Waveform::Square:
+            case Waveform::WideRect:
+            case Waveform::NarrowRect: return 0.0;
         }
+        return 0.0;
     }
 
     /** Normalised ramp position (-1..1), for tests and modulation taps. */

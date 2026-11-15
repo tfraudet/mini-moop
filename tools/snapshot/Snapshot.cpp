@@ -17,7 +17,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Renders the plugin editor to a PNG (UI verification without a host).
-// Usage: MiniMoopSnapshot <out.png> [scale] [about|banks]
+// Usage: MiniMoopSnapshot <out.png> [scale] [about|banks|modern|classic]...
+// (a theme argument overrides the saved theme for this render only)
 
 #include "../../src/PluginEditor.h"
 #include "../../src/PluginProcessor.h"
@@ -33,11 +34,14 @@ int main (int argc, char** argv)
     MiniMoopProcessor proc;
     std::unique_ptr<juce::AudioProcessorEditor> editor (proc.createEditor());
     editor->setSize (mm::ui::Panel::baseWidth, mm::ui::Panel::baseHeight);
-    if (auto* e = dynamic_cast<MiniMoopEditor*> (editor.get()); e != nullptr && argc > 3)
-    {
-        if (juce::String (argv[3]) == "about") e->showAbout();
-        if (juce::String (argv[3]) == "banks") e->showBanks();
-    }
+    if (auto* e = dynamic_cast<MiniMoopEditor*> (editor.get()))
+        for (int i = 3; i < argc; ++i)
+        {
+            const juce::String arg (argv[i]);
+            if (arg == "about") e->showAbout();
+            if (arg == "banks") e->showBanks();
+            if (arg == "modern" || arg == "classic") e->applyTheme (mm::ui::themeFromId (arg));
+        }
     const auto img = editor->createComponentSnapshot (editor->getLocalBounds(), true, scale);
     out.deleteFile();
     juce::FileOutputStream stream (out);

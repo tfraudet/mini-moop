@@ -40,6 +40,7 @@
 #include "../components/Passives.h"
 
 #include <array>
+#include <functional>
 
 namespace mm
 {
@@ -83,7 +84,7 @@ public:
         from, in series with the top of the VOLUME pot. */
     void setSourceResistance (int ch, double ohms) noexcept
     {
-        if (rSource[size_t (ch)] == ohms) return;
+        if (std::equal_to<double>() (rSource[size_t (ch)], ohms)) return; // unchanged (exact on purpose)
         rSource[size_t (ch)] = ohms;
         update();
     }

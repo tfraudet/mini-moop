@@ -22,6 +22,10 @@
 namespace mm::ui
 {
 
+juce::String themeId (Theme t) { return t == Theme::classic ? "classic" : "modern"; }
+
+Theme themeFromId (const juce::String& id) { return id == "classic" ? Theme::classic : Theme::modern; }
+
 PanelLookAndFeel::PanelLookAndFeel()
 {
     setColour (juce::Label::textColourId, colours::legend);
@@ -295,8 +299,22 @@ void PanelLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
         }
     }
 
-    // ---- Knob: shadow, knurled skirt, cap, pointer
+    // ---- Knob body
     const float angle = startAngle + pos * (endAngle - startAngle);
+    if (theme == Theme::classic && stepped)
+        drawSelectorClassic (g, centre, knobR, angle, knobSize, s.isEnabled());
+    else if (theme == Theme::classic)
+        drawPotClassic (g, centre, knobR, angle, knobSize, s.isEnabled());
+    else
+        drawKnobModern (g, centre, knobR, angle, knobSize, s.isEnabled());
+}
+
+void PanelLookAndFeel::drawKnobModern (juce::Graphics& g, juce::Point<float> centre, float knobR, float angle,
+                                       float knobSize, bool enabled)
+{
+    auto pointAt = [&] (float a, float radius) { return centre.getPointOnCircumference (radius, a); };
+
+    // shadow, knurled skirt, cap, pointer
     g.setColour (juce::Colours::black.withAlpha (0.55f));
     g.fillEllipse (juce::Rectangle<float> (knobR * 2.15f, knobR * 2.15f).withCentre (centre.translated (1.5f, 2.5f)));
 
@@ -327,23 +345,246 @@ void PanelLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w,
     g.setColour (juce::Colours::white);
     g.drawLine (juce::Line<float> (pointAt (angle, capR * 0.25f), pointAt (angle, knobR * 0.97f)), std::max (1.6f, knobSize * 0.022f));
 
-    if (! s.isEnabled())
+    if (! enabled)
     {
         g.setColour (colours::panel.withAlpha (0.5f));
         g.fillEllipse (juce::Rectangle<float> (knobR * 2.0f, knobR * 2.0f).withCentre (centre));
     }
 }
 
+void PanelLookAndFeel::drawTurnedCap (juce::Graphics& g, juce::Point<float> centre, float capR)
+{
+    // turned-aluminium cap: base shading, concentric tool marks, conical sheen
+    using MC = juce::MathConstants<float>;
+    auto circle = [&] (float r) { return juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (centre); };
+    const float lightAngle = -MC::pi * 0.25f;
+    g.setColour (juce::Colours::black.withAlpha (0.75f));
+    g.fillEllipse (circle (capR + 1.0f));
+    juce::ColourGradient cap (juce::Colour (0xffeeeeea), centre.translated (-capR * 0.6f, -capR * 0.8f),
+                              juce::Colour (0xff85857f), centre.translated (capR * 0.6f, capR * 0.9f), false);
+    g.setGradientFill (cap);
+    g.fillEllipse (circle (capR));
+    {
+        juce::Graphics::ScopedSaveState save (g);
+        g.reduceClipRegion (juce::Rectangle<float> (circle (capR)).toNearestInt().expanded (1));
+        const float step = std::max (0.7f, capR / 16.0f);
+        int k = 0;
+        for (float rr = step; rr < capR - 0.3f; rr += step, ++k)
+        {
+            g.setColour (k % 2 == 0 ? juce::Colours::white.withAlpha (0.10f) : juce::Colours::black.withAlpha (0.07f));
+            g.drawEllipse (circle (rr), 0.5f);
+        }
+        // conical sheen of the turned surface: light wedges facing and opposite
+        // the light, darker ones across, each a stack of widening soft wedges
+        for (auto [wedge, colour] : { std::pair { lightAngle, juce::Colours::white.withAlpha (0.09f) },
+                                      std::pair { lightAngle + MC::pi, juce::Colours::white.withAlpha (0.05f) },
+                                      std::pair { lightAngle + MC::halfPi, juce::Colours::black.withAlpha (0.04f) },
+                                      std::pair { lightAngle - MC::halfPi, juce::Colours::black.withAlpha (0.04f) } })
+            for (float span : { 0.15f, 0.3f, 0.45f, 0.6f })
+            {
+                juce::Path p;
+                p.addPieSegment (circle (capR), wedge - span, wedge + span, 0.0f);
+                g.setColour (colour);
+                g.fillPath (p);
+            }
+    }
+    g.setColour (juce::Colours::black.withAlpha (0.55f));
+    g.drawEllipse (circle (capR), 0.8f);
+    g.setColour (juce::Colours::white.withAlpha (0.35f));
+    g.drawEllipse (circle (capR - 0.8f), 0.5f);
+}
+
+void PanelLookAndFeel::drawSelectorClassic (juce::Graphics& g, juce::Point<float> centre, float knobR, float angle,
+                                            float knobSize, bool enabled)
+{
+    // Seen from above: a round black skirt under a bar grip that runs round the
+    // turned-aluminium cap, narrow toward the pointer (with a white line on
+    // it), flared with a hollowed end on the other side; both ends reach a
+    // little past the skirt. Light from the upper left.
+    auto circle = [&] (float r) { return juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (centre); };
+    const float R = knobR, capR = R * 0.44f;
+
+    // drop shadow and skirt
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.fillEllipse (circle (R * 1.03f).translated (1.5f, 3.0f));
+    g.setColour (juce::Colours::black.withAlpha (0.25f));
+    g.fillEllipse (circle (R * 1.1f).translated (2.5f, 4.5f));
+    juce::ColourGradient skirt (juce::Colour (0xff2f2f31), centre.translated (-R * 0.75f, -R * 0.75f),
+                                juce::Colour (0xff040404), centre.translated (R * 0.55f, R * 0.7f), false);
+    skirt.addColour (0.45, juce::Colour (0xff121213));
+    g.setGradientFill (skirt);
+    g.fillEllipse (circle (R));
+    g.setColour (juce::Colours::white.withAlpha (0.13f));
+    g.drawEllipse (circle (R - 0.6f), 0.9f);
+
+    // Bar outline, built pointing up (-y) in units of R, then turned to `angle`.
+    // Sides of the body follow a circle of radius 0.56 round the cap.
+    constexpr float bodyR = 0.56f, tipHalf = 0.07f, tipY = -1.05f;
+    constexpr float tailHalf = 0.42f, tailY = 1.06f, tailHollow = 0.9f;
+    const juce::Point<float> shoulder { 0.2f, -std::sqrt (bodyR * bodyR - 0.04f) };  // tip flank meets the body
+    const juce::Point<float> hip { 0.3f, std::sqrt (bodyR * bodyR - 0.09f) };        // tail flank leaves the body
+    juce::Path bar;
+    auto arcPoints = [&] (float fromA, float toA) {
+        constexpr int steps = 16;
+        for (int i = 1; i <= steps; ++i)
+        {
+            const float a = fromA + (toA - fromA) * float (i) / float (steps);
+            bar.lineTo (bodyR * std::sin (a), -bodyR * std::cos (a));
+        }
+    };
+    const float shoulderA = std::atan2 (shoulder.x, -shoulder.y), hipA = std::atan2 (hip.x, -hip.y);
+    bar.startNewSubPath (-tipHalf, tipY);
+    bar.quadraticTo (0.0f, tipY - 0.03f, tipHalf, tipY);   // slightly rounded tip
+    bar.lineTo (shoulder.x, shoulder.y);
+    arcPoints (shoulderA, hipA);                            // right side of the body
+    bar.lineTo (tailHalf, tailY);
+    bar.quadraticTo (0.0f, tailHollow, -tailHalf, tailY);   // hollowed tail end
+    bar.lineTo (-hip.x, hip.y);
+    arcPoints (-hipA, -shoulderA);                          // left side of the body
+    bar.closeSubPath();
+    bar.applyTransform (juce::AffineTransform::scale (R).rotated (angle).translated (centre));
+
+    g.setColour (juce::Colours::black.withAlpha (0.55f));
+    g.fillPath (bar, juce::AffineTransform::translation (1.0f, 2.2f));
+    juce::ColourGradient barFill (juce::Colour (0xff343437), centre.translated (-R * 0.8f, -R * 0.8f),
+                                  juce::Colour (0xff050505), centre.translated (R * 0.6f, R * 0.8f), false);
+    barFill.addColour (0.4, juce::Colour (0xff151516));
+    g.setGradientFill (barFill);
+    g.fillPath (bar);
+    // its top edge catches the light on the upper left
+    juce::ColourGradient rim (juce::Colours::white.withAlpha (0.45f), centre.translated (-R * 0.7f, -R * 0.7f),
+                              juce::Colours::white.withAlpha (0.2f), centre.translated (R * 0.7f, R * 0.7f), false);
+    g.setGradientFill (rim);
+    g.strokePath (bar, juce::PathStrokeType (std::max (0.8f, knobSize * 0.01f)));
+
+    // pointer line on the narrow end
+    g.setColour (juce::Colour (0xfff2f2ee));
+    g.drawLine (juce::Line<float> (centre.getPointOnCircumference (capR + R * 0.18f, angle),
+                                   centre.getPointOnCircumference (R * 0.98f, angle)),
+                std::max (1.6f, knobSize * 0.024f));
+
+    // cap seated in a dark ring
+    g.setColour (juce::Colours::black.withAlpha (0.8f));
+    g.fillEllipse (circle (capR + 2.0f));
+    drawTurnedCap (g, centre, capR);
+
+    if (! enabled)
+    {
+        g.setColour (colours::panel.withAlpha (0.5f));
+        g.fillEllipse (circle (R));
+    }
+}
+
+void PanelLookAndFeel::drawPotClassic (juce::Graphics& g, juce::Point<float> centre, float knobR, float angle,
+                                       float knobSize, bool enabled)
+{
+    // Seen from above: a round black skirt, the scalloped edge of the grip's
+    // top face close to it, a white index dot on that face and the
+    // turned-aluminium cap. Light from the upper left.
+    using MC = juce::MathConstants<float>;
+    auto circle = [&] (float r) { return juce::Rectangle<float> (r * 2.0f, r * 2.0f).withCentre (centre); };
+    const float lightAngle = -MC::pi * 0.25f;
+    const float R = knobR, capR = R * 0.58f;
+    constexpr int lobes = 8;
+
+    // Grip outline: rounded lobes meeting in sharp flutes, turning with the knob
+    // (a lobe faces the index dot).
+    auto scallop = [&] (float outer, float inner) {
+        juce::Path p;
+        constexpr int steps = 360;
+        for (int i = 0; i <= steps; ++i)
+        {
+            const float th = MC::twoPi * float (i) / float (steps);
+            const float f = std::pow (std::abs (std::cos (0.5f * float (lobes) * (th - angle))), 0.6f);
+            const auto pt = centre.getPointOnCircumference (inner + (outer - inner) * f, th);
+            if (i == 0) p.startNewSubPath (pt); else p.lineTo (pt);
+        }
+        p.closeSubPath();
+        return p;
+    };
+
+    // drop shadow
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.fillEllipse (circle (R * 1.03f).translated (1.5f, 3.0f));
+    g.setColour (juce::Colours::black.withAlpha (0.25f));
+    g.fillEllipse (circle (R * 1.1f).translated (2.5f, 4.5f));
+
+    // skirt: plain black disc, slight sheen and a lit rim
+    juce::ColourGradient skirt (juce::Colour (0xff2f2f31), centre.translated (-R * 0.75f, -R * 0.75f),
+                                juce::Colour (0xff040404), centre.translated (R * 0.55f, R * 0.7f), false);
+    skirt.addColour (0.45, juce::Colour (0xff121213));
+    g.setGradientFill (skirt);
+    g.fillEllipse (circle (R));
+    g.setColour (juce::Colours::white.withAlpha (0.13f));
+    g.drawEllipse (circle (R - 0.6f), 0.9f);
+
+    // grip: shadow on the skirt, black body, lobes shaded by the light they face
+    const float gripOuter = R * 0.92f, gripInner = R * 0.84f;
+    const auto grip = scallop (gripOuter, gripInner);
+    g.setColour (juce::Colours::black.withAlpha (0.6f));
+    g.fillPath (grip, juce::AffineTransform::translation (0.8f, 1.8f));
+    juce::ColourGradient body (juce::Colour (0xff262628), centre.translated (-gripOuter, -gripOuter),
+                               juce::Colour (0xff050505), centre.translated (gripOuter * 0.7f, gripOuter), false);
+    g.setGradientFill (body);
+    g.fillPath (grip);
+    {
+        juce::Graphics::ScopedSaveState save (g);
+        g.reduceClipRegion (grip);
+        for (int k = 0; k < lobes; ++k)
+        {
+            const float mid = angle + MC::twoPi * float (k) / float (lobes);
+            const float half = MC::pi / float (lobes);
+            const float facing = std::cos (mid - lightAngle);
+            juce::Path lobe;
+            lobe.addPieSegment (circle (gripOuter + 2.0f), mid - half, mid + half, (capR + 2.0f) / (gripOuter + 2.0f));
+            g.setColour (facing > 0.0f ? juce::Colours::white.withAlpha (0.07f * facing)
+                                       : juce::Colours::black.withAlpha (-0.2f * facing));
+            g.fillPath (lobe);
+        }
+    }
+    // the top face's wavy edge catches the light on the upper left
+    const float edge = std::max (0.8f, knobSize * 0.01f);
+    juce::ColourGradient rim (juce::Colours::white.withAlpha (0.38f), centre.translated (-gripOuter * 0.7f, -gripOuter * 0.7f),
+                              juce::Colours::white.withAlpha (0.12f), centre.translated (gripOuter * 0.7f, gripOuter * 0.7f), false);
+    g.setGradientFill (rim);
+    g.strokePath (grip, juce::PathStrokeType (edge));
+
+    // cap seated in a dark ring
+    g.setColour (juce::Colours::black.withAlpha (0.8f));
+    g.fillEllipse (circle (capR + 2.0f));
+    drawTurnedCap (g, centre, capR);
+
+    // index dot on the top face, in front of a lobe
+    const float dotR = std::max (1.4f, R * 0.06f);
+    g.setColour (juce::Colour (0xfff2f2ee));
+    g.fillEllipse (juce::Rectangle<float> (dotR * 2.0f, dotR * 2.0f).withCentre (centre.getPointOnCircumference ((capR + gripInner) * 0.5f + 1.0f, angle)));
+
+    if (! enabled)
+    {
+        g.setColour (colours::panel.withAlpha (0.5f));
+        g.fillEllipse (circle (R));
+    }
+}
+
 void PanelLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& b, bool highlighted, bool)
 {
-    const auto r = b.getLocalBounds().toFloat();
     const juce::String colourName = b.getProperties()[props::rocker].toString();
-    const juce::Colour body = colourName == "orange" ? colours::rockerOrange
-                            : colourName == "white" ? colours::rockerWhite : colours::rockerBlue;
-
+    const bool classic = theme == Theme::classic;
+    const juce::Colour body = colourName == "orange" ? (classic ? colours::classicOrange : colours::rockerOrange)
+                            : colourName == "white" ? colours::rockerWhite
+                                                    : (classic ? colours::classicBlue : colours::rockerBlue);
     const bool horizontal = b.getProperties()[props::rockerHorizontal];
     const bool inactive = b.getProperties()[props::rockerInactive];
-    const bool on = b.getToggleState();
+    const auto r = b.getLocalBounds().toFloat();
+    if (classic)
+        drawRockerClassic (g, r, body, horizontal, b.getToggleState(), highlighted, inactive);
+    else
+        drawRockerModern (g, r, body, horizontal, b.getToggleState(), highlighted, inactive);
+}
+
+void PanelLookAndFeel::drawRockerModern (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour body, bool horizontal,
+                                         bool on, bool highlighted, bool inactive)
+{
     const auto lit = body.brighter (highlighted && ! inactive ? 0.25f : 0.1f);
     const auto shade = body.darker (0.7f);
 
@@ -389,6 +630,85 @@ void PanelLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& 
     {
         g.setColour (colours::panel.withAlpha (0.6f));
         g.fillRoundedRectangle (bezel, 3.0f);
+    }
+}
+
+void PanelLookAndFeel::drawRockerClassic (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour body, bool horizontal,
+                                          bool on, bool highlighted, bool inactive)
+{
+    // Matte paddle in a black frame, rocking on its middle. The selected half
+    // (right = ON, or bottom = ON) is pressed down: flat and even. The other
+    // half stands up: the lip of its end catches the light from the upper
+    // left, and its face darkens as it slopes down toward the pivot.
+    auto bezel = horizontal ? r.withSizeKeepingCentre (r.getWidth(), std::min (r.getHeight(), r.getWidth() * 0.55f)).reduced (1.0f)
+                            : r.withSizeKeepingCentre (std::min (r.getWidth(), r.getHeight() * 0.55f), r.getHeight()).reduced (1.0f);
+    const auto base = body.brighter (highlighted && ! inactive ? 0.1f : 0.0f);
+
+    // frame: outer shadow, black body, light line along its top edge
+    g.setColour (juce::Colours::black.withAlpha (0.45f));
+    g.fillRoundedRectangle (bezel.translated (0.6f, 1.2f).expanded (0.5f), 3.0f);
+    g.setColour (juce::Colour (0xff050505));
+    g.fillRoundedRectangle (bezel, 2.5f);
+    g.setColour (juce::Colours::white.withAlpha (0.18f));
+    g.drawLine (bezel.getX() + 2.5f, bezel.getY() + 0.6f, bezel.getRight() - 2.5f, bezel.getY() + 0.6f, 0.8f);
+
+    const float frame = std::max (1.8f, std::min (bezel.getWidth(), bezel.getHeight()) * 0.08f);
+    const auto paddle = bezel.reduced (frame);
+    const float corner = std::min (paddle.getWidth(), paddle.getHeight()) * 0.12f;
+    juce::Path outline;
+    outline.addRoundedRectangle (paddle, corner);
+
+    // Points along the paddle, from the raised end (t = 0) to the pressed end (t = 1).
+    auto at = [&] (float t) {
+        const float along = on ? t : 1.0f - t;
+        return horizontal ? juce::Point<float> (paddle.getX() + paddle.getWidth() * along, paddle.getCentreY())
+                          : juce::Point<float> (paddle.getCentreX(), paddle.getY() + paddle.getHeight() * along);
+    };
+    // part of the paddle between t0 and t1
+    auto span = [&] (float t0, float t1) {
+        const auto p0 = at (t0), p1 = at (t1);
+        return horizontal ? juce::Rectangle<float> (std::min (p0.x, p1.x), paddle.getY(), std::abs (p1.x - p0.x), paddle.getHeight())
+                          : juce::Rectangle<float> (paddle.getX(), std::min (p0.y, p1.y), paddle.getWidth(), std::abs (p1.y - p0.y));
+    };
+
+    {
+        juce::Graphics::ScopedSaveState save (g);
+        g.reduceClipRegion (outline);
+
+        juce::ColourGradient faces (base.brighter (0.06f), at (0.0f), base.darker (0.04f), at (1.0f), false);
+        faces.addColour (0.05, base.darker (0.02f));    // just behind the lip
+        faces.addColour (0.25, base.darker (0.22f));
+        faces.addColour (0.42, base.darker (0.4f));     // bottom of the slope, by the pivot
+        faces.addColour (0.53, base);                   // pressed half: flat
+        g.setGradientFill (faces);
+        g.fillRect (paddle);
+
+        // the frame's shadow along the top (or left) edge of the paddle
+        const auto edgeBand = horizontal ? paddle.withHeight (paddle.getHeight() * 0.18f) : paddle.withWidth (paddle.getWidth() * 0.18f);
+        juce::ColourGradient inner (juce::Colours::black.withAlpha (0.18f), edgeBand.getTopLeft(),
+                                    juce::Colours::transparentBlack, horizontal ? edgeBand.getBottomLeft() : edgeBand.getTopRight(), false);
+        g.setGradientFill (inner);
+        g.fillRect (edgeBand);
+
+        // lip of the raised end: a bright rim along its end and corners, fading
+        // along the paddle's edges
+        {
+            juce::Graphics::ScopedSaveState lipClip (g);
+            const auto lip = span (0.0f, 0.22f);
+            g.reduceClipRegion (lip.toNearestInt().expanded (1));
+            juce::ColourGradient rim (base.brighter (0.5f).withAlpha (0.6f), at (0.0f), base.withAlpha (0.0f), at (0.22f), false);
+            g.setGradientFill (rim);
+            g.strokePath (outline, juce::PathStrokeType (std::max (1.2f, corner * 0.6f)));
+            juce::ColourGradient glow (juce::Colours::white.withAlpha (0.06f), at (0.0f), juce::Colours::transparentWhite, at (0.1f), false);
+            g.setGradientFill (glow);
+            g.fillRect (lip);
+        }
+    }
+
+    if (inactive)
+    {
+        g.setColour (colours::panel.withAlpha (0.6f));
+        g.fillRoundedRectangle (bezel, 2.5f);
     }
 }
 

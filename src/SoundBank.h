@@ -128,6 +128,10 @@ public:
     juce::String getDefaultBankId() const;
     void setDefaultBankId (const juce::String& id);
 
+    /** Panel theme chosen by the user, shared by every instance ("modern" / "classic"). */
+    juce::String getUiTheme() const;
+    void setUiTheme (const juce::String& id);
+
     /** File name (without extension) not used by any bank, derived from `name`. */
     juce::String uniqueId (const juce::String& name) const;
 

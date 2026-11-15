@@ -370,6 +370,27 @@ juce::Image makeSeamlessTile (const juce::Image& photo)
         }
     return tile;
 }
+
+/** Classic theme covering: the leather tile desaturated and lifted to a dark
+    grey, its grain softened. */
+juce::Image makeClassicCovering (const juce::Image& tile)
+{
+    auto out = tile.createCopy();
+    juce::Image::BitmapData px (out, juce::Image::BitmapData::readWrite);
+    double sum = 0.0;
+    for (int y = 0; y < px.height; ++y)
+        for (int x = 0; x < px.width; ++x)
+            sum += px.getPixelColour (x, y).getPerceivedBrightness();
+    const float mean = float (sum / double (px.width * px.height));
+    constexpr float target = 0.12f, grain = 0.45f; // mean grey level, grain contrast
+    for (int y = 0; y < px.height; ++y)
+        for (int x = 0; x < px.width; ++x)
+        {
+            const float v = juce::jlimit (0.0f, 1.0f, target + (px.getPixelColour (x, y).getPerceivedBrightness() - mean) * grain);
+            px.setPixelColour (x, y, juce::Colour::fromFloatRGBA (v, v, v * 0.98f, 1.0f));
+        }
+    return out;
+}
 const juce::Range<float> sectionX[] = { { 34, 234 }, { 234, 614 }, { 614, 912 }, { 912, 1256 }, { 1256, 1366 } };
 // OSCILLATOR MODULATION rocker, centred on the CONTROLLERS / OSCILLATOR BANK border.
 const juce::Rectangle<float> oscModSwitch { 209.0f, 98.0f, 50.0f, 24.0f };
@@ -495,8 +516,10 @@ Panel::Panel (MiniMoopProcessor& p)
             const int px = int (1062.0f * sx), py = int (732.0f * sy), pw = int (30.0f * sx), ph = int (30.0f * sy);
             tg.drawImage (src, px, py, pw, ph, px - int (70.0f * sx), py, pw, ph);
             leather = makeSeamlessTile (leather);
+            leatherClassic = makeClassicCovering (leather);
         }
     }
+    applyTheme (themeFromId (proc.getLibrary().getUiTheme()));
 
     // ------------------------------------------------------------ CONTROLLERS
     // Legends above the knobs, as on the original panel.
@@ -871,11 +894,25 @@ void Panel::buildExtras()
     rocker (id::feedback, { 1168, 476, 22, 38 }, "orange");
 }
 
+void Panel::applyTheme (Theme theme)
+{
+    lnf.setTheme (theme);
+    repaint();
+}
+
 void Panel::showMenu()
 {
+    juce::PopupMenu themes;
+    for (const auto& [choice, name] : { std::pair { Theme::modern, "Modern" }, std::pair { Theme::classic, "Classic" } })
+        themes.addItem (name, true, lnf.getTheme() == choice, [this, theme = choice] {
+            proc.getLibrary().setUiTheme (themeId (theme));
+            applyTheme (theme);
+        });
+
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lnf);
     menu.addItem ("Sound Banks...", [this] { banks.show(); });
+    menu.addSubMenu ("Theme", themes);
     menu.addSeparator();
     menu.addItem ("About Mini Moop", [this] { about.show(); });
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&burger));
@@ -982,20 +1019,23 @@ void Panel::paint (juce::Graphics& g)
     auto recess = [&] (juce::Rectangle<float> r, juce::Colour top, juce::Colour bottom) {
         g.setColour (juce::Colours::black.withAlpha (0.55f));
         g.fillRect (r.expanded (2.0f));
-        if (leather.isValid())
+        const bool classic = lnf.getTheme() == Theme::classic;
+        const auto& covering = classic ? leatherClassic : leather;
+        if (covering.isValid())
         {
             // Leather-grain covering; one continuous texture across the three panels.
-            g.setFillType (juce::FillType (leather, juce::AffineTransform::scale (leatherScale).translated (caseLeft, 0.0f)));
+            g.setFillType (juce::FillType (covering, juce::AffineTransform::scale (leatherScale).translated (caseLeft, 0.0f)));
             g.fillRect (r);
             // tone the grain down so legends stay readable, plus a slight vertical falloff
-            juce::ColourGradient shade (juce::Colours::black.withAlpha (0.05f), r.getTopLeft(),
-                                        juce::Colours::black.withAlpha (0.3f), r.getBottomLeft(), false);
+            juce::ColourGradient shade (juce::Colours::black.withAlpha (classic ? 0.0f : 0.05f), r.getTopLeft(),
+                                        juce::Colours::black.withAlpha (classic ? 0.2f : 0.3f), r.getBottomLeft(), false);
             g.setGradientFill (shade);
             g.fillRect (r);
         }
         else
         {
-            juce::ColourGradient face (top, r.getTopLeft(), bottom, r.getBottomLeft(), false);
+            juce::ColourGradient face (classic ? juce::Colour (0xff343434) : top, r.getTopLeft(),
+                                       classic ? juce::Colour (0xff282828) : bottom, r.getBottomLeft(), false);
             g.setGradientFill (face);
             g.fillRect (r);
         }

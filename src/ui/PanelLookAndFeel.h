@@ -18,7 +18,9 @@
 
 #pragma once
 // Vector-drawn panel hardware: skirted knobs with 0..10 scales, rotary
-// selector switches with legends, rocker switches. No bitmaps.
+// selector switches with legends, rocker switches. No bitmaps. Two themes:
+// "modern" (knurled skirts, flat rockers) and "classic" (flared black knobs
+// with brushed caps, glossy rockers).
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -42,7 +44,16 @@ inline const juce::Colour strip { 0xff19191b };          // settings strip / key
 inline const juce::Colour lcdBack { 0xff0f0c08 };
 inline const juce::Colour lcdText { 0xfff0a536 };        // amber display text
 inline const juce::Colour stripLabel { 0xffc9b48f };     // small tan captions
+inline const juce::Colour classicBlue { 0xff2a9ed8 };    // classic theme rockers
+inline const juce::Colour classicOrange { 0xffe2692f };
 } // namespace colours
+
+/** Look of the panel hardware and covering. */
+enum class Theme { modern, classic };
+/** "modern" / "classic" (stored in the settings file). */
+juce::String themeId (Theme);
+/** Unknown ids give modern. */
+Theme themeFromId (const juce::String&);
 
 /** Slider property keys understood by the look-and-feel. */
 namespace props
@@ -61,6 +72,9 @@ class PanelLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
     PanelLookAndFeel();
+
+    void setTheme (Theme t) { theme = t; }
+    Theme getTheme() const { return theme; }
 
     void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h, float pos,
                            float startAngle, float endAngle, juce::Slider&) override;
@@ -88,6 +102,23 @@ public:
 
     /** Draws a small waveform pictogram for the oscillator selectors. */
     static void drawWaveIcon (juce::Graphics&, juce::Rectangle<float> area, const juce::String& token);
+
+private:
+    /** Knob body (everything but the scale) of radius `knobR`, pointer at `angle`. */
+    static void drawKnobModern (juce::Graphics&, juce::Point<float> centre, float knobR, float angle, float knobSize, bool enabled);
+    /** Classic theme, selector switches: round skirt under a bar grip. */
+    static void drawSelectorClassic (juce::Graphics&, juce::Point<float> centre, float knobR, float angle, float knobSize,
+                                     bool enabled);
+    /** Classic theme, pots: scalloped grip and an index dot. */
+    static void drawPotClassic (juce::Graphics&, juce::Point<float> centre, float knobR, float angle, float knobSize, bool enabled);
+    static void drawTurnedCap (juce::Graphics&, juce::Point<float> centre, float capR);
+    /** Rocker in its bezel; `on` lights the bottom (vertical) or right (horizontal) half. */
+    static void drawRockerModern (juce::Graphics&, juce::Rectangle<float> r, juce::Colour body, bool horizontal,
+                                  bool on, bool highlighted, bool inactive);
+    static void drawRockerClassic (juce::Graphics&, juce::Rectangle<float> r, juce::Colour body, bool horizontal,
+                                   bool on, bool highlighted, bool inactive);
+
+    Theme theme = Theme::modern;
 };
 
 } // namespace mm::ui

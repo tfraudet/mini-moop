@@ -231,6 +231,15 @@ TEST_CASE ("Library bank and preset operations", "[banks]")
     CHECK (lib.getBanks().size() == 2); // Factory + copy
 }
 
+TEST_CASE ("UI theme preference is stored in the settings file", "[banks]")
+{
+    TempLibrary t;
+    CHECK (t.lib->getUiTheme() == "modern");
+    t.lib->setUiTheme ("classic");
+    mm::BankLibrary again (t.dir, factoryJson());
+    CHECK (again.getUiTheme() == "classic");
+}
+
 TEST_CASE ("Import and export", "[banks]")
 {
     TempLibrary t;
