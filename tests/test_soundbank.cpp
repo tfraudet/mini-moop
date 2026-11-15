@@ -25,6 +25,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
+#include <iterator>
+
 namespace
 {
 juce::String factoryJson() { return juce::String::fromUTF8 (MiniMoopAssets::Factory_json, MiniMoopAssets::Factory_jsonSize); }
@@ -52,13 +54,21 @@ TEST_CASE ("Factory bank parses with the expected categories", "[banks]")
     INFO (r.getErrorMessage());
     REQUIRE (r.wasOk());
     CHECK (bank.name == "Factory");
-    // The former hard-coded programs, then the patch sheets of the Model D manual
+    // The former hard-coded programs and the patch sheets of the Model D
+    // manual, sorted by kind of sound
     CHECK (bank.numPresets() == mm::legacy::numFactoryPresets + 44);
-    REQUIRE (bank.categories.size() == 6);
-    CHECK (bank.categories[0].name == "Basic");
-    CHECK (bank.categories[5].name == "Patch Sheets");
-    CHECK (bank.categories[5].presets.size() == 44);
-    CHECK (bank.categories[5].presets.front().name == "Midnight Funk");
+    struct Category { const char* name; size_t size; const char* first; };
+    const Category expected[] = { { "Basic", 1, "Init" },        { "Bass", 9, "Fat Bass" },
+                                  { "Lead", 24, "Solo Lead" },   { "Poly", 1, "Poly Brass" },
+                                  { "Drums", 5, "Dark Toms" },   { "FX", 12, "Osc 3 Wobble" } };
+    REQUIRE (bank.categories.size() == std::size (expected));
+    for (size_t i = 0; i < std::size (expected); ++i)
+    {
+        INFO ("category " << i);
+        CHECK (bank.categories[i].name == expected[i].name);
+        CHECK (bank.categories[i].presets.size() == expected[i].size);
+        CHECK (bank.categories[i].presets.front().name == expected[i].first);
+    }
     CHECK (bank.presetAt (0)->name == "Init");
     // Init is the default panel, except for the output volume.
     REQUIRE (bank.presetAt (0)->values.size() == 1);
