@@ -392,8 +392,12 @@ juce::Image makeClassicCovering (const juce::Image& tile)
     return out;
 }
 const juce::Range<float> sectionX[] = { { 34, 234 }, { 234, 614 }, { 614, 912 }, { 912, 1256 }, { 1256, 1366 } };
+// Every rocker switch has the same size, lying (ON = right) or standing (ON = bottom).
+constexpr int rockerLong = 50, rockerShort = 24;
+juce::Rectangle<int> lyingRocker (juce::Point<int> centre) { return juce::Rectangle<int> (rockerLong, rockerShort).withCentre (centre); }
+juce::Rectangle<int> standingRocker (juce::Point<int> centre) { return juce::Rectangle<int> (rockerShort, rockerLong).withCentre (centre); }
 // OSCILLATOR MODULATION rocker, centred on the CONTROLLERS / OSCILLATOR BANK border.
-const juce::Rectangle<float> oscModSwitch { 209.0f, 98.0f, 50.0f, 24.0f };
+const juce::Rectangle<float> oscModSwitch = lyingRocker ({ 234, 110 }).toFloat();
 // FILTER MODULATION and KEYBOARD CONTROL rockers, centred on the MIXER / MODIFIERS border.
 constexpr float borderSwitchX = 912.0f;
 // Each section border is interrupted (vertical range) around the switches and legends sitting on it.
@@ -560,8 +564,8 @@ Panel::Panel (MiniMoopProcessor& p)
         legend (rightText, { r.getCentreX(), r.getBottom() + 3.0f, r.getWidth() * 0.5f + 16.0f, 11.0f }, 9.0f,
                 juce::Justification::centred, true);
     };
-    reissueSwitch ("modSourceA", { glidePos.x - 28, glidePos.y + 66, 56, 24 }, "OSC. 3", "FILTER EG");
-    reissueSwitch ("modSourceB", { modMixPos.x - 28, modMixPos.y + 66, 56, 24 }, "NOISE", "LFO");
+    reissueSwitch ("modSourceA", lyingRocker ({ glidePos.x, glidePos.y + 78 }), "OSC. 3", "FILTER EG");
+    reissueSwitch ("modSourceB", lyingRocker ({ modMixPos.x, modMixPos.y + 78 }), "NOISE", "LFO");
 
     // -------------------------------------------------------- OSCILLATOR BANK
     const float colX[3] = { 330.0f, 440.0f, 552.0f };
@@ -584,7 +588,7 @@ Panel::Panel (MiniMoopProcessor& p)
             legendAbove (oscName (i + 1), { int (colX[1]), rowY[i] }, 92);
         }
     }
-    rocker (id::osc3Control, { 244, 310, 24, 44 }, "orange");
+    rocker (id::osc3Control, standingRocker ({ 256, 332 }), "orange");
     legend ("OSC. 3\nCTRL", { 226.0f, 282.0f, 60.0f, 24.0f }, 9.0f); // above the switch
 
     // ------------------------------------------------------------------ MIXER
@@ -601,10 +605,10 @@ Panel::Panel (MiniMoopProcessor& p)
         const bool right = i == 1 || i == 3; // EXT. INPUT and NOISE
         const float y = float (mixY[i]);
         knob (mixVol[i], { right ? rightX : volX, mixY[i] }, mixKnob);
-        rocker (mixOn[i], { switchX, mixY[i] - 11, 44, 22 }, "blue").getProperties().set (props::rockerHorizontal, true);
-        legend ("ON", { float (switchX) + 22.0f, y + 13.0f, 22.0f, 11.0f }, 9.0f);
+        rocker (mixOn[i], lyingRocker ({ switchX + rockerLong / 2, mixY[i] }), "blue").getProperties().set (props::rockerHorizontal, true);
+        legend ("ON", { float (switchX + rockerLong / 2), y + float (rockerShort / 2) + 2.0f, float (rockerLong / 2), 11.0f }, 9.0f);
         if (right)
-            wires.push_back ({ float (switchX) + 45.0f, y, float (rightX) - 41.0f, y });
+            wires.push_back ({ float (switchX + rockerLong) + 1.0f, y, float (rightX) - 41.0f, y });
         else
             wires.push_back ({ float (volX) + 42.0f, y, float (switchX) - 1.0f, y });
     }
@@ -615,13 +619,13 @@ Panel::Panel (MiniMoopProcessor& p)
     hoverHelps.push_back (std::make_unique<HoverHelp> (overload, [] { return juce::String ("OVERLOAD"); }, tooltipFor ("overload"),
                                                        6)); // the arrow stops short of the lamp
     addAndMakeVisible (overload);
-    rocker (id::noiseColor, { rightX - 11, 340, 22, 36 }, "blue");
-    legend ("WHITE", { float (rightX) - 30.0f, 327.0f, 60.0f, 11.0f }, 9.0f);
-    legend ("PINK", { float (rightX) - 30.0f, 379.0f, 60.0f, 11.0f }, 9.0f);
+    rocker (id::noiseColor, standingRocker ({ rightX, 360 }), "blue");
+    legend ("WHITE", { float (rightX) - 30.0f, 322.0f, 60.0f, 11.0f }, 9.0f);
+    legend ("PINK", { float (rightX) - 30.0f, 388.0f, 60.0f, 11.0f }, 9.0f);
 
     // FILTER MODULATION and KEYBOARD CONTROL 1 / 2 straddle the MIXER / MODIFIERS border.
     auto borderSwitch = [this] (const char* pid, float top) {
-        rocker (pid, juce::Rectangle<float> (borderSwitchX - 25.0f, top, 50.0f, 24.0f).toNearestInt(), "orange")
+        rocker (pid, lyingRocker ({ int (borderSwitchX), int (top) + 12 }), "orange")
             .getProperties().set (props::rockerHorizontal, true);
     };
     // The top switch is centred on the CUTOFF knob (y = 102).
@@ -634,8 +638,8 @@ Panel::Panel (MiniMoopProcessor& p)
     borderSwitch (id::kbd2, 197.0f);
     legend ("ON", { borderSwitchX, 224.0f, 25.0f, 11.0f }, 9.0f);
     // KEYBOARD CONTROL 1 / 2 numbers, right of their switches.
-    legend ("1", { borderSwitchX + 25.0f, 150.0f, 10.0f, 12.0f }, 10.0f);
-    legend ("2", { borderSwitchX + 25.0f, 203.0f, 10.0f, 12.0f }, 10.0f);
+    legend ("1", { borderSwitchX + float (rockerLong / 2) + 1.0f, 150.0f, 10.0f, 12.0f }, 10.0f);
+    legend ("2", { borderSwitchX + float (rockerLong / 2) + 1.0f, 203.0f, 10.0f, 12.0f }, 10.0f);
 
     // -------------------------------------------------------------- MODIFIERS
     constexpr float headingX = 964.0f; // clear of the border switches
@@ -670,19 +674,19 @@ Panel::Panel (MiniMoopProcessor& p)
     constexpr int outX = 1311; // centre of the OUTPUT section
     knob (id::volume, { outX, 88 }, 92);
     knobLegend ("VOLUME", { outX, 88 }, 92);
-    rocker (id::mainOn, { outX - 12, 192, 24, 46 }, "blue");
+    rocker (id::mainOn, standingRocker ({ outX, 215 }), "blue");
     // Lamp showing whether the main output is on, right of its switch.
     mainLamp.setBounds (juce::Rectangle<int> (20, 20).withCentre ({ outX + 32, 215 }));
     addAndMakeVisible (mainLamp);
-    legend ("ON", { float (outX) - 30.0f, 242.0f, 60.0f, 12.0f }, 9.5f);
-    rocker (id::a440, { outX - 12, 296, 24, 46 }, "orange");
-    legend ("A-440", { float (outX) - 30.0f, 346.0f, 60.0f, 12.0f }, 9.5f);
+    legend ("ON", { float (outX) - 30.0f, 244.0f, 60.0f, 12.0f }, 9.5f);
+    rocker (id::a440, standingRocker ({ outX, 319 }), "orange");
+    legend ("A-440", { float (outX) - 30.0f, 348.0f, 60.0f, 12.0f }, 9.5f);
 
     // ------------------------------------------------- left-hand controller
-    rocker (id::glideOn, { 58, 538, 22, 38 }, "orange");
-    legend ("GLIDE", { 44.0f, 578.0f, 50.0f, 11.0f }, 9.0f);
-    rocker (id::decayOn, { 116, 538, 22, 38 }, "blue");
-    legend ("DECAY", { 102.0f, 578.0f, 50.0f, 11.0f }, 9.0f);
+    rocker (id::glideOn, standingRocker ({ 69, 561 }), "orange");
+    legend ("GLIDE", { 44.0f, 588.0f, 50.0f, 11.0f }, 9.0f);
+    rocker (id::decayOn, standingRocker ({ 127, 561 }), "blue");
+    legend ("DECAY", { 102.0f, 588.0f, 50.0f, 11.0f }, 9.0f);
     pitchWheel.setHelp ("Bends all oscillators (range set by BEND). Springs back to centre. Also driven by MIDI pitch bend.",
                         [this] (float v) {
                             const float semis = v * proc.state.getRawParameterValue (id::bendRange)->load();
@@ -692,10 +696,10 @@ Panel::Panel (MiniMoopProcessor& p)
                       [] (float v) { return juce::String (v * 10.0f, 1); });
     addAndMakeVisible (pitchWheel);
     addAndMakeVisible (modWheel);
-    pitchWheel.setBounds (52, 594, 34, 128);
-    modWheel.setBounds (110, 594, 34, 128);
-    legend ("PITCH", { 44.0f, 728.0f, 50.0f, 11.0f }, 9.0f);
-    legend ("MOD.", { 102.0f, 728.0f, 50.0f, 11.0f }, 9.0f);
+    pitchWheel.setBounds (52, 602, 34, 128);
+    modWheel.setBounds (110, 602, 34, 128);
+    legend ("PITCH", { 44.0f, 734.0f, 50.0f, 11.0f }, 9.0f);
+    legend ("MOD.", { 102.0f, 734.0f, 50.0f, 11.0f }, 9.0f);
 
     buildExtras();
 
@@ -890,8 +894,8 @@ void Panel::buildExtras()
     incDec (id::unitSeed, 908, 108);
     caption ("BEND", 1032, 80);
     incDec (id::bendRange, 1032, 108);
-    caption ("FEEDBACK", 1156, 56);
-    rocker (id::feedback, { 1168, 476, 22, 38 }, "orange");
+    caption ("FEEDBACK", 1153, 56);
+    rocker (id::feedback, lyingRocker ({ 1178, y + h / 2 }), "orange").getProperties().set (props::rockerHorizontal, true);
 }
 
 void Panel::applyTheme (Theme theme)
