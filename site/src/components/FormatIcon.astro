@@ -1,0 +1,61 @@
+---
+// Logos of the download cards: the app's own icon; for the VST3 plugin,
+// Steinberg's VST 3 logo as the VST 3 developer portal shows it
+// (public/logos/VST_3_logo.png, unaltered, from
+// steinbergmedia.github.io/vst3_dev_portal/resources/VST_logo_white.png: black
+// on an opaque white square). The usage guidelines
+// (https://steinbergmedia.github.io/vst3_dev_portal/pages/VST+3+Licensing/Usage+guidelines.html)
+// describe the "VST Compatible" logo for products: set VST_LOGO to
+// 'compatible' to show it instead (from github.com/steinbergmedia/vst3_doc/artwork,
+// at least 15 mm = 57 px wide). Trademark notice in the footer in both cases;
+// Apple's Audio Units logo for the Audio Unit (public/logos, rendered to PNG
+// from the SVG of en.wikipedia.org/wiki/File:Audio_Units_colour_logo.svg,
+// which embeds a 750 KB bitmap). Apple's logo licence (a signed agreement,
+// 2005) no longer seems to be offered: the logo is used without one, with
+// the trademark notice in the footer. Set AU_OFFICIAL_LOGO to false to show
+// the rack module drawn for the site instead.
+// Decorative: the card's text names the format.
+import { Image } from 'astro:assets';
+import icon from '../assets/icon.png';
+import type { Format } from '../lib/release';
+
+interface Props { format: Format }
+const { format } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const AU_OFFICIAL_LOGO = true;
+const VST_LOGO: 'vst3' | 'compatible' = 'vst3';
+---
+{format === 'app' && <Image src={icon} width={56} height={56} alt="" class="format-icon" />}
+
+{format === 'vst3' && VST_LOGO === 'vst3' && (
+  <img class="format-logo-square" src={`${base}logos/VST_3_logo.png`}
+       width="56" height="56" alt="VST 3" />
+)}
+
+{format === 'vst3' && VST_LOGO === 'compatible' && (
+  <img class="format-logo" src={`${base}logos/VST_Compatible_Logo_Steinberg_negative.svg`}
+       width="72" height="46" alt="VST Compatible" />
+)}
+
+{format === 'au' && AU_OFFICIAL_LOGO && (
+  <img class="format-logo-square" src={`${base}logos/Audio_Units_logo.png`}
+       width="56" height="56" alt="Audio Units" />
+)}
+
+{format === 'au' && !AU_OFFICIAL_LOGO && (
+  <svg class="format-icon" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- a rack module: ears with screws, a screen with a waveform, two knobs -->
+    <rect x="2" y="11" width="44" height="26" rx="2" />
+    <circle cx="6.5" cy="16" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="6.5" cy="32" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="41.5" cy="16" r="1.2" fill="currentColor" stroke="none" />
+    <circle cx="41.5" cy="32" r="1.2" fill="currentColor" stroke="none" />
+    <rect x="11" y="16" width="16" height="16" rx="1.5" />
+    <path d="M13 24c1.5-5 3-5 4.5 0s3 5 4.5 0 2.5-3.5 3-2" stroke-width="1.5" />
+    <circle cx="33" cy="19.5" r="3" />
+    <path d="M33 19.5l1.6-1.8" stroke-width="1.5" />
+    <circle cx="33" cy="28.5" r="3" />
+    <path d="M33 28.5l-1.8-1.4" stroke-width="1.5" />
+  </svg>
+)}

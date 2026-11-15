@@ -1,0 +1,80 @@
+---
+import { fill, t, type Lang } from '../i18n';
+import { formats, getLatestRelease, type Format } from '../lib/release';
+import FormatIcon from './FormatIcon.astro';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const tr = t(lang).download;
+const release = await getLatestRelease();
+const date = release.date
+  ? new Intl.DateTimeFormat(lang, { dateStyle: 'long', timeZone: 'UTC' }).format(release.date)
+  : '';
+const installDir: Record<Format, string> = {
+  app: '/Applications',
+  vst3: '~/Library/Audio/Plug-Ins/VST3',
+  au: '~/Library/Audio/Plug-Ins/Components',
+};
+/** A path that wraps only after a slash (never inside "Plug-Ins"). */
+const breakablePath = (path: string) =>
+  path.split('/').map((part) => `<span class="nowrap">${part}</span>`).join('/<wbr>');
+const glyph: Record<Format, string> = { app: 'APP', vst3: 'VST3', au: 'AU' };
+const quarantine = [
+  'xattr -dr com.apple.quarantine "/Applications/Mini Moop.app"',
+  'xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Mini Moop.vst3"',
+  'xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/"Mini Moop.component"',
+].join('\n');
+---
+<section id="download" class="section">
+  <div class="wrap">
+    <h2>{tr.title}</h2>
+    <p class="intro">{tr.intro}</p>
+    <p class="release-info">
+      {release.version
+        ? <a href={release.url} rel="noopener">{fill(tr.version, { version: release.version, date })}</a>
+        : tr.noRelease}
+    </p>
+
+    <div class="formats">
+      {formats.map((f) => (
+        <a class="format" href={release.links[f]} rel="noopener">
+          <span class="format-head" aria-hidden="true">
+            <FormatIcon format={f} />
+            <span class="format-glyph">{glyph[f]}</span>
+          </span>
+          <span class="format-name">{tr.formats[f].name}</span>
+          <span class="format-detail">{tr.formats[f].detail}</span>
+          <span class="format-install">{tr.installIn} <code set:html={breakablePath(installDir[f])} /></span>
+        </a>
+      ))}
+    </div>
+    <p class="requirements">{tr.requirements}</p>
+
+    <div class="quarantine">
+      <h3>{tr.quarantineTitle}</h3>
+      <p>{tr.quarantineText}</p>
+      <div class="code">
+        <pre><code>{quarantine}</code></pre>
+        <button type="button" class="copy" data-copied={tr.copied}>{tr.copy}</button>
+      </div>
+    </div>
+
+    <p><a href={release.all} rel="noopener">{tr.allReleases} →</a></p>
+  </div>
+</section>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>('.quarantine .copy')) {
+    const label = button.textContent;
+    button.addEventListener('click', async () => {
+      const code = button.parentElement?.querySelector('code')?.textContent ?? '';
+      try {
+        await navigator.clipboard.writeText(code);
+        button.textContent = button.dataset.copied ?? label;
+        setTimeout(() => (button.textContent = label), 2000);
+      } catch {
+        /* clipboard refused: the text can still be selected by hand */
+      }
+    });
+  }
+</script>

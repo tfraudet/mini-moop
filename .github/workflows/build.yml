@@ -1,11 +1,15 @@
 # Builds the Standalone app and the VST3 / AU plugins (universal, macOS 11 or
 # later), runs the tests, and keeps the bundles as an artifact. Runs on every
-# push to main (a merged pull request included), or by hand from the Actions tab.
+# push to main (a merged pull request included) that changes more than the
+# presentation site, or by hand from the Actions tab.
 name: Build
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:

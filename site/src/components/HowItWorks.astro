@@ -1,0 +1,25 @@
+---
+import { t, type Lang } from '../i18n';
+
+interface Props { lang: Lang }
+const tr = t(Astro.props.lang).how;
+---
+<section id="how" class="section">
+  <div class="wrap">
+    <h2>{tr.title}</h2>
+    <p class="intro">{tr.intro}</p>
+    <div class="cards">
+      {tr.cards.map((card, i) => (
+        <article class="card">
+          <span class="card-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+          <h3>{card.title}</h3>
+          <p>{card.text}</p>
+        </article>
+      ))}
+    </div>
+    <h3 class="features-title">{tr.featuresTitle}</h3>
+    <ul class="features">
+      {tr.features.map((f) => <li>{f}</li>)}
+    </ul>
+  </div>
+</section>

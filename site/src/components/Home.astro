@@ -1,0 +1,17 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from './Hero.astro';
+import HowItWorks from './HowItWorks.astro';
+import Listen from './Listen.astro';
+import Download from './Download.astro';
+import type { Lang } from '../i18n';
+
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+---
+<Base lang={lang}>
+  <Hero lang={lang} />
+  <HowItWorks lang={lang} />
+  <Listen lang={lang} />
+  <Download lang={lang} />
+</Base>
