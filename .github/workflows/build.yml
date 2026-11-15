@@ -1,0 +1,77 @@
+# Builds the Standalone app and the VST3 / AU plugins (universal, macOS 11 or
+# later), runs the tests, and keeps the bundles as an artifact. Runs on every
+# push to main (a merged pull request included), or by hand from the Actions tab.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JUCE_TAG: 9.0.5
+  CATCH2_TAG: v3.16.1
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the tools
+        # cmake is on the runner; ngspice runs the [spice] validation tests
+        run: brew install ninja ngspice
+
+      - name: Cache JUCE and Catch2
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-juce-${{ env.JUCE_TAG }}-catch2-${{ env.CATCH2_TAG }}
+
+      - name: Fetch JUCE and Catch2
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b "$JUCE_TAG" https://github.com/juce-framework/JUCE.git deps/JUCE
+          git clone --depth 1 -b "$CATCH2_TAG" https://github.com/catchorg/Catch2.git deps/Catch2
+
+      - name: Configure
+        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/release
+
+      - name: Test
+        run: ctest --test-dir build/release --output-on-failure
+
+      - name: Check the architectures
+        run: |
+          archs=$(lipo -archs "build/release/MiniMoop_artefacts/Release/VST3/Mini Moop.vst3/Contents/MacOS/Mini Moop")
+          echo "VST3: $archs"
+          [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]
+
+      - name: Package
+        run: |
+          version=$(grep -m1 -oE 'project\(MiniMoop VERSION [0-9.]+' CMakeLists.txt | awk '{print $3}')
+          name="MiniMoop-${version}-macOS-${GITHUB_SHA::7}"
+          echo "PACKAGE=$name" >> "$GITHUB_ENV"
+          mkdir -p "dist/$name"
+          src=build/release/MiniMoop_artefacts/Release
+          ditto "$src/Standalone/Mini Moop.app" "dist/$name/Mini Moop.app"
+          ditto "$src/VST3/Mini Moop.vst3" "dist/$name/Mini Moop.vst3"
+          ditto "$src/AU/Mini Moop.component" "dist/$name/Mini Moop.component"
+          (cd dist && ditto -c -k --keepParent "$name" "$name.zip")
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE }}
+          path: dist/${{ env.PACKAGE }}.zip
+          if-no-files-found: error

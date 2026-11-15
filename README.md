@@ -30,6 +30,8 @@ cmake --build build/release
 
 At the end of the build, the VST3 and AU are copied to `~/Library/Audio/Plug-Ins/{VST3,Components}`. The Standalone app is in `build/release/MiniMoop_artefacts/Release/Standalone/`.
 
+GitHub Actions (`.github/workflows/build.yml`) runs the same build and the tests on every push to `main`, or by hand from the Actions tab, and keeps the app, the VST3 and the AU as a zipped artifact. These bundles are not signed with a Developer ID nor notarized: after downloading, clear the quarantine with `xattr -dr com.apple.quarantine <bundle>`.
+
 ### Universal binaries (Apple Silicon and Intel)
 
 By default the build produces **universal** binaries containing both an Apple Silicon (`arm64`) and an Intel (`x86_64`) version, for macOS 11 or later. Check with:
