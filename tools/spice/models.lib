@@ -32,3 +32,8 @@
 .model D1N4004 D (IS=14.11n N=1.984 RS=33.89m CJO=25.89p M=.44 VJ=.3245 BV=600 TT=5.7u)
 * 2N4303 N-channel JFET: IDSS 4 to 10 mA, VGS(off) under 6 V; gate leakage tens of pA.
 .model J2N4303 NJF (VTO=-2.5 BETA=1.1m LAMBDA=5m RD=20 RS=20 CGS=4p CGD=2p IS=3e-11)
+* MPS-U55: PNP driver, 2 A, hFE 50 minimum at 100 mA, fT 50 MHz (data sheet); generic card.
+.model MPSU55 PNP (IS=1e-13 BF=100 VAF=100 IKF=1 BR=4 RB=5 RE=0.05 RC=0.2
++ CJE=60p CJC=30p TF=3n TR=100n EG=1.11 XTI=3 XTB=1.5)
+* 1N821: temperature-compensated reference, 6.2 V +/-5 % at 7.5 mA, 15 ohm maximum (data sheet).
+.model D1N821 D (IS=1e-14 N=1 RS=10 BV=6.2 IBV=7.5m CJO=50p)

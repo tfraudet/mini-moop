@@ -2,17 +2,25 @@ modulation mix amplifier (circuit 15): gain, and the output's limits against the
 .include models.lib
 .include board3-modmix.lib
 .options temp=25 tnom=25
-.param rw=1.2k
+.param rw=1.2k nmod=3
 vp vp 0 10
 vn vn 0 -10
+* the oscillators' summers hold their inverting nodes at -5 V (Fig. 9-3: IC1's + input through
+* R10 1K on the -5 V line), so each MOD input is 51.1K from the line to -5 V; board 1's R163 33K
+* from +10 V on the MOD bus (pin 7A) feeds back about the current three of them draw
+v5 m5 0 -5
+vp10 p10 0 10
 vo osc3 0 dc 0
 vno noise 0 dc 0
 x1 osc3 noise out vp vn modmix mix=0
 * the line: R57 1K, the MODULATION wheel R1402 as a rheostat to ground (1.2K fully forward),
-* the loads OSC. MODULATION and FILTER MODULATION connect: three 51.1K MOD inputs and R52 33K
+* the loads OSC. MODULATION and FILTER MODULATION connect: the MOD bus (three 51.1K inputs to
+* -5 V with OSC. 3 CONTROL on, two with it off; R163) and R52 33K to the filter's control node
+* (Q26's base, near ground)
 r57 out line 1k
 rwh line 0 {rw}
-rmod line 0 {51.1k/3}
+rmod line m5 {51.1k/nmod}
+r163 line p10 33k
 rfil line 0 33k
 .control
 foreach w 1200 600 200
@@ -22,8 +30,19 @@ foreach w 1200 600 200
   meas dc vlow min v(out)
   meas dc vhigh max v(out)
   meas dc knee when v(out)=-0.5
-  wrdata modmix_{$w}.dat v(out)
+  wrdata modmix_{$w}.dat v(out) v(line)
   echo "wheel $w ohm: output $&vlow to $&vhigh V, -0.5 V at an oscillator 3 input of $&knee V"
+  meas dc a15 find v(out) at=1.5
+  meas dc a2 find v(out) at=2
+  meas dc am2 find v(out) at=-2
+  meas dc line0 find v(line) at=0
+  echo "  output at +1.5 / +2 / -2 V: $&a15 $&a2 $&am2; the line at rest $&line0 V"
 end
+* the line at rest, the wheel fully forward, with OSC. 3 CONTROL off: two MOD inputs
+alterparam rw = 1200
+alterparam nmod = 2
+reset
+op
+echo "two MOD inputs, wheel 1200 ohm: the line at rest $&v(line) V, the output $&v(out) V"
 .endc
 .end

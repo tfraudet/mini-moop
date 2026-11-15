@@ -19,13 +19,14 @@ Wire colours: RED [BRN] = +10 V, WHT [RED] = ground, BLK [ORN] = -10 V.
 
 | What | Reading | Conf. |
 |---|---|---|
-| Octave string | R25, R26, R27, R28 1K (matched set), R29 4.75K 1 %, in series on SW3; the six taps go to SW4 and SW5 in parallel; each switch's wiper to its buffer on board 6 | C |
-| R59 | in series at the R25 end of the string ("deleted above 10175"); value illegible, 8.2K deduced: 5 V / (4K + 4.75K + R59 + R169 68.1 + R168 ~12) must give 0.2935 mA, one octave a 1K into the 15K RNG inputs | D |
+| Octave string | R25, R26, R27, R28 1K (matched set), R29 4.75K 1 %, in series on SW3; the six taps go to SW4 and SW5 in parallel; each switch's wiper to its buffer on board 6. CO1A-17 (board 1's -5 V OUT) lands on SW3's lug 6, R25's end: the 2' tap is the -5 V reference itself; R29's end is LO | C |
+| R59 | ("deleted above 10175") between the string's LO end and CO1A-20 (OCTAVE SW.), which returns through R169 and R168 to -10 V; an earlier reading had it at the R25 end, but then the RNG inputs would carry some 160 uA at 2' that no RANGE trim could balance. Value illegible, 8.2K deduced: 5 V / (4K + 4.75K + R59 + R169 68.1 + R168 ~12) must give 0.2935 mA, one octave a 1K into the 15K RNG inputs | D |
 | LO | the tap beyond R29: 4.75 octaves below 32' (6.75 below 8') | C |
 | TUNE R1 | 5K linear: pin 3 to +10 V, pin 1 through R22 to ground, wiper to board 1 pin 5A (R21 / R88 / R120 560K) | C |
 | R22 | drawn value reads "5.1K" (parts table: 3.3K). 5.1K gives 5.4 semitones of travel, 3.3K gives 6.6; SM 5.35 asks for 4 to 6 | P |
 | FREQUENCY R4 (osc 2), R5 (osc 3) | 5K linear: pin 1 to +10 V, pin 3 through R35 / R41 3.3K to ground (the ground of SW6 / SW7 pin 10), wiper to board 1 pin 12A / 9A | P |
 | OSC. 3 CONTROL SW2 | pole 1: R5's wiper (pin 2) to board 1 pin 10A (pin 1) when OFF; pole 2: board 1 pin 16A (5) to 15A (6) when ON | C |
+| OSC. MODULATION SW1 | board 1's MOD bus (CO1A-7, pin 5) to the modulation line (SO5-1) when ON, to ground (pins 4 and 1) when OFF | C |
 | Pulse width bias, SW6 pole B | -10 V, R32 7.5K, R33 1K, R34 1.5K, ground (pin 10): taps at 0, -1.5 and -2.5 V. Osc 2: R38, R39, R40; osc 3: R42, R43, R44 | P |
 | Shark tooth, SW6 pole A | R30 47K from the sawtooth (CO1B-9), R31 10K from the triangle (CO1B-21). Osc 2: R36, R37 | C |
 | Mixer | VOLUME pots R6, R7, R8, R10 (pin 1 ground), wiper through R45, R47, R49 33K (noise R48 11K) to the switch's common; ON: to the bus, OFF: to ground. Ext: R46 33K | C |
@@ -54,9 +55,10 @@ Oscillator 1 (2 and 3 the same with their own designators).
 | Triangle output | Q2's collector +3.3 to -0.5 V, follower Q1, R28 750 / R23 8200 to -10 V: "+1.7 TO -1.7V", 0.69K source | C |
 | Rectangle | Schmitt Q11 2N4058 / Q12 2N3392, sawtooth through R1 43K and the width bias through R40 43K; output R22 4700 / R13 6200, "(3.5V)" | C |
 | Oscillator 3 | inputs R110, R120, R129, R136, R144 and the range trim R109 / R108 on a bus (16A) that SW2 joins to the node (15A); RNG R179 always connected | C |
-| Oscillator 3 FREQUENCY | IC8 741 inverter: R181 51K from 9A, R180 15K from 10A, feedback R170 15K 1 %, offset R162 3K from +10 V, output through R143 51.1K 1 % to the node | C |
+| Oscillator 3 FREQUENCY | IC8 741 inverter: R181 51K from 9A, R180 15K from 10A, feedback R170 15K 1 %, offset R162 3K from +10 V (Table 7-5: 3.01K 1 %), + input on R150 1K from +10 V and R155 3.01K 1 % to ground (7.51 V), output through R143 51.1K 1 % to the node | C |
+| MOD and EXT buses | R163 33K and R156 33K from +10 V (the top of R162, IC8's supply pin) onto the MOD (7A) and EXT (8A) buses: they give back about what the three 51.1K inputs on each bus draw into the summers' -5 V | C |
 | Reverse sawtooth | Q37 2N3392 from sawtooth 3 through R171 33K, R175 7500, R176 13K: "(+1.7 TO -1.7V) LOADED" | P |
-| -5 V reference | R177 / R173 10K 1 %, IC9 741, Q38 2N3392; octave trim R168 25 wirewound with R169 68.1 1 % from the string's end to ground | C |
+| -5 V reference | R177 / R173 10K 1 % from ground and from -10 V into IC9's + input, IC9 741, Q38 2N3392 (-5 V OUT, 17A), sensed on 18A through R178 5.1K; octave trim R168 25 wirewound with R169 68.1 1 % from the string's end (20A) to -10 V (IC9's pin 4) | C |
 
 ## Board 4, filter and VCA (Fig. 9-11, page 13)
 
@@ -90,7 +92,7 @@ Oscillator 1 (2 and 3 the same with their own designators).
 | Glide drives | Q24 saturated: about +9.8 V; Q24 off: R59 / R54, -4.44 V | D |
 | Trigger section | the keyboard's trigger bus (+10 V with a key down, -10 V otherwise; drawing 1436) through CR10 1N34A and R60 100K into C7 .1 uF, R55 47K into Q20's base; Q20's collector on R32 10K from +9.3 V, R19 10K into Q12, whose collector on R23 3.3K is the V-trigger | P |
 
-## Board 3, noise and modulation (Fig. 9-8, page 10; R. A. Moog drawings 1431, 1444)
+## Board 3, regulators, noise and modulation (Fig. 9-8, page 10; R. A. Moog drawings 1431, 1444)
 
 The board's lower rail is -10 V (pins 17 / 18): the emitters and the RC branches return to it, not
 to ground. Drawing 1431 marks Q3's and Q6's collectors at +3.8 V and the three outputs at -4 dBm.
@@ -102,6 +104,7 @@ to ground. Drawing 1431 marks Q3's and Q6's collectors at +3.8 V and the three o
 | Pink network | R16 10K; C3 .12 with R8 3.3K; **C2 .033 with R13 220**; C1 2.5 uF into Q3 | C |
 | Pink amplifier | Q3 2N3392, R3 3.3K, R1 120 to -10 V, bias R7 / R6 560K decoupled by C4 2.5 uF; output through C20 2.5 uF to pin 6 | C |
 | Red | R12 10K into C7 .15, C8 2.5 uF into Q6 2N3392: a common emitter stage, R24 10K load from +10 V, R15 3.9K emitter, base biased from the collector through R28 / R23 2.2M decoupled by C10 .1, C22 .15 across the load; output through C28 10 uF to pin 2, R59 100K. Drawing 1431 has the same stage (Q905, R917, R918, C910) | C |
+| Regulators (circuit 10) | +10 V: Q1 MPS-U55 from +UNREG (R4 820), driven by Q5 TIS-92 through R10 820 (R18 33, C6 100 pF); error pair Q9 / Q8 2N4058 on R31 560 from the output; CR3 1N821 from the sense line with R44 511 1 % to Q9's base; R39 590 1 % / R21 25 WW (+10 V ADJ) / R34 332 1 % to Q8's base, C13 .01, C30 47 pF; Q9's collector on R27 300 and through R20 820 to Q5; start-up Q2 TIS-92 (R2 10K / R11 820, R5 12K, R14 12K); R45 10 from the sense line (pins 13 / 14) to the output (11 / 12); C24 80 uF. The sense pins come from board 1 (CO1B-1, -2, Fig. 9-16) | C |
 | Modulation amplifier (circuit 15; drawing 1444) | MODULATION MIX R3 25K's two sides through R64 / R62 43K into Q18's base; pair Q18 / Q17 2N3392 on R54 43K to -10 V, Q17's base grounded, its collector on R42 6.2K from +10 V into Q7 2N4058; R38 390 in series with C14 .022 from Q7's base to its collector; Q7's collector pulled down only by R30 10K to -10 V, fed back through R60 91K, out through R57 1K to the line | P |
 
 ## Device models (`models.lib`)
@@ -110,7 +113,7 @@ Only the gain bins and the type come from data sheets; the other parameters are 
 small-signal silicon planar part. `sensitivity.cir` shows what depends on them: over the TIS97's
 bin (hFE 250 to 700) the filter's output stage gains 63 to 71 (68.0 at the typical 440) and the VCA
 1.92 to 1.99; a saturation current three times smaller or larger moves them by 0.5 and 1.1 %.
-The units draw the first, the second is negligible.
+The units draw the first, the second is negligible. MPS-U55 and 1N821 (`regulator.cir` only) are generic cards on their data sheets' ratings.
 
 ## Benches
 
@@ -128,7 +131,8 @@ Run with `ngspice -b <file>.cir`.
 | `noise.cir` | circuit 3 on its -10 V rail: Q3's collector +2.3 V and Q6's +4.1 V (drawing 1431: +3.8 V); Q3's gain 16.9 and input resistance 26.9K at 1 kHz; red against pink, +4.8 dB at 20 Hz to -19.5 dB at 500 Hz. Writes `noise_ac.dat`, the pink and red transfers from white | `NoiseSource.h` (Q3's gain and input resistance, the red stage's 1.81); `tests/test_service_manual.cpp`: the red against the pink within 1 dB from 20 to 500 Hz |
 | `noise_levels.py` | from `noise_ac.dat`: the white noise's bandwidth for which the three outputs come closest to one level, as drawing 1431 marks them: 37 kHz, pink then 1.1 dB above white and red 0.7 dB below | `NoiseSource::whiteBandwidth` |
 | `shapers.cir` | board 1's waveshapers: the triangle (+1.53 V at the top of the sawtooth, -1.97 V at its lowest, 1.55 V at the end: 3.49 V peak to peak about -0.21 V), the sawtooth output +/-2.09 V, the rectangle's width for the three bias taps (0 / -1.5 / -2.5 V: high for 50.1 / 31.7 / 19.9 % of the cycle, swinging 0 to -4.3 V unloaded, against the drawing's "(3.5V)": not reconciled). Writes `triangle.dat`, the triangle's transfer, on each run | `VcoCore.h`: the triangle's peak and rounding fitted to `triangle.dat`, the comparator thresholds; `tests/test_vco.cpp`: the triangle within 40 mV, the widths |
-| `modulation.cir` | circuit 15 (`board3-modmix.lib`) with MODULATION MIX at oscillator 3, the line loaded by the three MOD inputs and R52, for the wheel at 1.2K, 600 and 200 ohm: gain -0.829, standing offset +0.041 V, the output's floor -1.69 / -1.34 / -1.06 V and its bend into it. Writes `modmix_<wheel>.dat` | `ModulationMix.h` (gain, offset, floor, knee); `tests/test_noise_a440.cpp`: within 0.02 V |
+| `modulation.cir` | circuit 15 (`board3-modmix.lib`) with MODULATION MIX at oscillator 3, the line loaded by board 1's MOD bus (three MOD inputs to the summers' -5 V, R163 33K from +10 V) and R52, for the wheel at 1.2K, 600 and 200 ohm: gain -0.829, standing offset +0.041 V, the output's floor -1.66 / -1.32 / -1.05 V and its bend into it, the line at rest +0.026 / +0.018 / +0.008 V; with two MOD inputs (OSC. 3 CONTROL off) and the wheel forward, +0.078 V. Writes `modmix_<wheel>.dat` (the output and the line) | `ModulationMix.h` (gain, offset, the line, floor, knee); `tests/test_noise_a440.cpp`: within 0.02 V, the line within 3 mV |
+| `regulator.cir` | circuit 10's +10 V regulator, sensing at board 1 through the harness and the sense wire (their resistance, 0.1 and 0.5 ohm, is not drawn): 9.91 V with +10 V ADJ at mid travel; 0.06 to 0.08 mV per mA drawn at board 1 from 100 Hz to 1 kHz, 0.16 at 10 kHz; with R45 a wire (Folkman XII) 0.31 mV per mA | README ("rails are ideal"): not modelled, under a tenth of a cent of pitch per mA |
 | `trigger.cir` | circuit 8's trigger section: the bus through CR10, R60, C7, R55 into Q20, Q12's V-trigger on R23: up 7.9 ms after the key with C7 starting at -10 V (CR10's leakage between notes), down 10.8 ms after the release | `TriggerSection.h` (Q20's Vbe and saturating current fitted to the two delays); `tests/test_contour.cpp` |
 | `a440.cir` | circuit 13 as drawn, R68 at its end and the trims at 600 pF: 433 Hz (the trims reach 440 Hz on a unit), 1.63 V peak to peak at Q4's emitter. Writes `a440.dat` | `a440_harmonics.py` |
 | `a440_harmonics.py` | from `a440.dat`, over whole periods: a 0.854 V peak fundamental, harmonics 14.3, 6.1, 2.9, 1.9, 0.8 % (2nd to 6th) | `SynthEngine.h` (`refPeak`, `refHarmonics`) |

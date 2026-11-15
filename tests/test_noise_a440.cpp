@@ -153,24 +153,32 @@ TEST_CASE ("Modulation amplifier: gain and the floor of its one-way output (ngsp
 {
     // Fig. 9-8 circuit 15 against ngspice on the drawn circuit
     // (tools/spice/modulation.cir): oscillator 3 alone (MODULATION MIX at 0),
-    // the line loaded by the three MOD inputs and R52, for three positions
-    // of the MODULATION wheel. Columns: the wheel (ohm), then the output for
-    // +1.5 V, +2 V and -2 V at oscillator 3's input.
-    struct Row { double wheel, at15, at2, atMinus2, floor; };
-    const Row bench[] = { { 1200.0, -1.196, -1.595, 1.702, -1.692 },
-                          { 600.0, -1.183, -1.336, 1.697, -1.336 },
-                          { 200.0, -1.056, -1.055, 1.691, -1.056 } };
+    // the line loaded by board 1's MOD bus (three inputs to the summers' -5 V,
+    // R163 from +10 V) and R52, for three positions of the MODULATION wheel. Columns: the wheel (ohm),
+    // the output for +1.5 V, +2 V and -2 V at oscillator 3's input, its
+    // floor, and the line with oscillator 3's input at 0 V.
+    struct Row { double wheel, at15, at2, atMinus2, floor, lineAtRest; };
+    const Row bench[] = { { 1200.0, -1.195, -1.591, 1.702, -1.661, 0.0262 },
+                          { 600.0, -1.182, -1.324, 1.697, -1.325, 0.0183 },
+                          { 200.0, -1.053, -1.052, 1.691, -1.053, 0.0083 } };
     const double gain = ModulationMix::amplifier (0.0).first;
     CHECK (gain == Approx (0.829).epsilon (0.005));
+    constexpr double off = ModulationMix::outputOffset;
     for (const auto& r : bench)
     {
-        const double rLine = 1.0 / (1.0 / r.wheel + 3.0 / 51.1e3 + 1.0 / 33.0e3);
-        const double floor = ModulationMix::outputFloor (rLine);
-        INFO ("wheel " << r.wheel << " ohm: floor " << floor);
-        CHECK (floor == Approx (r.floor).margin (0.015));
-        constexpr double off = ModulationMix::outputOffset;
-        CHECK (ModulationMix::limit (-gain * 1.5 + off, floor) == Approx (r.at15).margin (0.02));
-        CHECK (ModulationMix::limit (-gain * 2.0 + off, floor) == Approx (r.at2).margin (0.02));
-        CHECK (ModulationMix::limit (gain * 2.0 + off, floor) == Approx (r.atMinus2).margin (0.02));
+        const auto line = ModulationMix::line (r.wheel, 3, true);
+        INFO ("wheel " << r.wheel << " ohm: floor " << line.floor << ", line at rest " << line.rest + line.divider * off);
+        CHECK (line.floor == Approx (r.floor).margin (0.015));
+        CHECK (line.rest + line.divider * off == Approx (r.lineAtRest).margin (0.003));
+        CHECK (ModulationMix::limit (-gain * 1.5 + off, line.floor) == Approx (r.at15).margin (0.02));
+        CHECK (ModulationMix::limit (-gain * 2.0 + off, line.floor) == Approx (r.at2).margin (0.02));
+        CHECK (ModulationMix::limit (gain * 2.0 + off, line.floor) == Approx (r.atMinus2).margin (0.02));
     }
+    // OSC. 3 CONTROL off: two inputs, the line at rest 0.0777 V (ngspice).
+    const auto two = ModulationMix::line (1200.0, 2, false);
+    CHECK (two.rest + two.divider * 0.0428 == Approx (0.0777).margin (0.003));
+    // The wheel at its back stop grounds the line; with OSC. MODULATION off
+    // the MOD bus is on ground, not on the line.
+    CHECK (std::abs (ModulationMix::line (0.0, 3, true).rest) < 1.0e-6);
+    CHECK (ModulationMix::line (1200.0, 0, false).rest == 0.0);
 }

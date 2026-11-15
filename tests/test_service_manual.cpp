@@ -216,7 +216,13 @@ TEST_CASE ("5.35 Range of the TUNE and FREQUENCY controls", "[manual][vco]")
 
 TEST_CASE ("5.36 Oscillator 3 wide range: clicks two to five seconds apart, LO overlaps 32'", "[manual][vco]")
 {
-    for (uint64_t unit : { 1ull, 2ull, 3ull })
+    // With OSC. 3 CONTROL off nothing trims oscillator 3's pitch: R179, R42 and
+    // IC8 through R143 set it (Fig. 9-3, see Voice::osc3FreeCvFor). The drawn
+    // circuit puts the clicks 4.6 s apart nominally; with Table 7-5's 5 % parts
+    // and each unit's RANGE trim, from about 3.9 to 6 s: the units' middle
+    // falls within the check, a third of them a little slower than it asks.
+    std::vector<double> periods;
+    for (uint64_t unit = 1; unit <= 8; ++unit)
     {
         Voice v;
         v.build (unit);
@@ -225,6 +231,13 @@ TEST_CASE ("5.36 Oscillator 3 wide range: clicks two to five seconds apart, LO o
         p.osc[2].wave = Waveform::Sawtooth;
         p.osc[2].range = Range::Lo;
         p.osc[2].frequency = 0.0;
+        const double period = 1.0 / v.oscFrequencyFor (2, p, 60);
+        INFO ("unit " << unit << ": a click every " << period << " s");
+        CHECK (period > 2.0);
+        CHECK (period < 6.5);
+        periods.push_back (period);
+        if (unit > 3)
+            continue;
         // "Assure that the keyboard has no effect on OSCILLATOR-3 pitch"
         CHECK (v.oscFrequencyFor (2, p, 41) == v.oscFrequencyFor (2, p, 84));
         // ... nor the PITCH wheel and TUNE (2.18; Fig. 9-3)
@@ -232,21 +245,23 @@ TEST_CASE ("5.36 Oscillator 3 wide range: clicks two to five seconds apart, LO o
         bent.pitchWheel = 1.0;
         bent.tune = 1.0;
         CHECK (v.oscFrequencyFor (2, bent, 41) == v.oscFrequencyFor (2, p, 41));
-        const double period = 1.0 / v.oscFrequencyFor (2, p, 60);
-        INFO ("unit " << unit << ": a click every " << period << " s");
-        CHECK (period > 2.0);
-        CHECK (period < 5.0);
         // "the high end of the LO range overlaps the low end of the 32' range"
         PanelState top = p, bottom = p;
         top.osc[2].frequency = 1.0;
         bottom.osc[2].range = Range::Ft32;
         CHECK (v.oscFrequencyFor (2, top, 60) > v.oscFrequencyFor (2, bottom, 60));
-        // The FREQUENCY knob is 4.4 times wider: "a frequency sweep of 6 octaves
-        // rather than one octave" (owner's manual)
+        // R180 joins R181 at IC8's input: "a frequency sweep of 6 octaves
+        // rather than one octave" (owner's manual); the drawn values give 7.1
         const double wide = std::log2 (v.oscFrequencyFor (2, top, 60) / v.oscFrequencyFor (2, p, 60));
-        CHECK (wide > 5.2);
-        CHECK (wide < 7.0);
+        INFO ("FREQUENCY spans " << wide << " octaves");
+        CHECK (wide > 6.0);
+        CHECK (wide < 8.0);
     }
+    std::sort (periods.begin(), periods.end());
+    const double median = 0.5 * (periods[3] + periods[4]);
+    INFO ("median " << median << " s");
+    CHECK (median > 2.0);
+    CHECK (median < 5.0);
 }
 
 TEST_CASE ("5.37 Modulation of the oscillators: 13 to 23 semitones with the MOD wheel fully up", "[manual][modulation]")
@@ -268,6 +283,46 @@ TEST_CASE ("5.37 Modulation of the oscillators: 13 to 23 semitones with the MOD 
     // "Set MOD control wheel all the way down. No modulation should be evident."
     p.modWheel = 0.0;
     CHECK (12.0 * pitchSwing (held (p, 57, 3.0)) < 0.05);
+}
+
+TEST_CASE ("Modulation line: the MOD bus's standing currents with OSC. 3 CONTROL off", "[manual][modulation]")
+{
+    // The MOD inputs (51.1K) end on the summers' inverting nodes, held at -5 V
+    // (Fig. 9-3), and R163 33K from +10 V gives back about what three of them
+    // draw; OSC. MODULATION moves the bus from ground to the line. The
+    // oscillators are tuned with it off (Folkman). With OSC. 3 CONTROL off
+    // only two inputs draw: the wheel forward lifts the line through R57, and
+    // oscillator 3's square swings oscillator 1 about a higher centre.
+    PanelState p = levelPanel();
+    p.osc[0].on = true;
+    p.osc[0].range = Range::Ft2;
+    p.osc[2].range = Range::Lo;
+    p.osc[2].wave = Waveform::Square;
+    p.osc3Control = false; // oscillators 1 and 2's inputs: two loads
+    p.modMix = 0.0;
+    p.oscModulation = true;
+    p.modWheel = 0.0;
+    const double f0 = frequencyOf (held (p, 57, 1.0));
+    p.modWheel = 1.0;
+    const auto y = held (p, 57, 6.0);
+    std::vector<double> f;
+    double last = -1.0;
+    for (size_t i = 0; i + 1 < y.size(); ++i)
+        if (y[i] <= 0.0f && y[i + 1] > 0.0f)
+        {
+            const double t = double (i) + y[i] / (y[i] - y[i + 1]);
+            if (last >= 0.0) f.push_back (48000.0 / (t - last));
+            last = t;
+        }
+    std::sort (f.begin(), f.end());
+    const double centre = std::sqrt (f[size_t (0.02 * double (f.size() - 1))] * f[size_t (0.98 * double (f.size() - 1))]);
+    const double shift = 12.0 * std::log2 (centre / f0);
+    // what the line gives: its rest, and the divider on the amplifier's two levels
+    const auto line = ModulationMix::line (1200.0, 2, false);
+    INFO ("centre " << shift << " semitones from the wheel at its back stop; the line at rest " << line.rest << " V");
+    CHECK (line.rest == Approx (0.0564).margin (0.003));
+    CHECK (shift > 0.5);
+    CHECK (shift < 1.3);
 }
 
 TEST_CASE ("5.19 Amount of modulation: the filter goes from 440 Hz to at least 2.4 kHz", "[manual][modulation]")

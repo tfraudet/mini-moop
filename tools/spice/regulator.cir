@@ -1,0 +1,71 @@
++10 V regulator (board 3, circuit 10, Fig. 9-8): its output impedance where it senses
+* As drawn: Q1 MPS-U55 from +UNREG, driven by Q5 through R10 820 (R4 820 base to emitter);
+* the error pair Q9 / Q8 (2N4058) on R31 560 from the output, Q9's base 6.2 V under the sense
+* line (CR3 1N821, R44 511: 7.4 mA, its test current), Q8's base on R39 590 / R21 25 (+10 V
+* ADJ) / R34 332; Q9's collector on R27 300, into Q5's base through R20 820; C13 .01, C30 47 pF,
+* C6 100 pF; Q2 the start-up (R2 10K / R11 820 from the output, R5 12K, R14 12K); C24 80 uF.
+* Fig. 9-16: the sense pins 13 / 14 come from board 1 (CO1B-1, -2), the output leaves on pin 11:
+* the regulator holds the +10 V at the oscillator board, through the harness (rh, not given by
+* any drawing), R45 10 ohm in parallel with it. Folkman XII: R45 replaced by a wire.
+.include models.lib
+.options temp=25 tnom=25
+.param rh=0.2 rs=0.2 r45=10
+vun un 0 18
+q1 o b1 un MPSU55
+r4 un b1 820
+r10 b1 c5 820
+q5 c5 b5 e5 TIS92
+r18 e5 0 33
+c6 c5 b5 100p
+r5 un c2 12k
+q2 c2 b2 0 TIS92
+r2 o b2 10k
+r11 b2 0 820
+r14 c2 b5 12k
+r20 c9 b5 820
+r27 c9 0 300
+r31 o ee 560
+q9 c9 zb ee Q2N4058
+q8 0 wb ee Q2N4058
+dcr3 zb s3 D1N821
+r44 zb 0 511
+c30 zb wb 47p
+r39 s3 t 590
+r21 t wb 12.5
+r21b wb u 12.5
+r34 u 0 332
+c13 wb 0 0.01u
+c24 o 0 80u
+* the output through the harness (rh) to board 1, whose +10 V comes back on the sense wire (rs)
+* to pin 13 (s3); R45 joins pin 13 to the output on board 3
+rharn o sense {rh}
+rsense sense s3 {rs}
+r45 s3 o {r45}
+* the loads: board 1 at the sense point, the other boards at the output (DC); a test current
+* into board 1's +10 V
+rload1 sense 0 200
+rload2 o 0 100
+iac 0 sense dc 0 ac 1m
+.control
+foreach h 0.1 0.5
+  alterparam rh = $h
+  alterparam rs = $h
+  reset
+  op
+  echo "harness $h ohm: output $&v(o) V, board 1 $&v(sense) V, Q1 $&@q1[ic] A"
+  ac dec 5 20 20k
+  meas ac z100 find vm(sense) at=100
+  meas ac z1k find vm(sense) at=1k
+  meas ac z10k find vm(sense) at=10k
+  echo "  impedance at board 1 per mA: 100 Hz $&z100, 1 kHz $&z1k, 10 kHz $&z10k (V)"
+end
+* Folkman's modification: R45 a wire, the sense taken at the regulator
+alterparam rh = 0.5
+alterparam rs = 0.5
+alterparam r45 = 1m
+reset
+ac dec 5 20 20k
+meas ac w1k find vm(sense) at=1k
+echo "  R45 a wire, harness and sense wire 0.5 ohm each: at 1 kHz $&w1k V per mA"
+.endc
+.end

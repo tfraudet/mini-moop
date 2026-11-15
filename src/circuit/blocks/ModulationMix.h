@@ -33,9 +33,10 @@
 // current up from +10 V, while the output's only pull-down is R30 10K to
 // -10 V. Below zero the output stops where R30 meets what it drives: R57 1K
 // and the line (the MODULATION wheel, a rheostat to ground, and the loads the
-// switches connect), and R60 back to the summing node. With the wheel fully
-// forward that is -1.7 V, near its back end -1 V: oscillator 3's sawtooth
-// and rectangles, and the noise's peaks, are cut on that side. ngspice on the
+// switches connect: the oscillators' MOD inputs return to their summers' -5 V
+// node, R163 on board 1 to +10 V), and R60 back to the summing node. With the
+// wheel fully forward that is -1.66 V, near its back end -1.05 V: oscillator 3's sawtooth and
+// rectangles, and the noise's peaks, are cut on that side. ngspice on the
 // drawn circuit (tools/spice/modulation.cir): a gain of 0.829 where the
 // virtual ground gives 0.840, then a floor within 0.01 V of the divider's.
 
@@ -63,20 +64,49 @@ struct ModulationMix
         and, behind it, the inputs' networks (about 120K; ngspice's floors). */
     static constexpr double rFeedbackSide = 120.0e3;
 
-    /** The output's lowest voltage, Q7 off, for the line's resistance to ground. */
-    static double outputFloor (double rLine) noexcept
+    /** The output's lowest voltage, Q7 off, for the line seen from R57: its
+        resistance `rLine` and its open-circuit voltage `vLine` (the MOD inputs
+        pull it towards the summers' -5 V). */
+    static double outputFloor (double rLine, double vLine = 0.0) noexcept
     {
-        const double rl = 1.0 / (1.0 / (rOut + rLine) + 1.0 / rFeedbackSide);
-        return -10.0 * rl / (rPullDown + rl);
+        const double gLine = 1.0 / (rOut + rLine);
+        return (-10.0 / rPullDown + vLine * gLine) / (1.0 / rPullDown + gLine + 1.0 / rFeedbackSide);
+    }
+
+    static constexpr double rModInput = 51.1e3;   // R32 / R72 / R136: each oscillator's MOD input
+    static constexpr double rFilterInput = 33.0e3; // R52, into the filter's control node (near ground)
+    static constexpr double vSummerNode = -5.0;    // where the MOD inputs end (Fig. 9-3)
+    static constexpr double rBusPullUp = 33.0e3;   // R163, from +10 V on board 1's MOD bus (pin 7A)
+
+    /** The line beyond R57, for the wheel's resistance to ground and the
+        inputs the switches connect. OSC. MODULATION (SW1) puts board 1's MOD
+        bus on the line: `modInputs` 51.1K inputs to the summers' -5 V (three
+        with OSC. 3 CONTROL on, two with it off) and R163 from +10 V, which
+        feeds back about what three of them draw. */
+    struct Line
+    {
+        double divider; // line volts per volt of the amplifier's output
+        double rest;    // the line (V) with the amplifier's output at 0 V
+        double floor;   // the amplifier's lowest output (V)
+    };
+    static Line line (double rWheel, int modInputs, bool filterInput) noexcept
+    {
+        const double gMod = double (modInputs) / rModInput;
+        const double gPull = modInputs > 0 ? 1.0 / rBusPullUp : 0.0;
+        const double gLine = (rWheel > 0.0 ? 1.0 / rWheel : 1.0e12) + gMod + gPull + (filterInput ? 1.0 / rFilterInput : 0.0);
+        const double rLine = 1.0 / gLine;
+        const double open = (vSummerNode * gMod + 10.0 * gPull) * rLine; // without R57: the bus's pull
+        const double divider = rLine / (rOut + rLine);
+        return { divider, open * (1.0 - divider), outputFloor (rLine, open) };
     }
 
     /** The output (V) for its linear value `v`: as Q7's current falls the
         loop loses gain, and the output bends into the floor along a hyperbola
-        0.11 V wide (ngspice: 6 mV short of the line 0.5 V above the floor,
-        20 mV 0.12 V above it). */
+        0.07 V wide (within 12 mV of ngspice from 0.5 V below the floor to 1 V
+        above it, at the three wheel positions of tools/spice/modulation.cir). */
     static double limit (double v, double floor) noexcept
     {
-        constexpr double knee = 0.11;
+        constexpr double knee = 0.07;
         const double d = v - floor;
         return floor + 0.5 * (d + std::sqrt (d * d + knee * knee));
     }
