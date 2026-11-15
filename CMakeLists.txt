@@ -87,6 +87,8 @@ if(MINIMOOP_BUILD_PLUGIN)
         PLUGIN_CODE               MMop
         FORMATS                   VST3 AU Standalone
         PRODUCT_NAME              "Mini Moop"
+        ICON_BIG                  resources/icon.png        # 1024 x 1024, rendered from drawLogo by MiniMoopSnapshot
+        ICON_SMALL                resources/icon_small.png  # 256 x 256
         IS_SYNTH                  TRUE
         NEEDS_MIDI_INPUT          TRUE
         NEEDS_MIDI_OUTPUT         FALSE
@@ -111,8 +113,7 @@ if(MINIMOOP_BUILD_PLUGIN)
         MINIMOOP_BUILD_DATE="${MINIMOOP_BUILD_DATE}"
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
-        JUCE_VST3_CAN_REPLACE_VST2=0
-        JUCE_DISPLAY_SPLASH_SCREEN=0)
+        JUCE_VST3_CAN_REPLACE_VST2=0)
 
     target_link_libraries(MiniMoop
         PRIVATE
@@ -140,7 +141,7 @@ if(MINIMOOP_BUILD_PLUGIN)
     target_compile_definitions(MiniMoopSnapshot PRIVATE
         MINIMOOP_VERSION_STRING="${PROJECT_VERSION}"
         MINIMOOP_BUILD_DATE="${MINIMOOP_BUILD_DATE}"
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_DISPLAY_SPLASH_SCREEN=0)
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_link_libraries(MiniMoopSnapshot PRIVATE
         minimoop_dsp MiniMoopAssets juce::juce_audio_utils juce::juce_dsp
         juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)

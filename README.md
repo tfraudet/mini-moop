@@ -64,7 +64,7 @@ The architecture setting is stored in the CMake cache, so changing it requires a
 
 To test the Intel version on an Apple Silicon Mac, install Rosetta (`softwareupdate --install-rosetta --agree-to-license`) and prefix commands with `arch -x86_64`, for example `arch -x86_64 build/release/minimoop_tests`. If `arch -x86_64 auval` reports "didn't find the component" right after installing, run `killall -9 AudioComponentRegistrar` to refresh the Audio Unit registry.
 
-`build/release/MiniMoopSnapshot_artefacts/Release/MiniMoopSnapshot panel.png [scale] [about|banks|modern|classic]` renders the panel to an image without a host (optionally scaled, with an overlay open, or in a given theme).
+`build/release/MiniMoopSnapshot_artefacts/Release/MiniMoopSnapshot panel.png [scale] [about|banks|modern|classic]` renders the panel to an image without a host (optionally scaled, with an overlay open, or in a given theme). With `icon` as the third argument it renders the application icon instead (the About box logo on a transparent 1024 x 1024 canvas, times the scale): `resources/icon.png` (scale 1) and `resources/icon_small.png` (scale 0.25) are made this way and given to the Standalone app through `ICON_BIG` / `ICON_SMALL` in `CMakeLists.txt`. If the Finder or the Dock keeps showing the old icon, `touch` the app or run `killall Dock`.
 
 If the link step fails with "linking with album file" after a Command Line Tools update, delete `build/release` and build again from scratch. LTO objects built by an older compiler cannot be linked by the new linker.
 
