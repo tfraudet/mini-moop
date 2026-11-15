@@ -24,7 +24,7 @@ cmake_minimum_required(VERSION 3.24)
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Target architectures")
 set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
 
-project(MiniMoop VERSION 1.1.0 LANGUAGES C CXX)
+project(MiniMoop VERSION 1.2.0 LANGUAGES C CXX)
 
 string(TIMESTAMP MINIMOOP_BUILD_DATE "%Y-%m-%d")
 
