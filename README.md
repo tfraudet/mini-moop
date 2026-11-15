@@ -43,7 +43,7 @@ rm -rf build/release && cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=
 
 At the end of the build, the VST3 and AU are copied to `~/Library/Audio/Plug-Ins/{VST3,Components}`. The Standalone app is in `build/release/MiniMoop_artefacts/Release/Standalone/`.
 
-GitHub Actions (`.github/workflows/build.yml`) runs the same build and the tests on every push to `main`, or by hand from the Actions tab, and keeps the app, the VST3 and the AU as a zipped artifact. These bundles are not signed with a Developer ID nor notarized: after downloading, clear the quarantine with `xattr -dr com.apple.quarantine <bundle>`.
+GitHub Actions (`.github/workflows/build.yml`) runs the same build and the tests on every push to `main`, or by hand from the Actions tab (the CPU load test only reports its figures there, as the shared runners' speed varies), and keeps the app, the VST3 and the AU as a zipped artifact. These bundles are not signed with a Developer ID nor notarized: after downloading, clear the quarantine with `xattr -dr com.apple.quarantine <bundle>`.
 
 ### Universal binaries (Apple Silicon and Intel)
 
