@@ -23,6 +23,8 @@ Built with JUCE 9.0.5. Licensed under the GNU AGPLv3 or later (see [License](#li
 
 ## Building (macOS, Command Line Tools are enough)
 
+Local builds on a Mac produce only macOS binaries (the app, VST3 and AU), never Windows binaries. Universal means Apple Silicon + Intel **for macOS**, not multiple operating systems. Windows builds run separately on the Windows runner in GitHub Actions; the commands below do not invoke that workflow.
+
 ```sh
 brew install cmake ninja ngspice          # ngspice: only needed for the validation tests
 git clone --depth 1 -b 9.0.5 https://github.com/juce-framework/JUCE.git deps/JUCE                # optional, otherwise FetchContent
@@ -47,9 +49,11 @@ rm -rf build/release && cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=
 
 At the end of the build, the VST3 and AU are copied to `~/Library/Audio/Plug-Ins/{VST3,Components}`. The Standalone app is in `build/release/MiniMoop_artefacts/Release/Standalone/`.
 
-GitHub Actions (`.github/workflows/build.yml`) runs the same build and the tests on every push to `main`, or by hand from the Actions tab (the CPU load test only reports its figures there, as the shared runners' speed varies), and keeps the app, the VST3 and the AU as a zipped artifact. These bundles are not signed with a Developer ID nor notarized: after downloading, clear the quarantine with `xattr -dr com.apple.quarantine <bundle>`.
+GitHub Actions (`.github/workflows/build.yml`) builds and tests **universal macOS** and **x64 Windows** versions in independent jobs on every push to `main` (except site-only changes). From **Actions > Build > Run workflow**, choose `all`, `macos` or `windows` in the `target` selector to rebuild both platforms or only one. A failed platform does not prevent the other from finishing, and each job can also be re-run separately. The CPU load test only reports its figures, as shared runners' speed varies; live ngspice validation runs on macOS only.
 
-Releases are published by hand on GitHub, with one zip per format, named `MiniMoop-<version>-macOS-App.zip`, `-VST3.zip` and `-AU.zip` (each made with `ditto -c -k --keepParent`, as in the workflow). The download buttons of the website point at the latest release's assets, recognised by these names. The website lives in `site/` (Astro) and is published by `.github/workflows/pages.yml`, which also runs when a release is published: see [`site/README.md`](site/README.md).
+Each job uploads one versioned archive: `MiniMoop-<version>-universal-macos.zip` contains the standalone app, VST3 and AU; `MiniMoop-<version>-x64-windows.zip` contains the standalone executable and VST3. Download the zip inside the corresponding Actions artifact. CI does not install plugins on the runner. The macOS bundles are not signed with a Developer ID nor notarized: after downloading, clear the quarantine with `xattr -dr com.apple.quarantine <bundle>`.
+
+Releases are published by hand on GitHub: upload the two per-platform CI ZIPs above as release assets, keeping their names. The website's macOS and Windows download cards point at these assets on the latest release. A missing archive is marked as not uploaded yet and links to the release page. The website lives in `site/` (Astro) and is published by `.github/workflows/pages.yml`, which also runs when a release is published: see [`site/README.md`](site/README.md).
 
 ### Universal binaries (Apple Silicon and Intel)
 

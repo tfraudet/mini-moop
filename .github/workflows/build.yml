@@ -1,5 +1,5 @@
-# Builds the Standalone app and the VST3 / AU plugins (universal, macOS 11 or
-# later), runs the tests, and keeps the bundles as an artifact. Runs on every
+# Builds the Standalone app and plugins for universal macOS and x64 Windows,
+# runs the tests, and keeps one zip per platform as an artifact. Runs on every
 # push to main (a merged pull request included) that changes more than the
 # presentation site, or by hand from the Actions tab.
 name: Build
@@ -11,12 +11,21 @@ on:
       - 'site/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
+    inputs:
+      target:
+        description: Platform to build
+        type: choice
+        default: all
+        options:
+          - all
+          - macos
+          - windows
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.ref }}-${{ inputs.target || 'all' }}
   cancel-in-progress: true
 
 env:
@@ -25,6 +34,7 @@ env:
 
 jobs:
   macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'macos'
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -48,7 +58,7 @@ jobs:
           git clone --depth 1 -b "$CATCH2_TAG" https://github.com/catchorg/Catch2.git deps/Catch2
 
       - name: Configure
-        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DMINIMOOP_COPY_PLUGIN_AFTER_BUILD=OFF
 
       - name: Build
         run: cmake --build build/release
@@ -71,7 +81,7 @@ jobs:
       - name: Package
         run: |
           version=$(grep -m1 -oE 'project\(MiniMoop VERSION [0-9.]+' CMakeLists.txt | awk '{print $3}')
-          name="MiniMoop-${version}-macOS-${GITHUB_SHA::7}"
+          name="MiniMoop-${version}-universal-macos"
           echo "PACKAGE=$name" >> "$GITHUB_ENV"
           mkdir -p "dist/$name"
           src=build/release/MiniMoop_artefacts/Release
@@ -79,6 +89,59 @@ jobs:
           ditto "$src/VST3/Mini Moop.vst3" "dist/$name/Mini Moop.vst3"
           ditto "$src/AU/Mini Moop.component" "dist/$name/Mini Moop.component"
           (cd dist && ditto -c -k --keepParent "$name" "$name.zip")
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE }}
+          path: dist/${{ env.PACKAGE }}.zip
+          if-no-files-found: error
+
+  windows:
+    if: github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'windows'
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUCE and Catch2
+        id: deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: deps-juce-${{ env.JUCE_TAG }}-catch2-${{ env.CATCH2_TAG }}
+
+      - name: Fetch JUCE and Catch2
+        if: steps.deps.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          git clone --depth 1 -b "$JUCE_TAG" https://github.com/juce-framework/JUCE.git deps/JUCE
+          git clone --depth 1 -b "$CATCH2_TAG" https://github.com/catchorg/Catch2.git deps/Catch2
+
+      - name: Configure
+        run: cmake -S . -B build/release -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DMINIMOOP_COPY_PLUGIN_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build/release --config Release --parallel
+
+      - name: Test
+        # ngspice is not installed here; the [spice] tests skip themselves.
+        run: ctest --test-dir build/release -C Release --output-on-failure -E "CPU load"
+
+      - name: CPU load (report only)
+        continue-on-error: true
+        run: '& build/release/Release/minimoop_tests.exe "CPU load*" -s | Select-String "% of a core|test case|FAILED"'
+
+      - name: Package
+        run: |
+          $match = Select-String -Path CMakeLists.txt -Pattern 'project\(MiniMoop VERSION ([0-9.]+)'
+          $version = $match.Matches[0].Groups[1].Value
+          $name = "MiniMoop-${version}-x64-windows"
+          "PACKAGE=$name" >> $env:GITHUB_ENV
+          New-Item -ItemType Directory -Path "dist/$name" -Force | Out-Null
+          $src = "build/release/MiniMoop_artefacts/Release"
+          Copy-Item "$src/Standalone/Mini Moop.exe" "dist/$name/"
+          Copy-Item "$src/VST3/Mini Moop.vst3" "dist/$name/" -Recurse
+          Compress-Archive -Path "dist/$name" -DestinationPath "dist/$name.zip"
 
       - uses: actions/upload-artifact@v4
         with:

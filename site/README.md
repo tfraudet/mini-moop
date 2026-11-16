@@ -55,15 +55,16 @@ done
 
 ## Downloads and releases
 
-The download buttons are filled at build time from the repository's latest GitHub Release (`src/lib/release.ts`). Each button points at the asset whose name contains `App` (or `Standalone`), `VST3` and `AU` (or `component`). Name the zips like this:
+The two platform download cards are filled at build time from the repository's latest GitHub Release (`src/lib/release.ts`). Upload the archives produced by the Build workflow to that release with these names (matching is case-insensitive):
 
 ```
-MiniMoop-<version>-macOS-App.zip
-MiniMoop-<version>-macOS-VST3.zip
-MiniMoop-<version>-macOS-AU.zip
+MiniMoop-<version>-universal-macos.zip
+MiniMoop-<version>-x64-windows.zip
 ```
 
-Publishing, editing or deleting a release rebuilds the site, so the buttons follow the latest release. Without a release, or when an asset is missing, the buttons open the releases page on GitHub. To check the matching against another repository's releases: `MINIMOOP_RELEASE_REPO=owner/name npm run build`.
+The macOS ZIP contains the app, VST3 and AU; the Windows ZIP contains the executable and VST3. Actions artifacts alone are not public release downloads: upload the inner ZIPs, not the artifact wrappers. Old per-format ZIPs are not matched.
+
+Publishing, editing or deleting a release rebuilds the site, so the cards follow the latest release. When an archive is missing, its card says so and opens the release page instead of claiming to download a ZIP. After adding assets to an already published release, manually run the Pages workflow (or edit the release to trigger a rebuild). To check the matching against another repository's releases: `MINIMOOP_RELEASE_REPO=owner/name npm run build`. Run `npm test` for the asset-matching and missing-release checks.
 
 ## Deployment
 

@@ -5,7 +5,7 @@ const en = {
   meta: {
     title: 'Mini Moop: a Minimoog Model D simulated component by component',
     description:
-      'Mini Moop is a free synthesizer plugin for macOS (VST® 3, AU, standalone app) that simulates the Minimoog Model D at the level of its electronic components.',
+      'Mini Moop is a free synthesizer for macOS and Windows (VST® 3, standalone app, and AU on macOS) that simulates the Minimoog Model D at the level of its electronic components.',
   },
   nav: {
     how: 'How it works',
@@ -18,7 +18,7 @@ const en = {
   hero: {
     tagline: 'A Minimoog Model D, simulated component by component',
     lead:
-      'A free synthesizer for macOS, as a VST® 3 plugin, an Audio Unit and a standalone app. Instead of imitating the sound, it calculates what every transistor, capacitor and resistor of the original circuit does, many thousands of times per second.',
+      'A free synthesizer for macOS and Windows, as a VST® 3 plugin and a standalone app, plus an Audio Unit on macOS. Instead of imitating the sound, it calculates what every transistor, capacitor and resistor of the original circuit does, many thousands of times per second.',
     download: 'Download',
     source: 'Source code on GitHub',
     themes: 'Panel theme',
@@ -63,7 +63,7 @@ const en = {
       'A Factory bank of 52 presets, and your own sound banks to create, import and export',
       'Two panel themes, Modern and Classic, on a resizable vector panel',
       'Adjustable pitch-bend range, stored modulation depth, output-to-input feedback patch',
-      'Universal binaries for Apple Silicon and Intel Macs',
+      'Universal binaries for Apple Silicon and Intel Macs, and x64 binaries for Windows',
     ],
   },
   listen: {
@@ -81,17 +81,27 @@ const en = {
   },
   download: {
     title: 'Download',
-    intro: 'Free and open source. Pick the format your music software uses.',
+    intro: 'Free and open source. Choose your platform: one ZIP contains the app and plugins.',
     version: 'Version {version}, released on {date}',
     noRelease: 'The first release is on its way: the buttons open the releases page on GitHub.',
-    installIn: 'Install in',
-    formats: {
-      app: { name: 'Standalone app', detail: 'Plays on its own with any MIDI keyboard, no music software needed' },
-      vst3: { name: 'VST3 plugin', detail: 'Ableton Live, Bitwig Studio, Cubase, Reaper, Studio One…' },
-      au: { name: 'Audio Unit', detail: 'Logic Pro, GarageBand, MainStage…' },
+    downloadZip: 'Download ZIP',
+    archivePending: 'Archive not uploaded yet — view release',
+    platforms: {
+      macos: {
+        name: 'macOS',
+        detail: 'Standalone app + VST3 + Audio Unit',
+        requirements: 'macOS 11 or later · Apple Silicon & Intel',
+        install: 'Extract the ZIP. Move Mini Moop.app to /Applications, Mini Moop.vst3 to ~/Library/Audio/Plug-Ins/VST3, and Mini Moop.component to ~/Library/Audio/Plug-Ins/Components. Create these plugin folders if needed, then restart your music software.',
+      },
+      windows: {
+        name: 'Windows',
+        detail: 'Standalone app + VST3',
+        requirements: 'Windows 10 or later · x64',
+        install: 'Extract the ZIP before launching Mini Moop.exe. Copy the entire Mini Moop.vst3 folder to C:\\Program Files\\Common Files\\VST3 (administrator permission may be needed), then restart your music software. Audio Units are only available on macOS.',
+      },
     },
-    requirements: 'macOS 11 or later, on an Apple Silicon or Intel Mac.',
-    quarantineTitle: 'Before the first launch',
+    installIntro: 'The standalone app works with a MIDI keyboard, without a host. Use VST3 in compatible music software, or Audio Unit in Logic Pro, GarageBand and MainStage.',
+    quarantineTitle: 'macOS: before the first launch',
     quarantineText:
       'Mini Moop is not signed with an Apple developer certificate, so macOS blocks it after a download. Clear the quarantine flag once, in the Terminal app, on the bundles you installed:',
     copy: 'Copy',

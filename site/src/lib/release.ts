@@ -10,14 +10,14 @@ const RELEASES_URL = `https://github.com/${REPO}/releases`;
 const LATEST_URL = `${RELEASES_URL}/latest`;
 
 export type Format = 'app' | 'vst3' | 'au';
-export const formats: Format[] = ['app', 'vst3', 'au'];
+export const platforms = ['macos', 'windows'] as const;
+export type Platform = (typeof platforms)[number];
 
 /** How a release asset is recognised, from its file name (case-insensitive).
-    Expected names: MiniMoop-<version>-macOS-App.zip, -VST3.zip, -AU.zip */
-const patterns: Record<Format, RegExp> = {
-  vst3: /vst3/i,
-  au: /(^|[^a-z])au([^a-z]|$)|audio.?unit|component/i,
-  app: /(^|[^a-z])app([^a-z]|$)|standalone/i,
+    Matches the complete platform archives produced by the Build workflow. */
+const patterns: Record<Platform, RegExp> = {
+  macos: /^MiniMoop-[0-9.]+-universal-macos\.zip$/i,
+  windows: /^MiniMoop-[0-9.]+-x64-windows\.zip$/i,
 };
 
 export interface Release {
@@ -25,7 +25,7 @@ export interface Release {
   date: Date | null;
   url: string;      // the release page, or the releases list
   all: string;      // the releases list
-  links: Record<Format, string>;
+  links: Record<Platform, string | null>; // null: archive not uploaded yet
 }
 
 interface GitHubAsset { name: string; browser_download_url: string }
@@ -44,7 +44,7 @@ async function fetchLatest(): Promise<Release> {
     date: null,
     url: LATEST_URL,
     all: RELEASES_URL,
-    links: { app: LATEST_URL, vst3: LATEST_URL, au: LATEST_URL },
+    links: { macos: null, windows: null },
   };
   try {
     const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
@@ -55,17 +55,13 @@ async function fetchLatest(): Promise<Release> {
       return fallback;
     }
     const rel = (await res.json()) as GitHubRelease;
-    // VST3 first, so that an "AU" or "App" pattern never claims the VST3 zip
-    const remaining = [...rel.assets];
     const links = { ...fallback.links };
-    for (const f of ['vst3', 'au', 'app'] as Format[]) {
-      const i = remaining.findIndex((a) => patterns[f].test(a.name));
-      if (i >= 0) {
-        links[f] = remaining[i].browser_download_url;
-        remaining.splice(i, 1);
+    for (const platform of platforms) {
+      const asset = rel.assets.find((a) => patterns[platform].test(a.name));
+      if (asset) {
+        links[platform] = asset.browser_download_url;
       } else {
-        links[f] = rel.html_url;
-        console.warn(`[release] ${rel.tag_name}: no ${f} asset, its button opens the release page`);
+        console.warn(`[release] ${rel.tag_name}: no ${platform} archive, its card opens the release page`);
       }
     }
     return {

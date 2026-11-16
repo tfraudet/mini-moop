@@ -156,7 +156,11 @@ svg.format-icon {
 .format-detail { color: var(--muted); flex: 1; }
 .format-install { font-size: 0.85rem; color: #8a8278; }
 .format-install code { color: var(--cream); }
+.format-cta { color: var(--orange); font-weight: 600; margin-top: 0.75rem; }
 .requirements { color: var(--muted); margin: 1.25rem 0 2.5rem; }
+.install-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+.install-notes h3 { font-size: 1.15rem; }
+.install-notes p { color: var(--muted); overflow-wrap: anywhere; margin: 0; }
 
 .quarantine { background: var(--bg-alt); border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 2rem; }
 .quarantine h3 { font-size: 1.15rem; }

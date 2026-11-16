@@ -38,6 +38,7 @@ endif()
 
 option(MINIMOOP_BUILD_PLUGIN "Build the JUCE plugin" ON)
 option(MINIMOOP_BUILD_TESTS  "Build the unit tests" ON)
+option(MINIMOOP_COPY_PLUGIN_AFTER_BUILD "Install plugins after building" ON)
 
 include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
@@ -57,9 +58,14 @@ add_library(minimoop_dsp STATIC
     src/engine/SynthEngine.cpp
 )
 target_include_directories(minimoop_dsp PUBLIC src)
-target_compile_options(minimoop_dsp PRIVATE -Wall -Wextra -Wno-unused-parameter)
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_options(minimoop_dsp PRIVATE -O3 -ffp-contract=fast)
+if(MSVC)
+    target_compile_definitions(minimoop_dsp PUBLIC _USE_MATH_DEFINES)
+    target_compile_options(minimoop_dsp PRIVATE /W4 /wd4100 $<$<CONFIG:Release>:/O2>)
+else()
+    target_compile_options(minimoop_dsp PRIVATE -Wall -Wextra -Wno-unused-parameter)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        target_compile_options(minimoop_dsp PRIVATE -O3 -ffp-contract=fast)
+    endif()
 endif()
 set_target_properties(minimoop_dsp PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -94,7 +100,7 @@ if(MINIMOOP_BUILD_PLUGIN)
         NEEDS_MIDI_OUTPUT         FALSE
         IS_MIDI_EFFECT            FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-        COPY_PLUGIN_AFTER_BUILD   TRUE
+        COPY_PLUGIN_AFTER_BUILD   ${MINIMOOP_COPY_PLUGIN_AFTER_BUILD}
         VST3_CATEGORIES           Instrument Synth
         AU_MAIN_TYPE              kAudioUnitType_MusicDevice)
 
@@ -172,7 +178,9 @@ if(MINIMOOP_BUILD_TESTS)
     target_link_libraries(minimoop_tests PRIVATE minimoop_dsp Catch2::Catch2WithMain)
     target_compile_definitions(minimoop_tests PRIVATE
         MINIMOOP_SPICE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tools/spice")
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    if(MSVC)
+        target_compile_options(minimoop_tests PRIVATE $<$<CONFIG:Release>:/O2>)
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_options(minimoop_tests PRIVATE -O2)
     endif()
 

@@ -56,7 +56,11 @@ struct Waveforms
 
 inline bool ngspiceAvailable()
 {
+#ifdef _WIN32
+    return std::system ("where ngspice > NUL 2>&1") == 0;
+#else
     return std::system ("command -v ngspice > /dev/null 2>&1") == 0;
+#endif
 }
 
 /** `netlistBody` holds components and models; `probes` are SPICE vector

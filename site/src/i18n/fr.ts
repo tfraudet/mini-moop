@@ -6,7 +6,7 @@ const fr: Dict = {
   meta: {
     title: 'Mini Moop : un Minimoog Model D simulé composant par composant',
     description:
-      'Mini Moop est un synthétiseur gratuit pour macOS (VST® 3, AU, application autonome) qui simule le Minimoog Model D au niveau de ses composants électroniques.',
+      'Mini Moop est un synthétiseur gratuit pour macOS et Windows (VST® 3, application autonome et AU sur macOS) qui simule le Minimoog Model D au niveau de ses composants électroniques.',
   },
   nav: {
     how: 'Fonctionnement',
@@ -19,7 +19,7 @@ const fr: Dict = {
   hero: {
     tagline: 'Un Minimoog Model D, simulé composant par composant',
     lead:
-      'Un synthétiseur gratuit pour macOS, en plugin VST® 3, en Audio Unit et en application autonome. Au lieu d’imiter le son, il calcule ce que fait chaque transistor, condensateur et résistance du circuit d’origine, des milliers de fois par seconde.',
+      'Un synthétiseur gratuit pour macOS et Windows, en plugin VST® 3 et en application autonome, ainsi qu’en Audio Unit sur macOS. Au lieu d’imiter le son, il calcule ce que fait chaque transistor, condensateur et résistance du circuit d’origine, des milliers de fois par seconde.',
     download: 'Télécharger',
     source: 'Code source sur GitHub',
     themes: 'Thème du panneau',
@@ -64,7 +64,7 @@ const fr: Dict = {
       'Une banque Factory de 52 presets, et vos propres banques de sons à créer, importer et exporter',
       'Deux thèmes de panneau, Moderne et Classique, sur un panneau vectoriel redimensionnable',
       'Amplitude du pitch bend réglable, profondeur de modulation mémorisée, boucle de la sortie vers l’entrée externe',
-      'Binaires universels pour les Mac Apple Silicon et Intel',
+      'Binaires universels pour les Mac Apple Silicon et Intel, et binaires x64 pour Windows',
     ],
   },
   listen: {
@@ -82,17 +82,27 @@ const fr: Dict = {
   },
   download: {
     title: 'Télécharger',
-    intro: 'Gratuit et open source. Choisissez le format qu’utilise votre logiciel de musique.',
+    intro: 'Gratuit et open source. Choisissez votre plateforme : un ZIP contient l’application et les plugins.',
     version: 'Version {version}, publiée le {date}',
     noRelease: 'La première version arrive bientôt : les boutons ouvrent la page des versions sur GitHub.',
-    installIn: 'À installer dans',
-    formats: {
-      app: { name: 'Application autonome', detail: 'Se joue seule avec n’importe quel clavier MIDI, sans logiciel de musique' },
-      vst3: { name: 'Plugin VST3', detail: 'Ableton Live, Bitwig Studio, Cubase, Reaper, Studio One…' },
-      au: { name: 'Audio Unit', detail: 'Logic Pro, GarageBand, MainStage…' },
+    downloadZip: 'Télécharger le ZIP',
+    archivePending: 'Archive pas encore ajoutée — voir la version',
+    platforms: {
+      macos: {
+        name: 'macOS',
+        detail: 'Application autonome + VST3 + Audio Unit',
+        requirements: 'macOS 11 ou plus récent · Apple Silicon et Intel',
+        install: 'Décompressez le ZIP. Placez Mini Moop.app dans /Applications, Mini Moop.vst3 dans ~/Library/Audio/Plug-Ins/VST3 et Mini Moop.component dans ~/Library/Audio/Plug-Ins/Components. Créez ces dossiers de plugins si nécessaire, puis redémarrez votre logiciel de musique.',
+      },
+      windows: {
+        name: 'Windows',
+        detail: 'Application autonome + VST3',
+        requirements: 'Windows 10 ou plus récent · x64',
+        install: 'Décompressez le ZIP avant de lancer Mini Moop.exe. Copiez le dossier Mini Moop.vst3 entier dans C:\\Program Files\\Common Files\\VST3 (une autorisation administrateur peut être nécessaire), puis redémarrez votre logiciel de musique. Les Audio Units sont réservées à macOS.',
+      },
     },
-    requirements: 'macOS 11 ou plus récent, sur un Mac Apple Silicon ou Intel.',
-    quarantineTitle: 'Avant le premier lancement',
+    installIntro: 'L’application autonome se joue avec un clavier MIDI, sans logiciel hôte. Utilisez le VST3 dans un logiciel de musique compatible, ou l’Audio Unit dans Logic Pro, GarageBand et MainStage.',
+    quarantineTitle: 'macOS : avant le premier lancement',
     quarantineText:
       'Mini Moop n’est pas signé avec un certificat de développeur Apple, donc macOS le bloque après un téléchargement. Retirez une fois l’attribut de quarantaine, dans l’application Terminal, sur les éléments que vous avez installés :',
     copy: 'Copier',

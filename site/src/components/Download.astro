@@ -1,6 +1,6 @@
 ---
 import { fill, t, type Lang } from '../i18n';
-import { formats, getLatestRelease, type Format } from '../lib/release';
+import { platforms, getLatestRelease } from '../lib/release';
 import FormatIcon from './FormatIcon.astro';
 
 interface Props { lang: Lang }
@@ -10,15 +10,6 @@ const release = await getLatestRelease();
 const date = release.date
   ? new Intl.DateTimeFormat(lang, { dateStyle: 'long', timeZone: 'UTC' }).format(release.date)
   : '';
-const installDir: Record<Format, string> = {
-  app: '/Applications',
-  vst3: '~/Library/Audio/Plug-Ins/VST3',
-  au: '~/Library/Audio/Plug-Ins/Components',
-};
-/** A path that wraps only after a slash (never inside "Plug-Ins"). */
-const breakablePath = (path: string) =>
-  path.split('/').map((part) => `<span class="nowrap">${part}</span>`).join('/<wbr>');
-const glyph: Record<Format, string> = { app: 'APP', vst3: 'VST3', au: 'AU' };
 const quarantine = [
   'xattr -dr com.apple.quarantine "/Applications/Mini Moop.app"',
   'xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"Mini Moop.vst3"',
@@ -36,19 +27,31 @@ const quarantine = [
     </p>
 
     <div class="formats">
-      {formats.map((f) => (
-        <a class="format" href={release.links[f]} rel="noopener">
+      {platforms.map((platform) => (
+        <a class="format" href={release.links[platform] ?? release.url} rel="noopener">
           <span class="format-head" aria-hidden="true">
-            <FormatIcon format={f} />
-            <span class="format-glyph">{glyph[f]}</span>
+            <FormatIcon format="app" />
+            <span class="format-glyph">{platform === 'macos' ? 'UNIVERSAL' : 'X64'}</span>
           </span>
-          <span class="format-name">{tr.formats[f].name}</span>
-          <span class="format-detail">{tr.formats[f].detail}</span>
-          <span class="format-install">{tr.installIn} <code set:html={breakablePath(installDir[f])} /></span>
+          <span class="format-name">{tr.platforms[platform].name}</span>
+          <span class="format-detail">{tr.platforms[platform].detail}</span>
+          <span class="format-install">{tr.platforms[platform].requirements}</span>
+          <span class="format-cta">
+            {release.links[platform] ? tr.downloadZip : tr.archivePending} →
+          </span>
         </a>
       ))}
     </div>
-    <p class="requirements">{tr.requirements}</p>
+    <p class="requirements">{tr.installIntro}</p>
+
+    <div class="install-notes">
+      {platforms.map((platform) => (
+        <div>
+          <h3>{tr.platforms[platform].name}</h3>
+          <p>{tr.platforms[platform].install}</p>
+        </div>
+      ))}
+    </div>
 
     <div class="quarantine">
       <h3>{tr.quarantineTitle}</h3>
