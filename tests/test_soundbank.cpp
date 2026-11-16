@@ -31,6 +31,12 @@ namespace
 {
 juce::String factoryJson() { return juce::String::fromUTF8 (MiniMoopAssets::Factory_json, MiniMoopAssets::Factory_jsonSize); }
 
+juce::String canonicalJsonText (juce::String text)
+{
+    text = text.replace ("\r\n", "\n");
+    return text.replace ("\r", "\n");
+}
+
 /** Fresh banks folder in a temporary directory, deleted at the end of the test. */
 struct TempLibrary
 {
@@ -157,7 +163,7 @@ TEST_CASE ("Library mirrors Factory to disk and protects it", "[banks]")
     auto& lib = *t.lib;
     const auto factoryFile = t.dir.getChildFile ("Factory.json");
     REQUIRE (factoryFile.existsAsFile());
-    CHECK (factoryFile.loadFileAsString() == factoryJson());
+    CHECK (canonicalJsonText (factoryFile.loadFileAsString()) == canonicalJsonText (factoryJson()));
     CHECK (lib.getBanks().size() == 1);
     CHECK (lib.getFactory()->readOnly);
     CHECK (lib.getDefaultBankId() == "Factory");
@@ -171,7 +177,7 @@ TEST_CASE ("Library mirrors Factory to disk and protects it", "[banks]")
     // an edited copy on disk is restored by the built-in one
     factoryFile.replaceWithText ("{}");
     mm::BankLibrary again (t.dir, factoryJson());
-    CHECK (factoryFile.loadFileAsString() == factoryJson());
+    CHECK (canonicalJsonText (factoryFile.loadFileAsString()) == canonicalJsonText (factoryJson()));
 }
 
 TEST_CASE ("Library bank and preset operations", "[banks]")
@@ -247,7 +253,7 @@ TEST_CASE ("Import and export", "[banks]")
 
     const auto exported = t.root.getFile().getChildFile ("exported.json");
     REQUIRE (lib.exportBank ("Factory", exported).wasOk());
-    CHECK (exported.loadFileAsString() == factoryJson());
+    CHECK (canonicalJsonText (exported.loadFileAsString()) == canonicalJsonText (factoryJson()));
 
     // importing a bank named "Factory" never replaces the built-in one
     juce::String id;

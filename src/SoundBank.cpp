@@ -29,6 +29,14 @@ namespace
 {
 juce::Result fail (const juce::String& message) { return juce::Result::fail (message); }
 
+juce::String canonicalJsonText (const juce::String& text)
+{
+    auto cleaned = text;
+    cleaned = cleaned.replace ("\r\n", "\n");
+    cleaned = cleaned.replace ("\r", "\n");
+    return cleaned;
+}
+
 juce::var valueToVar (float v)
 {
     const double rounded = std::round (double (v) * 10000.0) / 10000.0;
@@ -135,8 +143,8 @@ juce::String SoundBank::toJson() const
     root->setProperty ("categories", cats);
 
     return juce::JSON::toString (juce::var (root.release()),
-                                 juce::JSON::FormatOptions().withSpacing (juce::JSON::Spacing::multiLine)
-                                                            .withMaxDecimalPlaces (4)) + "\n";
+                                juce::JSON::FormatOptions().withSpacing (juce::JSON::Spacing::multiLine)
+                                                           .withMaxDecimalPlaces (4)) + "\n";
 }
 
 int SoundBank::numPresets() const noexcept
@@ -233,9 +241,12 @@ void BankLibrary::installFactory (const juce::String& factoryJson)
 
     // Mirror the built-in bank to disk so it can be seen, copied and exported.
     // The built-in version always wins over an edited copy.
-    if (directory.createDirectory().wasOk()
-        && (! bank->file.existsAsFile() || bank->file.loadFileAsString() != factoryJson))
-        bank->file.replaceWithText (factoryJson, false, false, "\n");
+    if (directory.createDirectory().wasOk())
+    {
+        const auto existing = bank->file.existsAsFile() ? bank->file.loadFileAsString() : juce::String();
+        if (! bank->file.existsAsFile() || canonicalJsonText (existing) != canonicalJsonText (factoryJson))
+            bank->file.replaceWithText (factoryJson, false, false, "\n");
+    }
 
     const juce::ScopedLock sl (lock);
     factory = std::move (bank);
