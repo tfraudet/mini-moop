@@ -10,6 +10,7 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 // The build runs from site/: a sample is playable once its file is in public/audio/
 const audioDir = join(process.cwd(), 'public', 'audio');
 const items = samples.map((s) => ({ ...s, ready: existsSync(join(audioDir, s.file)) }));
+const waveformBars = 56;
 ---
 <section id="listen" class="section alt">
   <div class="wrap">
@@ -21,7 +22,29 @@ const items = samples.map((s) => ({ ...s, ready: existsSync(join(audioDir, s.fil
           <h3>{s.preset}</h3>
           <p>{tr.samples[s.text]}</p>
           {s.ready
-            ? <audio controls preload="none" src={`${base}audio/${s.file}`}></audio>
+            ? (
+              <div class="sample-player">
+                <button class="sample-play" type="button" aria-label={tr.play}
+                        data-play-label={tr.play} data-pause-label={tr.pause}>
+                  <svg class="play-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  <svg class="pause-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z" /></svg>
+                </button>
+                <div class="sample-track">
+                  <div class="sample-waveform">
+                    {Array.from({ length: waveformBars }, () => <span class="wave-bar"></span>)}
+                    <input class="sample-seek" type="range" min="0" max="1000" value="0"
+                           aria-label={tr.seek} disabled />
+                  </div>
+                  <div class="sample-time">
+                    <span class="sample-current">0:00</span>
+                    <span class="sample-duration">0:00</span>
+                  </div>
+                  <span class="sample-error" role="status" hidden>{tr.playError}</span>
+                  <span class="sample-error waveform-error" role="status" hidden>{tr.waveformError}</span>
+                </div>
+                <audio preload="metadata" src={`${base}audio/${s.file}`}></audio>
+              </div>
+            )
             : <p class="soon">{tr.soon}</p>}
         </article>
       ))}
@@ -30,8 +53,120 @@ const items = samples.map((s) => ({ ...s, ready: existsSync(join(audioDir, s.fil
 </section>
 
 <script>
-  // One sample at a time: starting a player pauses the others
+  import { waveformHeights } from '../lib/waveform';
+
   const players = [...document.querySelectorAll<HTMLAudioElement>('.sample audio')];
-  for (const p of players)
-    p.addEventListener('play', () => players.forEach((o) => o !== p && o.pause()));
+  let waveformContext: OfflineAudioContext | undefined;
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  };
+
+  for (const audio of players) {
+    const player = audio.closest<HTMLElement>('.sample-player');
+    const playButton = player?.querySelector<HTMLButtonElement>('.sample-play');
+    const seek = player?.querySelector<HTMLInputElement>('.sample-seek');
+    const current = player?.querySelector<HTMLElement>('.sample-current');
+    const duration = player?.querySelector<HTMLElement>('.sample-duration');
+    const waveform = player?.querySelector<HTMLElement>('.sample-waveform');
+    const error = player?.querySelector<HTMLElement>('.sample-error');
+    const waveformError = player?.querySelector<HTMLElement>('.waveform-error');
+    if (!player || !playButton || !seek || !current || !duration || !waveform || !error || !waveformError) continue;
+
+    const bars = [...waveform.querySelectorAll<HTMLElement>('.wave-bar')];
+    const loadWaveform = async () => {
+      try {
+        waveformContext ??= new OfflineAudioContext(1, 1, 44100);
+        const response = await fetch(audio.src);
+        if (!response.ok) throw new Error(`Audio request failed: HTTP ${response.status}`);
+        const buffer = await waveformContext.decodeAudioData(await response.arrayBuffer());
+        const channels = Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i));
+        waveformHeights(channels, bars.length).forEach((height, i) => {
+          bars[i].style.setProperty('--bar-height', `${height}%`);
+        });
+      } catch (reason) {
+        waveformError.hidden = false;
+        console.error('Waveform generation failed:', reason);
+      }
+    };
+    void loadWaveform();
+    const playLabel = playButton.dataset.playLabel ?? '';
+    const pauseLabel = playButton.dataset.pauseLabel ?? '';
+    const startPlayback = () => {
+      if (!audio.paused) return;
+      audio.play().catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === 'AbortError') return;
+        error.hidden = false;
+        console.error('Audio playback failed:', reason);
+      });
+    };
+    const updateProgress = () => {
+      const progress = Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.currentTime / audio.duration : 0;
+      seek.value = String(Math.round(progress * Number(seek.max)));
+      current.textContent = formatTime(audio.currentTime);
+      waveform.style.setProperty('--played', `${progress * 100}%`);
+      bars.forEach((bar, index) => {
+        bar.classList.toggle('is-played', (index + 0.5) / bars.length <= progress);
+      });
+    };
+
+    const resetPlayer = () => {
+      audio.pause();
+      if (audio.currentTime !== 0) audio.currentTime = 0;
+      updateProgress();
+    };
+    resetPlayer();
+    window.addEventListener('pageshow', (event) => {
+      if (!event.persisted) resetPlayer();
+      else updateProgress();
+    });
+
+    const updateDuration = () => {
+      if (!Number.isFinite(audio.duration) || audio.duration <= 0) return;
+      duration.textContent = formatTime(audio.duration);
+      seek.disabled = false;
+    };
+    audio.addEventListener('loadedmetadata', updateDuration);
+    if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) updateDuration();
+    audio.addEventListener('error', () => {
+      error.hidden = false;
+      console.error('Audio loading failed:', audio.error);
+    });
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('play', () => {
+      error.hidden = true;
+      for (const other of players) if (other !== audio) other.pause();
+      player.classList.add('is-playing');
+      playButton.setAttribute('aria-label', pauseLabel);
+    });
+    audio.addEventListener('pause', () => {
+      player.classList.remove('is-playing');
+      playButton.setAttribute('aria-label', playLabel);
+    });
+    audio.addEventListener('ended', () => {
+      audio.currentTime = 0;
+      updateProgress();
+    });
+    playButton.addEventListener('click', () => {
+      if (audio.paused) startPlayback();
+      else audio.pause();
+    });
+    seek.addEventListener('input', () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        audio.currentTime = (Number(seek.value) / Number(seek.max)) * audio.duration;
+        updateProgress();
+        startPlayback();
+      }
+    });
+    seek.addEventListener('click', (event) => {
+      if (event.detail === 0 || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+      const bounds = seek.getBoundingClientRect();
+      const progress = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+      audio.currentTime = progress * audio.duration;
+      updateProgress();
+      startPlayback();
+    });
+  }
 </script>

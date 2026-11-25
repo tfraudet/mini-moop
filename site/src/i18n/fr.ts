@@ -71,6 +71,11 @@ const fr: Dict = {
     title: 'Écouter',
     intro: 'Les seuls effets ajoutés à certains échantillons sont la réverbération et le delay.',
     soon: 'Enregistrement bientôt disponible',
+    play: 'Lire',
+    pause: 'Mettre en pause',
+    seek: 'Parcourir l’enregistrement',
+    playError: 'Impossible de lire cet enregistrement.',
+    waveformError: 'Impossible d’afficher la forme d’onde.',
     samples: {
       'sample-1': 'Une basse pulsée et très résonante, avec une boucle de feedback (banque Factory).',
       'sample-2': 'Une basse dense formée de trois dents de scie légèrement désaccordées, sculptée par une enveloppe de filtre marquée (inspiré par CA-72).',

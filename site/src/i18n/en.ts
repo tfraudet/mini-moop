@@ -70,6 +70,11 @@ const en = {
     title: 'Listen',
     intro: 'The only added effects on some samples are reverb and delay.',
     soon: 'Recording coming soon',
+    play: 'Play',
+    pause: 'Pause',
+    seek: 'Seek through recording',
+    playError: 'Unable to play this recording.',
+    waveformError: 'Unable to display the waveform.',
     samples: {
       'sample-1': 'A pulsing, highly resonant bass with a feedback edge (Factory bank).',
       'sample-2': 'A dense bass built from three slightly detuned sawtooths, shaped by a punchy filter envelope (inpired by CA-72).',
