@@ -19,6 +19,10 @@ const en = {
     tagline: 'A Minimoog Model D, simulated component by component',
     lead:
       'A free synthesizer for macOS and Windows, as a VST® 3 plugin and a standalone app, plus an Audio Unit on macOS. Instead of imitating the sound, it calculates what every transistor, capacitor and resistor of the original circuit does, many thousands of times per second.',
+    compatibility: 'Platforms and formats',
+    platforms: 'Operating systems',
+    formats: 'Formats',
+    standalone: 'Standalone',
     download: 'Download',
     source: 'Source code on GitHub',
     themes: 'Panel theme',

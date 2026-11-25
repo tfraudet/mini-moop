@@ -41,6 +41,10 @@ h2::after {
 .intro { color: var(--muted); max-width: 46rem; font-size: 1.1rem; margin: 0 0 2rem; }
 .small { font-size: 0.85rem; }
 .nowrap { white-space: nowrap; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 
 /* Header */
 .site-header {
@@ -63,11 +67,33 @@ h2::after {
 
 /* Hero */
 .hero { padding: 3.5rem 0 4rem; background: radial-gradient(ellipse at top, #2a2420 0%, var(--bg) 70%); }
-.hero-text { text-align: center; max-width: 48rem; margin: 0 auto 2.5rem; }
+.hero-text { text-align: center; max-width: 64rem; margin: 0 auto 2.5rem; }
 .hero-icon { margin: 0 auto 1rem; width: 96px; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.6)); }
 .hero h1 { font-size: clamp(2.6rem, 6vw, 4rem); margin-bottom: 0.2em; letter-spacing: -0.01em; }
 .tagline { font-size: clamp(1.15rem, 2.4vw, 1.45rem); color: var(--cream); margin: 0 0 1rem; }
-.lead { color: var(--muted); margin: 0 0 1.75rem; }
+.hero-details {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  gap: 2rem; margin: 0 auto 1.75rem; text-align: left;
+}
+.lead { color: var(--muted); margin: 0; }
+.hero-compatibility {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1.5rem;
+  grid-column: 1; grid-row: 1; border-right: 1px solid var(--line); padding-right: 1.5rem;
+}
+.hero-details .lead { grid-column: 2; grid-row: 1; }
+.hero-compatibility ul { display: grid; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+.hero-compatibility li {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  color: var(--text); font-size: 0.85rem; line-height: 1.25;
+}
+.hero-compat-icon, .hero-compat-logo {
+  display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center;
+  border: 1px solid #e4e0da; border-radius: 8px; background: #fff;
+}
+.hero-compat-icon svg { width: 25px; height: 25px; }
+.hero-compat-icon:not(.hero-app-icon) svg { fill: currentColor; }
+.hero-compat-icon.platform-mark-macos, .hero-app-icon { color: #24211e; }
+.hero-compat-logo .format-logo-square { width: 28px; height: 28px; border-radius: 3px; }
 .actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.75rem; margin: 0; }
 .button {
   display: inline-block; padding: 0.7rem 1.4rem; border-radius: 999px; font-weight: 600; text-decoration: none;
@@ -236,6 +262,9 @@ svg.format-icon {
 @media (max-width: 640px) {
   .section { padding: 3rem 0; }
   .nav { justify-content: center; }
+  .hero-details { grid-template-columns: 1fr; gap: 1.5rem; text-align: center; }
+  .hero-details .lead { grid-column: 1; grid-row: 1; }
+  .hero-compatibility { grid-column: 1; grid-row: 2; justify-content: center; border: 0; padding: 0; text-align: left; }
   .cards, .samples, .formats, .features { grid-template-columns: 1fr; }
 }
 

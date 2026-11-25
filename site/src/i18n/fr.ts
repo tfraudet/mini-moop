@@ -20,6 +20,10 @@ const fr: Dict = {
     tagline: 'Un Minimoog Model D, simulé composant par composant',
     lead:
       'Un synthétiseur gratuit pour macOS et Windows, en plugin VST® 3 et en application autonome, ainsi qu’en Audio Unit sur macOS. Au lieu d’imiter le son, il calcule ce que fait chaque transistor, condensateur et résistance du circuit d’origine, des milliers de fois par seconde.',
+    compatibility: 'Plateformes et formats',
+    platforms: 'Systèmes',
+    formats: 'Formats',
+    standalone: 'Application autonome',
     download: 'Télécharger',
     source: 'Code source sur GitHub',
     themes: 'Thème du panneau',
