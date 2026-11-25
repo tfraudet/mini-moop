@@ -26,17 +26,7 @@ npm run preview     # serves site/dist
 
 The Listen section shows the samples listed in `src/data/samples.ts`, in that order. Each one is played from `public/audio/<file>`; while the file is missing, its card shows "Recording coming soon". To add a recording, drop the file in `public/audio/` with the expected name. To use another preset, change its line in `samples.ts`, and its description in `listen.samples` in both `en.ts` and `fr.ts`.
 
-| File | Preset |
-|---|---|
-| `01-fat-bass.mp3` | Fat Bass |
-| `02-solo-lead.mp3` | Solo Lead |
-| `03-self-osc-whistle.mp3` | Self-Osc Whistle |
-| `04-70s-french-sci-fi-movie.mp3` | '70s French Sci-Fi Movie |
-| `05-poly-brass.mp3` | Poly Brass |
-| `06-osc3-wobble.mp3` | Osc 3 Wobble |
-
 Recording advice:
-- No effects (reverb, delay, compression): what is heard should be the simulated circuit. Say so in `listen.intro` if you add some.
 - 10 to 25 seconds, a short phrase that shows the sound, ending on a natural release rather than a cut.
 - Peaks below -1 dBFS and a similar loudness for all six (about -16 LUFS), so that the visitor does not have to change the volume between samples.
 - MP3 at 160 to 192 kbit/s, or AAC (`.m4a`, `afconvert -f m4af -d aac -b 192000 in.wav out.m4a` on macOS). With AAC, change the extension in `samples.ts`. Keep each file under 1 MB if possible: they are committed to the repository. WAV files are ignored by git (`.gitignore`).
@@ -55,7 +45,7 @@ done
 
 ## Downloads and releases
 
-The two platform download cards are filled at build time from the repository's latest GitHub Release (`src/lib/release.ts`). Upload the archives produced by the Build workflow to that release with these names (matching is case-insensitive):
+The platform download cards are filled at build time from the repository's latest GitHub Release (`src/lib/release.ts`). Upload the archives produced by the Build workflow to that release with these names (matching is case-insensitive):
 
 ```
 MiniMoop-<version>-universal-macos.zip
