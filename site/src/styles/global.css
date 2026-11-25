@@ -54,6 +54,8 @@ h2::after {
 .nav-links { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; list-style: none; margin: 0; padding: 0.4rem 0; }
 .nav-links a { color: var(--text); text-decoration: none; font-size: 0.95rem; }
 .nav-links a:hover { color: var(--orange); }
+.nav-links .github-link { display: flex; align-items: center; padding: 0.1rem; }
+.github-icon { width: 1.35rem; height: 1.35rem; fill: currentColor; }
 .nav-links .lang {
   border: 1px solid var(--line); border-radius: 999px; padding: 0.15rem 0.7rem; color: var(--muted);
 }
@@ -139,6 +141,14 @@ h2::after {
 .format-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
 .format-icon { width: 56px; height: 56px; color: var(--cream); transition: color 0.2s; }
 img.format-icon { border-radius: 10px; }
+.platform-mark {
+  display: grid; width: 56px; height: 56px; place-items: center;
+  border: 1px solid #4a443e; border-radius: 10px;
+  background: linear-gradient(160deg, #3a3530, #1f1d1b);
+}
+.platform-mark svg { width: 30px; height: 30px; fill: currentColor; }
+.platform-mark-macos { color: var(--cream); }
+.platform-mark-windows { color: #00a4ef; }
 /* The VST logo: Steinberg's minimum is 15 mm (57 px) wide; never scaled down */
 .format-logo { width: 72px; min-width: 72px; height: auto; }
 /* Apple's and Steinberg's logos on their white squares, at the same size */

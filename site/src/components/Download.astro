@@ -1,7 +1,6 @@
 ---
 import { fill, t, type Lang } from '../i18n';
 import { platforms, getLatestRelease } from '../lib/release';
-import FormatIcon from './FormatIcon.astro';
 
 interface Props { lang: Lang }
 const { lang } = Astro.props;
@@ -30,7 +29,19 @@ const quarantine = [
       {platforms.map((platform) => (
         <a class="format" href={release.links[platform] ?? release.url} rel="noopener">
           <span class="format-head" aria-hidden="true">
-            <FormatIcon format="app" />
+            {platform === 'macos' ? (
+              <span class="platform-mark platform-mark-macos">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18.7 19.5c-.8 1.2-1.7 2.4-3 2.5-1.3 0-1.8-.8-3.3-.8s-2 .8-3.3.8c-1.3 0-2.3-1.3-3.1-2.6-1.7-2.5-3-7-1.3-10.1.9-1.5 2.5-2.5 4.2-2.5 1.3 0 2.5.9 3.3.9s2.2-1.1 3.8-.9c.6 0 2.4.3 3.6 2-.1.1-2.1 1.3-2.1 3.8 0 3 2.6 3.9 2.6 4-.1.1-.5 1.4-1.3 2.9ZM14 3.5c.7-.8 1.8-1.4 2.8-1.5.1 1.1-.3 2.2-1 3-.7.8-1.7 1.4-2.8 1.4-.1-1.1.4-2.2 1-2.9Z" />
+                </svg>
+              </span>
+            ) : (
+              <span class="platform-mark platform-mark-windows">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M1.5 4.1 10.4 2.9v8.4H1.5V4.1Zm10.1-1.4 10.9-1.6v10.2H11.6V2.7ZM1.5 12.5h8.9v8.4l-8.9-1.2v-7.2Zm10.1 0h10.9v10.2l-10.9-1.6V12.5Z" />
+                </svg>
+              </span>
+            )}
             <span class="format-glyph">{platform === 'macos' ? 'UNIVERSAL' : 'X64'}</span>
           </span>
           <span class="format-name">{tr.platforms[platform].name}</span>
